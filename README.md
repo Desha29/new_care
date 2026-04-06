@@ -1,8 +1,8 @@
-<div dir="rtl" align="center">
+<div align="center">
 
-# 🏥 نيو كير - New Care
+# 🏥 New Care
 
-**نظام مكتبي متكامل لإدارة مراكز التمريض والرعاية الطبية المنزلية**
+**A Comprehensive Desktop Management System for Nursing Centers & Home Healthcare**
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-blue.svg?logo=flutter)](https://flutter.dev)
 [![Firebase](https://img.shields.io/badge/Firebase-Firestore%20%7C%20Auth-orange.svg?logo=firebase)](https://firebase.google.com)
@@ -13,79 +13,75 @@
 
 </div>
 
-<div dir="rtl">
-
-## 📝 نبذة عن النظام (About)
-**نيو كير** هو تطبيق مكتبي (Desktop Application) مبني باستخدام تقنية Flutter، مُصمم بالكامل لخدمة مراكز التمريض والرعاية الصحية. يوفر النظام بيئة عمل حديثة ومُتجاوبة بواجهة عربية احترافية، ويدمج بين التخزين المحلي السريع (SQLite) والتخزين السحابي الآمن (Firebase) لدعم الاستخدام سواء مع توفر الإنترنت أو انقطاعه.
+## 📝 About the Project
+**New Care** is a massive Desktop application built with Flutter, entirely designed to serve nursing and medical care centers. The system offers a modern and responsive RTL (Right-to-Left) Arabic interface and effectively combines fast local storage (SQLite) with secure cloud storage (Firebase). It ensures a seamless workflow, keeping data synced whether your machine is online or offline.
 
 ---
 
-## ✨ المميزات الأساسية (Key Features)
+## ✨ Key Features
 
-*   **👥 إدارة شاملة للمرضى:** إضافة، تعديل، وبحث لحظي عن المرضى وتتبع سجلهم الطبي.
-*   **🩺 تتبع الحالات والزيارات:** إدارة العمليات داخل المركز أو الزيارات المنزلية وتحديد الممرضين المسؤولين وإدارة التكاليف والخصومات.
-*   **📦 إدارة المخزون (Inventory):** متابعة حية لاستهلاك المستلزمات الطبية مع تنبيهات تلقائية في حالة اقتراب نفاد المخزون.
-*   **🖨️ فواتير وتقارير احترافية:** إمكانية إصدار وطباعة فواتير الحالات وحفظها بصيغة PDF سواء بأحجام قياسية (A4) أو عبر الطابعات الحرارية.
-*   **🔐 نظام الصلاحيات المتقدم:** نظام أمان مبني على أدوار المستخدمين (Super Admin, Admin, Nurse) لحماية البيانات.
-*   **📊 لوحة تحكم إحصائية (Dashboard):** عرض تقدير يومي للحالات والإيرادات ومعدلات العمل عبر رسوم بيانية وتفاعلية (Pie, Bar, Line Charts).
-*   **🔄 المزامنة الذكية:** تخزين محلي يعمل كنسخة احتياطية ويعمل على المزامنة الصامتة مع قاعدة بيانات Firebase عند توفر الإنترنت.
-
----
-
-## 🛠️ التقنيات المستخدمة (Tech Stack)
-
-تم بناء المشروع باتباع هيكلة **Feature-Driven Architecture** لضمان سهولة التطوير والصيانة:
-
-*   **إطار العمل (Framework):** Flutter Desktop (Windows/macOS)
-*   **إدارة الحالة (State Management):** BLoC / Cubit Pattern
-*   **الخوادم الجاهزة (Backend):** Firebase (Firestore, Authentication, Remote Config)
-*   **قاعدة البيانات المحلية (Local DB):** `sqflite_common_ffi` لبيئة سطح المكتب
-*   **الطباعة (Printing):** مكتبتي `pdf` و `printing`
-*   **الرسوم البيانية (Charts):** `fl_chart`
+*   **👥 Complete Patient Management:** Add, edit, real-time search, and manage full patient medical history and profiles.
+*   **🩺 Treatment Cases & Visits Tracking:** Manage operations seamlessly (both In-Center and Home Visits), assign responsible nurses, track costs, and calculate eligible discounts.
+*   **📦 Inventory Control:** Real-time tracking of medical supplies and equipment with automatic low-stock alerts and color-coded statuses.
+*   **🖨️ Professional Printing & Invoicing:** Ability to generate and export case invoices natively in PDF format. Capable of printing A4 documents or through RTL-supported Thermal Printers.
+*   **🔐 Advanced Role-Based Security:** System constraints backed by Firebase Rules ensuring full data security with different administrative powers (Super Admin, Admin, Nurse).
+*   **📊 Insightful Dashboard:** Analyze work performance with a daily estimate of generated cases, total revenues, and general metrics visualized interactively via Pie, Bar, and Line charts.
+*   **🔄 Smart Offline Sync:** Implemented a silent local persistence layer via SQLite to keep a backup and resynchronize automatically once internet connectivity is restored.
 
 ---
 
-## 🚀 كيفية التثبيت والتشغيل (Getting Started)
+## 🛠️ Tech Stack & Architecture
 
-### المتطلبات المسبقة (Prerequisites)
-1. بيئة تطوير Flutter مهيأة ومثبتة.
-2. تفعيل دعم سطح المكتب لـ Flutter: `flutter config --enable-windows-desktop` (أو macos).
-3. مشروع جاهز على Firebase يحتوي على Firestore و Authentication مفعل.
+This project is built adopting the **Feature-Driven Architecture & Clean Architecture principles** ensuring a highly maintainable, scalable, and testable source code structure.
 
-### الخطوات (Installation)
+*   **Framework:** Flutter Desktop (Windows / macOS)
+*   **State Management:** BLoC / Cubit Pattern
+*   **Backend Services:** Firebase (Firestore, Authentication, Remote Config)
+*   **Local Database:** `sqflite_common_ffi` (Desktop Optimized)
+*   **Printing Services:** `pdf` and `printing` packages
+*   **Data Visualization:** `fl_chart`
 
-1. **نسخ المشروع (Clone Repo):**
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+1. Installed and configured Flutter SDK environments.
+2. Enabled Flutter Desktop support: run `flutter config --enable-windows-desktop` (or macOS).
+3. A pre-configured Firebase project with Authentication and Firestore enabled.
+
+### Installation Steps
+
+1. **Clone the Repository:**
    ```bash
    git clone https://github.com/Desha29/new_care.git
    cd new_care
    ```
 
-2. **تنزيل الحزم والمكتبات (Get Packages):**
+2. **Fetch Dependencies:**
    ```bash
    flutter pub get
    ```
 
-3. **إعداد Firebase:**
-   قم بإعداد Firebase باستخدام الـ CLI `flutterfire configure` واربط المشروع بمشروعك السحابي.
+3. **Initialize Firebase Setup:**
+   Setup your `google-services.json` and initialize the project locally by running the `flutterfire configure` CLI command.
 
-4. **تفعيل إعدادات الأمان السحابية (Security Rules):**
-   قم بنسخ الإعدادات الموجودة في السكربت `firestore.rules` والصقها في إعدادات Rules الخاصة بغرفة Firestore في Firebase Console.
+4. **Verify Firestore Security Rules:**
+   Copy the code block located in the `firestore.rules` file and paste it into the Rules tab found in your Firebase Console's Firestore database section.
 
-5. **التشغيل (Run):**
+5. **Run the App:**
    ```bash
    flutter run -d windows
    ```
-   *(استبدل windows بـ macos إذا كنت تستخدم بيئة عمل Mac).*
+   *(Swap `windows` with `macos` if developing on a Mac environment).*
 
 ---
 
-## 📜 الصلاحيات وتوزيع المهام (Roles)
-- **المدير العام (Super Admin):** له صلاحيات مطلقة في إنشاء وتعيين المدراء والتعديل على إعدادات السيستم ككل.
-- **المدير (Admin):** التحكم وإصدار الحالات، تتبع وتقارير المخزون، وادارة تفاصيل المرضى.
-- **الممرض (Nurse):** صلاحيات تقتصر على المهام المفوضة له وإجراء التعديلات على حالاته الخاصة فقط.
+## 📜 System User Roles
+- **Super Administrator:** Grants absolute authorization to assign administrators and manipulate remote settings.
+- **Administrator:** Regulates workflows, issues cases, tracks inventory reports, and controls full patient details.
+- **Nurse:** Scope is limited uniquely to delegated cases, assigning used supplies, and marking their specific case workflows on closure.
 
 ---
 
-**صُنع بشغف لتمكين مزودي الرعاية الصحية! ❤️**
-
-</div>
+**Made with passion to empower medical professionals! ❤️**
