@@ -1,56 +1,128 @@
 <div align="center">
 
-# 🏥 New Care
+<img src="assets/images/logo.png" alt="New Care Logo" width="150"/>
 
-**A Comprehensive Desktop Management System for Nursing Centers & Home Healthcare**
+# 🏥 New Care Desktop Management System
 
-[![Flutter](https://img.shields.io/badge/Flutter-3.x-blue.svg?logo=flutter)](https://flutter.dev)
-[![Firebase](https://img.shields.io/badge/Firebase-Firestore%20%7C%20Auth-orange.svg?logo=firebase)](https://firebase.google.com)
-[![SQLite](https://img.shields.io/badge/SQLite-Local%20Storage-lightgrey.svg?logo=sqlite)](https://sqlite.org)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-lightgrey.svg)](#)
+**A Comprehensive Enterprise-grade Desktop Application Built with Flutter for Nursing & Health Care Centers**
 
----
+[![Flutter](https://img.shields.io/badge/Flutter-3.38-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
+[![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com)
+[![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://sqlite.org)
+[![Platform](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](#)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](#)
 
 </div>
 
-## 📝 About the Project
-**New Care** is a massive Desktop application built with Flutter, entirely designed to serve nursing and medical care centers. The system offers a modern and responsive RTL (Right-to-Left) Arabic interface and effectively combines fast local storage (SQLite) with secure cloud storage (Firebase). It ensures a seamless workflow, keeping data synced whether your machine is online or offline.
+<br/>
 
----
+## 📝 Project Overview
 
-## ✨ Key Features
+**New Care** is a massive Desktop application engineered with Flutter. Designed entirely around nursing centers and home healthcare providers, the system features a fluid, highly-responsive **RTL (Right-to-Left)** Arabic interface layout. It provides immense resilience by coupling fast **local execution storage (SQLite)** with dynamic **secure cloud storage (Firebase Firestore/Auth)** ensuring synchronized workflows whether your center is heavily internet-reliant or experiencing network downtimes.
 
-*   **👥 Complete Patient Management:** Add, edit, real-time search, and manage full patient medical history and profiles.
-*   **🩺 Treatment Cases & Visits Tracking:** Manage operations seamlessly (both In-Center and Home Visits), assign responsible nurses, track costs, and calculate eligible discounts.
-*   **📦 Inventory Control:** Real-time tracking of medical supplies and equipment with automatic low-stock alerts and color-coded statuses.
-*   **🖨️ Professional Printing & Invoicing:** Ability to generate and export case invoices natively in PDF format. Capable of printing A4 documents or through RTL-supported Thermal Printers.
-*   **🔐 Advanced Role-Based Security:** System constraints backed by Firebase Rules ensuring full data security with different administrative powers (Super Admin, Admin, Nurse).
-*   **📊 Insightful Dashboard:** Analyze work performance with a daily estimate of generated cases, total revenues, and general metrics visualized interactively via Pie, Bar, and Line charts.
-*   **🔄 Smart Offline Sync:** Implemented a silent local persistence layer via SQLite to keep a backup and resynchronize automatically once internet connectivity is restored.
+<br/>
 
----
+## 📐 System Architecture
 
-## 🛠️ Tech Stack & Architecture
+This project is deeply rooted in **Clean Architecture** patterns utilizing a **Feature-Driven** module structure ensuring high code cohesion and minimal coupling. State management is efficiently controlled via the **BLoC / Cubit Pattern**.
 
-This project is built adopting the **Feature-Driven Architecture & Clean Architecture principles** ensuring a highly maintainable, scalable, and testable source code structure.
+```mermaid
+graph TD
+    UI[User Interface - Flutter GUI] -->|Events| BLoC[BLoC State Controllers]
+    BLoC -->|States| UI
+    
+    BLoC -->|Requests/Actions| Services[Core Services Layer]
+    
+    Services --> FireAuth{Firebase Auth}
+    Services --> Firestore[(Cloud-Firestore)]
+    Services --> SQLite[(Local-SQLite DB)]
+    
+    SQLite <-->|Background Sync Service| Firestore
+    
+    Services --> Print[Printing & Invoice Gen Service]
+```
 
-*   **Framework:** Flutter Desktop (Windows / macOS)
-*   **State Management:** BLoC / Cubit Pattern
-*   **Backend Services:** Firebase (Firestore, Authentication, Remote Config)
-*   **Local Database:** `sqflite_common_ffi` (Desktop Optimized)
-*   **Printing Services:** `pdf` and `printing` packages
-*   **Data Visualization:** `fl_chart`
+<br/>
 
----
+## ✨ Core Modules & Features
+
+### 1. 👥 Complete Patient Portfolio Management
+Maintains accurate digital medical records keeping all visits, prescriptions, and history interconnected. Enables real-time global search indexing.
+
+### 2. 🩺 Tracking Operations & Automated Workflows
+```mermaid
+stateDiagram-v2
+    [*] --> Pending : New Case Issued
+    Pending --> InProgress : Nurse Assigned & Approved
+    InProgress --> Completed : Treatment Finished
+    InProgress --> Cancelled : Emergency/Halted
+    Completed --> [*] : Case Archived
+```
+
+### 3. 📦 Granular Inventory Tracking
+- Real-time logging of supplies.
+- Computes margins & cost per item accurately.
+- Visual alerts triggering upon low-stock thresholds.
+
+### 4. 🔐 Enhanced Role-Based Security Rules
+Firebase Firestore rules mapped efficiently against Auth Tokens. Ensures zero cross-contamination of permissions between layers.
+- **Super Administrator:** Absolute authorization & remote kill-switches.
+- **Center Administrator:** Main hub driver. Regulates workflow and financial reporting.
+- **Nurse/Operative:** View/update only specifically assigned workloads and case tracking.
+
+<br/>
+
+## 🗄️ Database Schema & Object Relations
+
+```mermaid
+erDiagram
+    USERS ||--o{ CASES : manages
+    PATIENTS ||--o{ CASES : undergoes
+    NURSES ||--o{ CASES : assigned_to
+    CASES ||--|{ SERVICES_PROVIDED : includes
+    CASES ||--o{ SUPPLIES_USED : consumes
+    INVENTORY ||--o{ SUPPLIES_USED : provides
+    
+    USERS {
+        string ID
+        string Name
+        string Role "Admin / Nurse"
+    }
+    CASES {
+        string CaseID
+        string Status "Pending / In_Progress / Completed"
+        float TotalPrice
+        datetime Date
+    }
+    PATIENTS {
+        string PatientID
+        string History
+    }
+    INVENTORY {
+        string ItemID
+        int StockLevel
+        float UnitPrice
+    }
+```
+
+<br/>
+
+## 📊 Analytics & Reporting
+An insightful Dashboard visualizing performance efficiently. Data flows synchronously representing a 360-view into:
+- Overall center earnings and net revenue.
+- Bar Charts monitoring high traffic days vs low traffic days.
+- Pie Charts distributing ongoing statuses for optimal operation execution.
+
+<br/>
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-1. Installed and configured Flutter SDK environments.
-2. Enabled Flutter Desktop support: run `flutter config --enable-windows-desktop` (or macOS).
-3. A pre-configured Firebase project with Authentication and Firestore enabled.
+1. Installed **Flutter SDK** environment variables.
+2. Initialized Desktop Build Systems (Visual Studio for Windows or Xcode for MacOS).
+3. Pre-configured Firebase cloud project matching your bundle identifiers.
 
-### Installation Steps
+### Environment Setup Instructions
 
 1. **Clone the Repository:**
    ```bash
@@ -58,30 +130,23 @@ This project is built adopting the **Feature-Driven Architecture & Clean Archite
    cd new_care
    ```
 
-2. **Fetch Dependencies:**
+2. **Acquire Pub Dependencies:**
    ```bash
    flutter pub get
    ```
 
-3. **Initialize Firebase Setup:**
-   Setup your `google-services.json` and initialize the project locally by running the `flutterfire configure` CLI command.
+3. **Database Rules Configuration:**
+   Inject the robust rules built inside `firestore.rules` script seamlessly into your Google Firebase backend.
 
-4. **Verify Firestore Security Rules:**
-   Copy the code block located in the `firestore.rules` file and paste it into the Rules tab found in your Firebase Console's Firestore database section.
-
-5. **Run the App:**
+4. **Run Application natively:**
    ```bash
    flutter run -d windows
    ```
-   *(Swap `windows` with `macos` if developing on a Mac environment).*
+
+<br/>
 
 ---
 
-## 📜 System User Roles
-- **Super Administrator:** Grants absolute authorization to assign administrators and manipulate remote settings.
-- **Administrator:** Regulates workflows, issues cases, tracks inventory reports, and controls full patient details.
-- **Nurse:** Scope is limited uniquely to delegated cases, assigning used supplies, and marking their specific case workflows on closure.
-
----
-
-**Made with passion to empower medical professionals! ❤️**
+<div align="center">
+<b>Developed with ❤️ to empower Healthcare Professionals!</b>
+</div>
