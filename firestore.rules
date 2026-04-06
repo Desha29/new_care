@@ -1,0 +1,126 @@
+// قواعد أمان Firestore - Firestore Security Rules
+// يتم لصق هذه القواعد في Firebase Console > Firestore > Rules
+//
+// Firestore Security Rules for New Care System
+// Paste these rules in Firebase Console > Firestore > Rules
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // === دوال مساعدة - Helper Functions ===
+
+    // التحقق من تسجيل الدخول
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // جلب بيانات المستخدم الحالي
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // التحقق من الدور
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+
+    // هل المستخدم مدير (admin أو super_admin)؟
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role in ['admin', 'super_admin'];
+    }
+
+    // هل المستخدم مدير عام؟
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserData().role == 'super_admin';
+    }
+
+    // هل الحساب نشط؟
+    function isActiveUser() {
+      return isAuthenticated() && getUserData().isActive == true;
+    }
+
+    // === المستخدمون - Users Collection ===
+    match /users/{userId} {
+      // القراءة: أي مستخدم مسجل ونشط
+      allow read: if isAuthenticated() && isActiveUser();
+
+      // الإنشاء: المدير العام فقط
+      allow create: if isSuperAdmin();
+
+      // التحديث: المدير العام أو المدير أو المستخدم نفسه (بيانات محدودة)
+      allow update: if isSuperAdmin()
+        || (isAdmin() && getUserData().role != 'super_admin')
+        || (request.auth.uid == userId && onlyUpdating(['name', 'phone']));
+
+      // الحذف: المدير العام فقط
+      allow delete: if isSuperAdmin();
+    }
+
+    // === المرضى - Patients Collection ===
+    match /patients/{patientId} {
+      // القراءة: أي مستخدم مسجل ونشط
+      allow read: if isAuthenticated() && isActiveUser();
+
+      // الإنشاء والتحديث: المدير أو المدير العام
+      allow create, update: if isAuthenticated() && isActiveUser() && isAdmin();
+
+      // الحذف: المدير العام فقط
+      allow delete: if isSuperAdmin();
+    }
+
+    // === الحالات - Cases Collection ===
+    match /cases/{caseId} {
+      // القراءة: أي مستخدم مسجل ونشط
+      allow read: if isAuthenticated() && isActiveUser();
+
+      // الإنشاء: المدير أو الممرض
+      allow create: if isAuthenticated() && isActiveUser();
+
+      // التحديث: المدير أو الممرض المعين للحالة
+      allow update: if isAuthenticated() && isActiveUser()
+        && (isAdmin() || resource.data.nurseId == request.auth.uid);
+
+      // الحذف: المدير فقط
+      allow delete: if isAdmin();
+    }
+
+    // === المستلزمات - Inventory Collection ===
+    match /inventory/{itemId} {
+      // القراءة: أي مستخدم مسجل ونشط
+      allow read: if isAuthenticated() && isActiveUser();
+
+      // الإنشاء والتحديث: المدير فقط
+      allow create, update: if isAuthenticated() && isActiveUser() && isAdmin();
+
+      // الحذف: المدير العام فقط
+      allow delete: if isSuperAdmin();
+    }
+
+    // === السجلات - Logs Collection ===
+    match /logs/{logId} {
+      // القراءة: المدير فقط
+      allow read: if isAuthenticated() && isActiveUser() && isAdmin();
+
+      // الإنشاء: أي مستخدم مسجل (لتسجيل الأنشطة)
+      allow create: if isAuthenticated() && isActiveUser();
+
+      // لا يمكن التحديث أو الحذف
+      allow update, delete: if false;
+    }
+
+    // === الإعدادات - Settings Collection ===
+    match /settings/{settingId} {
+      // القراءة: أي مستخدم مسجل ونشط
+      allow read: if isAuthenticated() && isActiveUser();
+
+      // التحديث: المدير العام فقط
+      allow write: if isSuperAdmin();
+    }
+
+    // === دالة مساعدة للتحقق من الحقول المحدثة فقط ===
+    function onlyUpdating(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+  }
+}

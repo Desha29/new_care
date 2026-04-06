@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "682276065096",
+    "project_id": "new-care-b25a1",
+    "storage_bucket": "new-care-b25a1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:682276065096:android:2dfa93add8d49f1fb06d7d",
+        "android_client_info": {
+          "package_name": "com.example.new_care"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkq2o26Hee0043H8ns_fl-NYXhsbclMkU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
