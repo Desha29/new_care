@@ -2,19 +2,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/models/user_model.dart';
 import '../../../../core/services/firebase_service.dart';
+import '../../../../core/services/local_log_service.dart';
 import 'auth_state.dart';
 
-/// كيوبت المصادقة - Auth Cubit
-/// يدير حالة تسجيل الدخول والمستخدم الحالي
 class AuthCubit extends Cubit<AuthState> {
   final FirebaseAuth _firebaseAuth;
   final FirebaseService _firebaseService;
   UserModel? _currentUser;
 
   AuthCubit()
-      : _firebaseAuth = FirebaseAuth.instance,
-        _firebaseService = FirebaseService.instance,
-        super(AuthInitial());
+    : _firebaseAuth = FirebaseAuth.instance,
+      _firebaseService = FirebaseService.instance,
+      super(AuthInitial());
 
   /// المستخدم الحالي - Current user
   UserModel? get currentUser => _currentUser;
@@ -36,8 +35,14 @@ class AuthCubit extends Cubit<AuthState> {
       } else {
         emit(AuthUnauthenticated());
       }
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        emit(AuthUnauthenticated());
+      } else {
+        emit(AuthError('حدث خطأ في التحقق من الحساب: ${e.message}'));
+      }
     } catch (e) {
-      emit(AuthError('حدث خطأ في التحقق من الحساب'));
+      emit(AuthError('حدث خطأ في التحقق من الحساب: $e'));
     }
   }
 
@@ -60,8 +65,8 @@ class AuthCubit extends Cubit<AuthState> {
           }
           _currentUser = user;
 
-          // تسجيل نشاط الدخول - Log login activity
-          await _firebaseService.logActivity(
+          // تسجيل نشاط الدخول محلياً - Log login activity locally
+          await LocalLogService.instance.logActivity(
             userId: user.id,
             userName: user.name,
             action: 'login',
@@ -97,8 +102,26 @@ class AuthCubit extends Cubit<AuthState> {
           message = 'خطأ في تسجيل الدخول: ${e.message}';
       }
       emit(AuthError(message));
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        emit(
+          const AuthError(
+            'حدث خطأ في الصلاحيات (Permission Denied). يرجى التأكد من تحديث Firestore Rules في كونسول فايربيز.',
+          ),
+        );
+      } else {
+        emit(AuthError('خطأ في الاتصال بقاعدة البيانات: ${e.message}'));
+      }
     } catch (e) {
-      emit(const AuthError('خطأ غير متوقع في تسجيل الدخول'));
+      if (e.toString().contains('permission-denied')) {
+        emit(
+          const AuthError(
+            'الصلاحيات غير كافية للوصول (Permission Denied). يرجى مراجعة القواعد (Rules) في كونسول فايربيز كمدير نظام.',
+          ),
+        );
+      } else {
+        emit(AuthError('خطأ غير متوقع في تسجيل الدخول: $e'));
+      }
     }
   }
 
@@ -106,7 +129,7 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> logout() async {
     try {
       if (_currentUser != null) {
-        await _firebaseService.logActivity(
+        await LocalLogService.instance.logActivity(
           userId: _currentUser!.id,
           userName: _currentUser!.name,
           action: 'logout',

@@ -10,7 +10,7 @@ import '../../../patients/presentation/screens/patients_screen.dart';
 import '../../../cases/presentation/screens/cases_screen.dart';
 import '../../../users/presentation/screens/users_screen.dart';
 import '../../../inventory/presentation/screens/inventory_screen.dart';
-import '../../../reports/presentation/screens/reports_screen.dart';
+import '../../../financials/presentation/screens/financials_screen.dart';
 import '../../../activity_logs/presentation/screens/logs_screen.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
 
@@ -25,18 +25,30 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
+  final Map<int, Widget> _screenCache = {}; // Cache to preserve screen state
 
-  // الشاشات المتاحة - Available screens
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-    const PatientsScreen(),
-    const CasesScreen(),
-    const UsersScreen(),
-    const InventoryScreen(),
-    const ReportsScreen(),
-    const LogsScreen(),
-    const SettingsScreen(),
-  ];
+  List<Widget> _getAvailableScreens(String role) {
+    if (role == 'admin' || role == 'super_admin') {
+      return [
+        const DashboardScreen(),
+        const PatientsScreen(),
+        const CasesScreen(),
+        const FinancialsScreen(),
+        const UsersScreen(),
+        const InventoryScreen(),
+        const LogsScreen(),
+        const SettingsScreen(),
+      ];
+    } else {
+      // الممرض - Nurse
+      return [
+        const DashboardScreen(),
+        const PatientsScreen(),
+        const CasesScreen(),
+        const InventoryScreen(),
+      ];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +73,8 @@ class _MainLayoutState extends State<MainLayout> {
                     setState(() => _selectedIndex = index);
                   },
                   userName: user?.name ?? 'مستخدم',
-                  userRole: user?.role.label ?? 'ممرض',
+                  userRole: user?.role.value ?? 'nurse',
+                  userRoleLabel: user?.role.label ?? 'ممرض',
                 );
               },
             ),
@@ -70,9 +83,22 @@ class _MainLayoutState extends State<MainLayout> {
             Expanded(
               child: Container(
                 color: AppColors.background,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: _screens[_selectedIndex],
+                child: BlocBuilder<AuthCubit, AuthState>(
+                  builder: (context, state) {
+                    final user = context.read<AuthCubit>().currentUser;
+                    final role = user?.role.value ?? 'nurse';
+                    final screens = _getAvailableScreens(role);
+                    
+                    // Use cached screen or create and cache it
+                    if (!_screenCache.containsKey(_selectedIndex)) {
+                      _screenCache[_selectedIndex] = screens[_selectedIndex < screens.length ? _selectedIndex : 0];
+                    }
+                    
+                    return AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: _screenCache[_selectedIndex],
+                    );
+                  },
                 ),
               ),
             ),

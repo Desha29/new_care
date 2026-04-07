@@ -1,8 +1,5 @@
-// قواعد أمان Firestore - Firestore Security Rules
+// قواعد أمان Firestore لنظام New Care
 // يتم لصق هذه القواعد في Firebase Console > Firestore > Rules
-//
-// Firestore Security Rules for New Care System
-// Paste these rules in Firebase Console > Firestore > Rules
 
 rules_version = '2';
 service cloud.firestore {
@@ -15,112 +12,87 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // جلب بيانات المستخدم الحالي
+    // جلب بيانات المستخدم الموثوقة - تحسين للمرونة
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    // التحقق من الدور
-    function hasRole(role) {
-      return isAuthenticated() && getUserData().role == role;
+    // هل الحساب نشط؟ - التحقق من وجود الحقل أولاً
+    function isActiveUser() {
+      let data = getUserData();
+      return isAuthenticated() && (data.isActive == true || !('isActive' in data));
     }
 
-    // هل المستخدم مدير (admin أو super_admin)؟
-    function isAdmin() {
-      return isAuthenticated() && getUserData().role in ['admin', 'super_admin'];
-    }
-
-    // هل المستخدم مدير عام؟
+    // التحقق من الأدوار - تحسين للتعامل مع القيم الفارغة
     function isSuperAdmin() {
       return isAuthenticated() && getUserData().role == 'super_admin';
     }
 
-    // هل الحساب نشط؟
-    function isActiveUser() {
-      return isAuthenticated() && getUserData().isActive == true;
+    function isAdmin() {
+      let role = getUserData().role;
+      return isAuthenticated() && (role == 'admin' || role == 'super_admin');
     }
 
-    // === المستخدمون - Users Collection ===
+    function isNurse() {
+      return isAuthenticated() && getUserData().role == 'nurse';
+    }
+
+    // === المستخدمون - Users ===
     match /users/{userId} {
-      // القراءة: أي مستخدم مسجل ونشط
-      allow read: if isAuthenticated() && isActiveUser();
-
-      // الإنشاء: المدير العام فقط
-      allow create: if isSuperAdmin();
-
-      // التحديث: المدير العام أو المدير أو المستخدم نفسه (بيانات محدودة)
-      allow update: if isSuperAdmin()
-        || (isAdmin() && getUserData().role != 'super_admin')
-        || (request.auth.uid == userId && onlyUpdating(['name', 'phone']));
-
-      // الحذف: المدير العام فقط
-      allow delete: if isSuperAdmin();
-    }
-
-    // === المرضى - Patients Collection ===
-    match /patients/{patientId} {
-      // القراءة: أي مستخدم مسجل ونشط
-      allow read: if isAuthenticated() && isActiveUser();
-
-      // الإنشاء والتحديث: المدير أو المدير العام
-      allow create, update: if isAuthenticated() && isActiveUser() && isAdmin();
-
-      // الحذف: المدير العام فقط
-      allow delete: if isSuperAdmin();
-    }
-
-    // === الحالات - Cases Collection ===
-    match /cases/{caseId} {
-      // القراءة: أي مستخدم مسجل ونشط
-      allow read: if isAuthenticated() && isActiveUser();
-
-      // الإنشاء: المدير أو الممرض
-      allow create: if isAuthenticated() && isActiveUser();
-
-      // التحديث: المدير أو الممرض المعين للحالة
-      allow update: if isAuthenticated() && isActiveUser()
-        && (isAdmin() || resource.data.nurseId == request.auth.uid);
-
-      // الحذف: المدير فقط
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      
+      // الإنشاء: للمديرين
+      allow create: if isAdmin();
+      
+      // التعديل: المدير العام لكل شيء، المدير لغير المديرين العامين، المستخدم لنفسه (حقول محدودة)
+      allow update: if isSuperAdmin() 
+        || (isAdmin() && resource.data.role != 'super_admin')
+        || (request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone']));
+      
+      // الحذف: متاح للمدير العام والمدير (لحل مشكلة الحذف التي واجهها المستخدم)
       allow delete: if isAdmin();
     }
 
-    // === المستلزمات - Inventory Collection ===
-    match /inventory/{itemId} {
-      // القراءة: أي مستخدم مسجل ونشط
-      allow read: if isAuthenticated() && isActiveUser();
-
-      // الإنشاء والتحديث: المدير فقط
-      allow create, update: if isAuthenticated() && isActiveUser() && isAdmin();
-
-      // الحذف: المدير العام فقط
-      allow delete: if isSuperAdmin();
+    // === المرضى - Patients ===
+    match /patients/{patientId} {
+      allow read: if isActiveUser();
+      allow create, update: if isAdmin() && isActiveUser();
+      allow delete: if isAdmin();
     }
 
-    // === السجلات - Logs Collection ===
+    // === الحالات - Cases ===
+    match /cases/{caseId} {
+      allow read: if isActiveUser();
+      allow create: if isActiveUser();
+      allow update: if isActiveUser() && (isAdmin() || resource.data.nurseId == request.auth.uid);
+      allow delete: if isAdmin() && isActiveUser();
+    }
+
+    // === المستلزمات - Inventory ===
+    match /inventory/{itemId} {
+      allow read: if isActiveUser();
+      allow create, update: if isAdmin() && isActiveUser();
+      allow delete: if isAdmin();
+    }
+
+    // === المصاريف والماليات - Expenses ===
+    match /expenses/{expenseId} {
+      // المالية متاحة للإدارة فقط
+      allow read, create, update: if isAdmin() && isActiveUser();
+      allow delete: if isAdmin();
+    }
+
+    // === سجلات النشاط - Activity Logs ===
     match /logs/{logId} {
-      // القراءة: المدير فقط
-      allow read: if isAuthenticated() && isActiveUser() && isAdmin();
-
-      // الإنشاء: أي مستخدم مسجل (لتسجيل الأنشطة)
-      allow create: if isAuthenticated() && isActiveUser();
-
-      // لا يمكن التحديث أو الحذف
+      allow read: if isAdmin() && isActiveUser();
+      allow create: if isAuthenticated();
       allow update, delete: if false;
     }
 
-    // === الإعدادات - Settings Collection ===
+    // === الإعدادات - Settings ===
     match /settings/{settingId} {
-      // القراءة: أي مستخدم مسجل ونشط
-      allow read: if isAuthenticated() && isActiveUser();
-
-      // التحديث: المدير العام فقط
-      allow write: if isSuperAdmin();
-    }
-
-    // === دالة مساعدة للتحقق من الحقول المحدثة فقط ===
-    function onlyUpdating(fields) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
   }
 }

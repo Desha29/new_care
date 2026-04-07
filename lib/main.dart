@@ -1,29 +1,39 @@
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'app.dart';
 import 'core/services/sqlite_service.dart';
+import 'core/services/firebase_service.dart';
 import 'core/services/remote_config_service.dart';
+import 'core/services/connectivity_service.dart';
+import 'core/services/notification_service.dart';
+import 'core/app_bloc_observer.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'firebase_options.dart';
 
-/// نقطة الدخول الرئيسية - Main Entry Point
-/// تهيئة Firebase وSQLite وRemote Config قبل تشغيل التطبيق
 void main() async {
-  // ضمان تهيئة Flutter
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await initializeDateFormatting('ar');
 
-  // تهيئة SQLite FFI لسطح المكتب - Initialize SQLite FFI for desktop
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
-  // تهيئة Firebase - Initialize Firebase
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
-  // تهيئة قاعدة البيانات المحلية - Initialize local database
   await SqliteService.instance.database;
 
-  // تهيئة التحكم عن بُعد - Initialize Remote Config
-  await RemoteConfigService.instance.initialize();
+  await ConnectivityService.instance.initialize();
+  await NotificationService.instance.initialize();
 
-  // تشغيل التطبيق - Run the app
+  await RemoteConfigService.instance.initialize();
+  
+  await FirebaseService.instance.seedDefaultUsers();
+
+  Bloc.observer = AppBlocObserver();
+
   runApp(const NewCareApp());
 }

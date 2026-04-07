@@ -42,7 +42,7 @@ class AppStrings {
   static const String casesOverview = 'نظرة عامة على الحالات';
   static const String weeklyReport = 'التقرير الأسبوعي';
   static const String monthlyReport = 'التقرير الشهري';
-  static const String currency = 'ج.م'; // جنيه مصري
+  static const String currency = 'E.P'; // Egyptian Pounds
 
   // === إدارة المرضى - Patient Management ===
   static const String addPatient = 'إضافة مريض';

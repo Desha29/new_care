@@ -7,25 +7,19 @@ import 'features/auth/logic/cubit/auth_state.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/dashboard/presentation/screens/main_layout.dart';
 
-/// تطبيق نيو كير - New Care App
-/// نقطة البداية الرئيسية للتطبيق مع دعم RTL واللغة العربية
 class NewCareApp extends StatelessWidget {
   const NewCareApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
-      providers: [
-        BlocProvider(create: (_) => AuthCubit()..checkAuthState()),
-      ],
+      providers: [BlocProvider(create: (_) => AuthCubit()..checkAuthState())],
       child: MaterialApp(
         title: AppStrings.appName,
         debugShowCheckedModeBanner: false,
 
-        // === الثيم - Theme ===
         theme: AppTheme.lightTheme,
 
-        // === اتجاه RTL - RTL Direction ===
         builder: (context, child) {
           return Directionality(
             textDirection: TextDirection.rtl,
@@ -33,7 +27,6 @@ class NewCareApp extends StatelessWidget {
           );
         },
 
-        // === الشاشة الرئيسية - Home Screen ===
         home: BlocBuilder<AuthCubit, AuthState>(
           builder: (context, state) {
             if (state is AuthAuthenticated) {
@@ -50,7 +43,6 @@ class NewCareApp extends StatelessWidget {
   }
 }
 
-/// شاشة البداية - Splash Screen
 class _SplashScreen extends StatelessWidget {
   const _SplashScreen();
 
@@ -63,16 +55,28 @@ class _SplashScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 100,
-              height: 100,
+              width: 120,
+              height: 120,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(24),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(32),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-              child: const Icon(
-                Icons.local_hospital_rounded,
-                size: 50,
-                color: Color(0xFF5AB9C1),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 24),

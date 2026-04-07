@@ -1,7 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:new_care/core/enums/user_role.dart';
 
-/// نموذج المستخدم - User Model
 class UserModel extends Equatable {
   final String id;
   final String name;
@@ -52,11 +51,7 @@ class UserModel extends Equatable {
 
   /// إلى SQLite Map
   Map<String, dynamic> toSqliteMap() {
-    return {
-      'id': id,
-      ...toMap(),
-      'isActive': isActive ? 1 : 0,
-    };
+    return {'id': id, ...toMap(), 'isActive': isActive ? 1 : 0};
   }
 
   /// من SQLite Map
@@ -96,5 +91,14 @@ class UserModel extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, name, email, phone, role, isActive, createdAt, updatedAt];
+  List<Object?> get props => [
+    id,
+    name,
+    email,
+    phone,
+    role,
+    isActive,
+    createdAt,
+    updatedAt,
+  ];
 }

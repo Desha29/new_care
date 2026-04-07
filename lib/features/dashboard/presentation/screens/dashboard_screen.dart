@@ -3,8 +3,14 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/widgets/stat_card.dart';
+import '../../../../core/services/firebase_service.dart';
+import '../../../../core/services/connectivity_service.dart';
+import '../../../cases/data/models/case_model.dart';
+import 'package:intl/intl.dart';
 
-/// شاشة لوحة التحكم - Dashboard Screen
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../auth/logic/cubit/auth_cubit.dart';
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -13,70 +19,166 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // بيانات تجريبية - Sample data (will be replaced with Firebase data)
-  final Map<String, dynamic> _stats = {
-    'todayCases': 12,
-    'totalPatients': 248,
-    'todayRevenue': 4580.0,
-    'availableNurses': 8,
-    'pendingCases': 5,
-    'inProgressCases': 3,
-    'completedCases': 4,
+  bool _isLoading = true;
+  bool _isOffline = false;
+
+  Map<String, dynamic> _stats = {
+    'todayCases': 0,
+    'totalPatients': 0,
+    'todayRevenue': 0.0,
+    'availableNurses': 0,
+    'pendingCases': 0,
+    'inProgressCases': 0,
+    'completedCases': 0,
   };
+
+  List<CaseModel> _recentCases = [];
+  List<double> _weeklyCounts = List.filled(7, 0.0);
+  List<double> _weeklyRevenues = List.filled(7, 0.0);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final isConnected = await ConnectivityService.instance.checkConnection();
+      if (!isConnected) {
+        if (mounted) {
+          setState(() {
+            _isOffline = true;
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      final stats = await FirebaseService.instance.getDashboardStats();
+      final chartData = await FirebaseService.instance.getDashboardChartData();
+      final cases = await FirebaseService.instance.getTodayCases();
+
+      cases.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // الأحدث أولاً
+      final recent = cases.take(5).toList();
+
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+          _recentCases = recent;
+          _weeklyCounts = chartData['counts']!;
+          _weeklyRevenues = chartData['revenues']!;
+          _isOffline = false;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في تحميل البيانات: ${e.toString()}')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // === الرأس - Header ===
-            _buildHeader(),
-            const SizedBox(height: 24),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_isOffline)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.error),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.wifi_off_rounded,
+                            color: AppColors.error,
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              AppStrings.offlineMode,
+                              style: TextStyle(
+                                fontFamily: 'Cairo',
+                                color: AppColors.error,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _loadDashboardData,
+                            child: const Text(
+                              'إعادة المحاولة',
+                              style: TextStyle(fontFamily: 'Cairo'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
-            // === بطاقات الإحصائيات - Stats Cards ===
-            _buildStatsCards(),
-            const SizedBox(height: 24),
+                  // === الرأس - Header ===
+                  _buildHeader(),
+                  const SizedBox(height: 24),
 
-            // === الرسوم البيانية - Charts ===
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // رسم بياني للحالات - Cases Chart
-                Expanded(flex: 3, child: _buildCasesChart()),
-                const SizedBox(width: 20),
-                // رسم بياني دائري - Pie Chart
-                Expanded(flex: 2, child: _buildStatusPieChart()),
-              ],
+                  // === بطاقات الإحصائيات - Stats Cards ===
+                  _buildStatsCards(),
+                  const SizedBox(height: 24),
+
+                  // === الرسوم البيانية - Charts ===
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // رسم بياني للحالات - Cases Chart
+                      Expanded(flex: 3, child: _buildCasesChart()),
+                      const SizedBox(width: 20),
+                      // رسم بياني دائري - Pie Chart
+                      Expanded(flex: 2, child: _buildStatusPieChart()),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // === الإيرادات والحالات الأخيرة - Revenue & Recent Cases ===
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 3, child: _buildRevenueChart()),
+                      const SizedBox(width: 20),
+                      Expanded(flex: 2, child: _buildRecentCases()),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 24),
-
-            // === الإيرادات والحالات الأخيرة - Revenue & Recent Cases ===
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 3, child: _buildRevenueChart()),
-                const SizedBox(width: 20),
-                Expanded(flex: 2, child: _buildRecentCases()),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 
-  /// الرأس - Header
   Widget _buildHeader() {
     final now = DateTime.now();
     final greeting = now.hour < 12
         ? 'صباح الخير'
         : now.hour < 18
-            ? 'مساء الخير'
-            : 'مساء الخير';
+        ? 'مساء الخير'
+        : 'مساء الخير';
+    final user = context.read<AuthCubit>().currentUser;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -85,7 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$greeting 👋',
+              '$greeting ${user?.name ?? ""} 👋',
               style: const TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 14,
@@ -113,7 +215,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.textSecondary),
+              const Icon(
+                Icons.calendar_today_rounded,
+                size: 16,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: 8),
               Text(
                 '${now.day}/${now.month}/${now.year}',
@@ -122,6 +228,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   fontSize: 13,
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 12),
+              IconButton(
+                onPressed: _loadDashboardData,
+                icon: const Icon(
+                  Icons.refresh_rounded,
+                  size: 20,
+                  color: AppColors.primary,
                 ),
               ),
             ],
@@ -167,7 +282,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           value: '${_stats['availableNurses']}',
           icon: Icons.person_rounded,
           color: const Color(0xFF8B5CF6),
-          subtitle: 'ممرض متاح',
+          subtitle: 'ممرض نشط',
         ),
       ],
     );
@@ -196,7 +311,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'نظرة على حالات الأسبوع الحالي',
+            'حالات آخر 7 أيام (بيانات حقيقية)',
             style: TextStyle(
               fontFamily: 'Cairo',
               fontSize: 12,
@@ -209,17 +324,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
-                maxY: 15,
+                maxY: (_weeklyCounts.reduce((a, b) => a > b ? a : b) + 5),
                 barTouchData: BarTouchData(
                   enabled: true,
                   touchTooltipData: BarTouchTooltipData(
                     getTooltipColor: (_) => AppColors.primaryDark,
                     tooltipRoundedRadius: 8,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      final days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+                      final now = DateTime.now();
+                      final date = now.subtract(Duration(days: 6 - group.x));
+                      final dayName = DateFormat('EEEE', 'ar').format(date);
                       return BarTooltipItem(
-                        '${days[group.x]}\n${rod.toY.toInt()} حالة',
-                        const TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 12),
+                        '$dayName\n${rod.toY.toInt()} حالة',
+                        const TextStyle(
+                          fontFamily: 'Cairo',
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
                       );
                     },
                   ),
@@ -230,10 +351,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        final days = ['س', 'ح', 'ن', 'ث', 'ر', 'خ', 'ج'];
+                        final now = DateTime.now();
+                        final date = now.subtract(
+                          Duration(days: 6 - value.toInt()),
+                        );
+                        final dayInit = DateFormat(
+                          'E',
+                          'ar',
+                        ).format(date).substring(0, 1);
                         return Text(
-                          days[value.toInt()],
-                          style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textHint),
+                          dayInit,
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 11,
+                            color: AppColors.textHint,
+                          ),
                         );
                       },
                     ),
@@ -245,13 +377,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       getTitlesWidget: (value, meta) {
                         return Text(
                           '${value.toInt()}',
-                          style: const TextStyle(fontSize: 10, color: AppColors.textHint),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textHint,
+                          ),
                         );
                       },
                     ),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(show: false),
                 gridData: FlGridData(
@@ -262,15 +401,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     return FlLine(color: AppColors.borderLight, strokeWidth: 1);
                   },
                 ),
-                barGroups: [
-                  _makeBarGroup(0, 8),
-                  _makeBarGroup(1, 10),
-                  _makeBarGroup(2, 6),
-                  _makeBarGroup(3, 12),
-                  _makeBarGroup(4, 9),
-                  _makeBarGroup(5, 11),
-                  _makeBarGroup(6, 4),
-                ],
+                barGroups: List.generate(
+                  7,
+                  (i) => _makeBarGroup(i, _weeklyCounts[i]),
+                ),
               ),
             ),
           ),
@@ -306,6 +440,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final inProgress = (_stats['inProgressCases'] as int).toDouble();
     final completed = (_stats['completedCases'] as int).toDouble();
 
+    final total = pending + inProgress + completed;
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -328,43 +464,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 24),
           SizedBox(
             height: 180,
-            child: PieChart(
-              PieChartData(
-                sectionsSpace: 3,
-                centerSpaceRadius: 40,
-                sections: [
-                  PieChartSectionData(
-                    color: AppColors.statusPending,
-                    value: pending,
-                    title: '${pending.toInt()}',
-                    titleStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
-                    radius: 45,
+            child: total == 0
+                ? const Center(
+                    child: Text(
+                      "لا توجد بيانات اليوم",
+                      style: TextStyle(fontFamily: 'Cairo'),
+                    ),
+                  )
+                : PieChart(
+                    PieChartData(
+                      sectionsSpace: 3,
+                      centerSpaceRadius: 40,
+                      sections: [
+                        if (pending > 0)
+                          PieChartSectionData(
+                            color: AppColors.statusPending,
+                            value: pending,
+                            title: '${pending.toInt()}',
+                            titleStyle: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                            radius: 45,
+                          ),
+                        if (inProgress > 0)
+                          PieChartSectionData(
+                            color: AppColors.statusInProgress,
+                            value: inProgress,
+                            title: '${inProgress.toInt()}',
+                            titleStyle: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                            radius: 45,
+                          ),
+                        if (completed > 0)
+                          PieChartSectionData(
+                            color: AppColors.statusCompleted,
+                            value: completed,
+                            title: '${completed.toInt()}',
+                            titleStyle: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                            radius: 45,
+                          ),
+                      ],
+                    ),
                   ),
-                  PieChartSectionData(
-                    color: AppColors.statusInProgress,
-                    value: inProgress,
-                    title: '${inProgress.toInt()}',
-                    titleStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
-                    radius: 45,
-                  ),
-                  PieChartSectionData(
-                    color: AppColors.statusCompleted,
-                    value: completed,
-                    title: '${completed.toInt()}',
-                    titleStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
-                    radius: 45,
-                  ),
-                ],
-              ),
-            ),
           ),
           const SizedBox(height: 20),
           // الأسطورة - Legend
-          _buildLegendItem(AppColors.statusPending, AppStrings.pending, pending.toInt()),
+          _buildLegendItem(
+            AppColors.statusPending,
+            AppStrings.pending,
+            pending.toInt(),
+          ),
           const SizedBox(height: 8),
-          _buildLegendItem(AppColors.statusInProgress, AppStrings.inProgress, inProgress.toInt()),
+          _buildLegendItem(
+            AppColors.statusInProgress,
+            AppStrings.inProgress,
+            inProgress.toInt(),
+          ),
           const SizedBox(height: 8),
-          _buildLegendItem(AppColors.statusCompleted, AppStrings.completed, completed.toInt()),
+          _buildLegendItem(
+            AppColors.statusCompleted,
+            AppStrings.completed,
+            completed.toInt(),
+          ),
         ],
       ),
     );
@@ -376,17 +546,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
         ),
         const SizedBox(width: 8),
         Text(
           label,
-          style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary),
+          style: const TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 12,
+            color: AppColors.textSecondary,
+          ),
         ),
         const Spacer(),
         Text(
           '$count',
-          style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          style: const TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
         ),
       ],
     );
@@ -415,8 +597,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'الإيرادات خلال الأسبوع الماضي',
-            style: TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textHint),
+            'الإيرادات خلال آخر 7 أيام (بيانات حقيقية)',
+            style: TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 12,
+              color: AppColors.textHint,
+            ),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -436,12 +622,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        final days = ['س', 'ح', 'ن', 'ث', 'ر', 'خ', 'ج'];
-                        if (value.toInt() < days.length) {
-                          return Text(days[value.toInt()],
-                              style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textHint));
-                        }
-                        return const Text('');
+                        final now = DateTime.now();
+                        final date = now.subtract(
+                          Duration(days: 6 - value.toInt()),
+                        );
+                        final dayInit = DateFormat(
+                          'E',
+                          'ar',
+                        ).format(date).substring(0, 1);
+                        return Text(
+                          dayInit,
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 11,
+                            color: AppColors.textHint,
+                          ),
+                        );
                       },
                     ),
                   ),
@@ -450,28 +646,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       showTitles: true,
                       reservedSize: 40,
                       getTitlesWidget: (value, meta) {
-                        return Text('${(value / 1000).toStringAsFixed(0)}k',
-                            style: const TextStyle(fontSize: 10, color: AppColors.textHint));
+                        return Text(
+                          '${(value / 1000).toStringAsFixed(0)}k',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textHint,
+                          ),
+                        );
                       },
                     ),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(show: false),
                 minY: 0,
-                maxY: 6000,
+                maxY: (_weeklyRevenues.reduce((a, b) => a > b ? a : b) + 1000),
                 lineBarsData: [
                   LineChartBarData(
-                    spots: const [
-                      FlSpot(0, 2400),
-                      FlSpot(1, 3200),
-                      FlSpot(2, 1800),
-                      FlSpot(3, 4100),
-                      FlSpot(4, 3600),
-                      FlSpot(5, 4580),
-                      FlSpot(6, 2000),
-                    ],
+                    spots: List.generate(
+                      7,
+                      (i) => FlSpot(i.toDouble(), _weeklyRevenues[i]),
+                    ),
                     isCurved: true,
                     color: AppColors.success,
                     barWidth: 3,
@@ -510,14 +710,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// أحدث الحالات - Recent Cases List
   Widget _buildRecentCases() {
-    final recentCases = [
-      {'name': 'أحمد محمد', 'status': 'completed', 'type': 'داخل المركز', 'time': '10:30'},
-      {'name': 'فاطمة علي', 'status': 'in_progress', 'type': 'زيارة منزلية', 'time': '11:00'},
-      {'name': 'محمود حسن', 'status': 'pending', 'type': 'داخل المركز', 'time': '11:30'},
-      {'name': 'نورا أحمد', 'status': 'completed', 'type': 'زيارة منزلية', 'time': '12:00'},
-      {'name': 'عمر خالد', 'status': 'pending', 'type': 'داخل المركز', 'time': '12:30'},
-    ];
-
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -540,36 +732,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: AppColors.textPrimary,
                 ),
               ),
-              TextButton(
-                onPressed: () {},
-                child: const Text(AppStrings.showAll, style: TextStyle(fontFamily: 'Cairo', fontSize: 12)),
-              ),
             ],
           ),
           const SizedBox(height: 16),
-          ...recentCases.map((c) => _buildRecentCaseItem(c)),
+          if (_recentCases.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  "لا يوجد حالات اليوم",
+                  style: TextStyle(fontFamily: 'Cairo'),
+                ),
+              ),
+            )
+          else
+            ..._recentCases.map((c) => _buildRecentCaseItem(c)),
         ],
       ),
     );
   }
 
-  Widget _buildRecentCaseItem(Map<String, String> caseData) {
-    Color statusColor;
-    String statusText;
-    switch (caseData['status']) {
-      case 'completed':
-        statusColor = AppColors.statusCompleted;
-        statusText = AppStrings.completed;
-        break;
-      case 'in_progress':
-        statusColor = AppColors.statusInProgress;
-        statusText = AppStrings.inProgress;
-        break;
-      default:
-        statusColor = AppColors.statusPending;
-        statusText = AppStrings.pending;
-    }
-
+  Widget _buildRecentCaseItem(CaseModel caseData) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -582,7 +765,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           CircleAvatar(
             radius: 18,
             backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-            child: const Icon(Icons.person_rounded, color: AppColors.primary, size: 18),
+            child: const Icon(
+              Icons.person_rounded,
+              color: AppColors.primary,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -590,12 +777,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  caseData['name'] ?? '',
-                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.w600),
+                  caseData.patientName.isNotEmpty
+                      ? caseData.patientName
+                      : 'مريض غير معروف',
+                  style: const TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  '${caseData['type']} • ${caseData['time']}',
-                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textHint),
+                  '${caseData.caseType.label} • ${DateFormat('hh:mm a').format(caseData.createdAt)}',
+                  style: const TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 11,
+                    color: AppColors.textHint,
+                  ),
                 ),
               ],
             ),
@@ -603,12 +801,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
+              color: caseData.status.backgroundColor,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              statusText,
-              style: TextStyle(fontFamily: 'Cairo', fontSize: 10, color: statusColor, fontWeight: FontWeight.w600),
+              caseData.status.label,
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 10,
+                color: caseData.status.color,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

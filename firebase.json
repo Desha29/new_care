@@ -1,1 +1,28 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"new-care-b25a1","appId":"1:682276065096:android:2dfa93add8d49f1fb06d7d","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"new-care-b25a1","configurations":{"android":"1:682276065096:android:2dfa93add8d49f1fb06d7d","ios":"1:682276065096:ios:0676632e96e8f477b06d7d","macos":"1:682276065096:ios:0676632e96e8f477b06d7d","web":"1:682276065096:web:41169ee820039bd5b06d7d","windows":"1:682276065096:web:950efda4b3260da5b06d7d"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "new-care-b25a1",
+          "appId": "1:682276065096:android:2dfa93add8d49f1fb06d7d",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "new-care-b25a1",
+          "configurations": {
+            "android": "1:682276065096:android:2dfa93add8d49f1fb06d7d",
+            "ios": "1:682276065096:ios:0676632e96e8f477b06d7d",
+            "macos": "1:682276065096:ios:0676632e96e8f477b06d7d",
+            "web": "1:682276065096:web:41169ee820039bd5b06d7d",
+            "windows": "1:682276065096:web:950efda4b3260da5b06d7d"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}

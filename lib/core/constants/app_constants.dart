@@ -9,6 +9,7 @@ class AppConstants {
   static const String inventoryCollection = 'inventory';
   static const String logsCollection = 'logs';
   static const String settingsCollection = 'settings';
+  static const String expensesCollection = 'expenses';
 
   // === SQLite Database ===
   static const String dbName = 'new_care_backup.db';

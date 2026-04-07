@@ -1,10 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:new_care/core/enums/user_role.dart';
 import 'package:uuid/uuid.dart';
 import '../../features/auth/data/models/user_model.dart';
 import '../../features/patients/data/models/patient_model.dart';
 import '../../features/cases/data/models/case_model.dart';
 import '../../features/inventory/data/models/inventory_model.dart';
 import '../../features/activity_logs/data/models/log_model.dart';
+import '../../features/financials/data/models/expense_model.dart';
 import '../constants/app_constants.dart';
 
 /// خدمة Firebase Firestore
@@ -61,6 +64,15 @@ class FirebaseService {
         .toList();
   }
 
+  /// بث المستخدمين - Stream all users
+  Stream<List<UserModel>> usersStream() {
+    return _usersRef.orderBy('name').snapshots().map((snapshot) {
+      return snapshot.docs
+          .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+          .toList();
+    });
+  }
+
   /// جلب الممرضين النشطين - Get active nurses
   Future<List<UserModel>> getActiveNurses() async {
     final snapshot = await _usersRef
@@ -70,6 +82,79 @@ class FirebaseService {
     return snapshot.docs
         .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
         .toList();
+  }
+
+  /// تهيئة المستخدمين الافتراضيين - Seed Default Users
+  Future<void> seedDefaultUsers() async {
+    final auth = FirebaseAuth.instance;
+    
+    // تحقق مما إذا كانت هناك مستندات بالفعل في Firestore لتجنب إعادة إنشاء المحذوف
+    final snapshot = await _usersRef.limit(1).get();
+    if (snapshot.docs.isNotEmpty) return;
+
+    // قائمة المستخدمين الافتراضيين
+    final seedUsers = [
+      {
+        'email': 'kamal@newcare.com',
+        'password': '123456',
+        'name': 'كمال',
+        'phone': '01012345678',
+        'role': UserRole.superAdmin,
+      },
+    ];
+
+    for (final seedData in seedUsers) {
+      try {
+        String? uid;
+
+        // محاولة إنشاء المستخدم
+        try {
+          final cred = await auth.createUserWithEmailAndPassword(
+            email: seedData['email'] as String,
+            password: seedData['password'] as String,
+          );
+          uid = cred.user?.uid;
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'email-already-in-use') {
+            // المستخدم موجود بالفعل - نسجل دخول للحصول على UID
+            try {
+              final cred = await auth.signInWithEmailAndPassword(
+                email: seedData['email'] as String,
+                password: seedData['password'] as String,
+              );
+              uid = cred.user?.uid;
+            } catch (_) {
+              continue;
+            }
+          }
+        }
+
+        if (uid == null) continue;
+
+        // تحقق من وجود المستند في Firestore، وأنشئه إن لم يكن موجوداً
+        final existingDoc = await _usersRef.doc(uid).get();
+        if (!existingDoc.exists) {
+          final user = UserModel(
+            id: uid,
+            name: seedData['name'] as String,
+            email: seedData['email'] as String,
+            phone: seedData['phone'] as String,
+            role: seedData['role'] as UserRole,
+            isActive: true,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+          await createUser(user);
+        }
+      } catch (e) {
+        // تجاهل الخطأ والمتابعة للمستخدم التالي
+      }
+    }
+
+    // تسجيل الخروج لبدء التطبيق بحالة نظيفة
+    try {
+      await auth.signOut();
+    } catch (_) {}
   }
 
   // ============================================
@@ -96,10 +181,14 @@ class FirebaseService {
 
   /// جلب جميع المرضى - Get all patients
   Future<List<PatientModel>> getAllPatients() async {
-    final snapshot = await _patientsRef.orderBy('createdAt', descending: true).get();
-    return snapshot.docs
+    final snapshot = await _patientsRef.get();
+    final patients = snapshot.docs
         .map((doc) => PatientModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
         .toList();
+    
+    // الترتيب في الذاكرة لتجنب استبعاد المستندات التي تفتقد لحقل createdAt
+    patients.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return patients;
   }
 
   /// بحث المرضى - Search patients
@@ -153,9 +242,14 @@ class FirebaseService {
         .where('caseDate', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
         .where('caseDate', isLessThan: endOfDay.toIso8601String())
         .get();
-    return snapshot.docs
+
+    // نستخدم الفرز في الذاكرة لتجنب طلب الفهارس المركبة (Composite Indexes) حالياً
+    final cases = snapshot.docs
         .map((doc) => CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
         .toList();
+    
+    cases.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return cases;
   }
 
   /// جلب حالات بحسب الحالة - Get cases by status
@@ -222,6 +316,47 @@ class FirebaseService {
       'quantity': newQuantity,
       'updatedAt': DateTime.now().toIso8601String(),
     });
+  }
+
+  // ============================================
+  // === المصاريف - Expenses ===
+  // ============================================
+
+  CollectionReference get _expensesRef =>
+      _firestore.collection(AppConstants.expensesCollection);
+
+  /// إنشاء مصروف - Create expense
+  Future<void> createExpense(ExpenseModel expense) async {
+    await _expensesRef.doc(expense.id).set(expense.toMap());
+  }
+
+  /// تحديث مصروف - Update expense
+  Future<void> updateExpense(ExpenseModel expense) async {
+    await _expensesRef.doc(expense.id).update(expense.toMap());
+  }
+
+  /// حذف مصروف - Delete expense
+  Future<void> deleteExpense(String expenseId) async {
+    await _expensesRef.doc(expenseId).delete();
+  }
+
+  /// جلب جميع المصاريف - Get all expenses
+  Future<List<ExpenseModel>> getAllExpenses() async {
+    final snapshot = await _expensesRef.orderBy('date', descending: true).get();
+    return snapshot.docs
+        .map((doc) => ExpenseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+  }
+
+  /// جلب مصاريف بحسب التاريخ - Get expenses by date range
+  Future<List<ExpenseModel>> getExpensesByRange(DateTime start, DateTime end) async {
+    final snapshot = await _expensesRef
+        .where('date', isGreaterThanOrEqualTo: start.toIso8601String())
+        .where('date', isLessThanOrEqualTo: end.toIso8601String())
+        .get();
+    return snapshot.docs
+        .map((doc) => ExpenseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
   }
 
   // ============================================
@@ -299,27 +434,65 @@ class FirebaseService {
           .get(),
     ]);
 
-    // حساب الإيرادات اليومية
-    final todayCasesSnapshot = await _casesRef
-        .where('caseDate', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
-        .where('caseDate', isLessThan: endOfDay.toIso8601String())
-        .where('status', isEqualTo: 'completed')
-        .get();
+    // جلب حالات اليوم للفلترة في الذاكرة لتجنب مشاكل الفهرسة المركبة
+    final todayCases = await getTodayCases();
+
+    final todayCompletedCases = todayCases.where((c) => c.status.name == 'completed').toList();
 
     double todayRevenue = 0;
-    for (final doc in todayCasesSnapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
-      todayRevenue += (data['totalPrice'] ?? 0).toDouble() - (data['discount'] ?? 0).toDouble();
+    for (final c in todayCompletedCases) {
+      todayRevenue += c.totalPrice - c.discount;
     }
 
     return {
       'totalPatients': results[0].count ?? 0,
-      'todayCases': results[1].count ?? 0,
-      'pendingCases': results[2].count ?? 0,
-      'inProgressCases': results[3].count ?? 0,
-      'completedCases': results[4].count ?? 0,
+      'todayCases': todayCases.length,
+      'pendingCases': todayCases.where((c) => c.status.name == 'pending').length,
+      'inProgressCases': todayCases.where((c) => c.status.name == 'in_progress').length,
+      'completedCases': todayCompletedCases.length,
       'availableNurses': results[5].count ?? 0,
       'todayRevenue': todayRevenue,
+    };
+  }
+
+  /// بيانات الرسم البياني للأسبوع - Weekly Chart Data (Last 7 Days)
+  Future<Map<String, List<double>>> getDashboardChartData() async {
+    final now = DateTime.now();
+    final sevenDaysAgo = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
+
+    final snapshot = await _casesRef
+        .where('caseDate', isGreaterThanOrEqualTo: sevenDaysAgo.toIso8601String())
+        .get();
+
+    final allCases = snapshot.docs
+        .map((doc) => CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+
+    List<double> counts = List.filled(7, 0.0);
+    List<double> revenues = List.filled(7, 0.0);
+
+    for (int i = 0; i < 7; i++) {
+      final targetDate = sevenDaysAgo.add(Duration(days: i));
+      final dayCases = allCases.where((c) {
+        return c.caseDate.year == targetDate.year &&
+               c.caseDate.month == targetDate.month &&
+               c.caseDate.day == targetDate.day;
+      }).toList();
+
+      counts[i] = dayCases.length.toDouble();
+      
+      double dayRevenue = 0;
+      for (final c in dayCases) {
+        if (c.status.name == 'completed') {
+          dayRevenue += (c.totalPrice - c.discount);
+        }
+      }
+      revenues[i] = dayRevenue;
+    }
+
+    return {
+      'counts': counts,
+      'revenues': revenues,
     };
   }
 }
