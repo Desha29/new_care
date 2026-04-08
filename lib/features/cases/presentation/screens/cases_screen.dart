@@ -6,8 +6,7 @@ import '../../../../core/enums/case_status.dart';
 import '../../../../core/widgets/search_bar_widget.dart';
 import '../../../../core/widgets/dialogs/confirm_dialog.dart';
 import '../../../../core/services/firebase_service.dart';
-
-import '../../../../core/services/report_service.dart';
+import '../../../invoice/presentation/screens/invoice_preview_screen.dart';
 
 import '../../data/models/case_model.dart';
 import '../../../auth/data/models/user_model.dart';
@@ -309,7 +308,10 @@ class CasesScreen extends StatelessWidget {
                 _ab(
                   Icons.receipt_long_rounded,
                   AppColors.success,
-                  () => ReportService.instance.generateCaseInvoice(c),
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => InvoicePreviewScreen(caseData: c)),
+                  ),
                 ),
                 const SizedBox(width: 4),
                 _ab(
@@ -973,12 +975,16 @@ class CasesScreen extends StatelessWidget {
                   Navigator.pop(formCtx);
                   ConfirmDialog.show(
                     screenCtx,
-                    title: 'طباعة فاتورة',
-                    message: 'هل تريد طباعة الفاتورة الآن؟',
-                    confirmText: 'طباعة',
+                    title: 'معاينة الفاتورة',
+                    message: 'هل تريد معاينة وطباعة الفاتورة الآن؟',
+                    confirmText: 'معاينة',
                   ).then((v) {
-                    if (v == true)
-                      ReportService.instance.generateCaseInvoice(updatedCase);
+                    if (v == true && screenCtx.mounted) {
+                      Navigator.push(
+                        screenCtx,
+                        MaterialPageRoute(builder: (_) => InvoicePreviewScreen(caseData: updatedCase)),
+                      );
+                    }
                   });
                 }
               }

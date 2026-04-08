@@ -47,6 +47,8 @@ class _SidebarWidgetState extends State<SidebarWidget> {
   final List<_SidebarItem> _items = [
     _SidebarItem(icon: Icons.dashboard_rounded, label: AppStrings.dashboard),
     _SidebarItem(icon: Icons.assignment_rounded, label: AppStrings.cases),
+    _SidebarItem(icon: Icons.fingerprint_rounded, label: 'الحضور والانصراف'),
+    _SidebarItem(icon: Icons.event_note_rounded, label: 'إدارة الورديات', roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.medical_services_rounded, label: 'الخدمات والإجراءات', roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.account_balance_rounded, label: 'المالية', roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.person_rounded, label: AppStrings.users, roles: ['admin', 'super_admin']),

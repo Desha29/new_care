@@ -15,6 +15,8 @@ import '../../../financials/presentation/screens/financials_screen.dart';
 import '../../../activity_logs/presentation/screens/logs_screen.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../../settings/presentation/screens/data_status_screen.dart';
+import '../../../attendance/presentation/screens/attendance_screen.dart';
+import '../../../shifts/presentation/screens/shift_management_screen.dart';
 
 /// التخطيط الرئيسي - Main Layout
 /// يحتوي على الشريط الجانبي والمحتوى الرئيسي
@@ -34,21 +36,23 @@ class _MainLayoutState extends State<MainLayout> {
   List<Widget> _getAvailableScreens(String role) {
     if (role == 'admin' || role == 'super_admin') {
       return [
-        const DashboardScreen(),
-        const CasesScreen(),
-        const ProceduresScreen(),
-        const FinancialsScreen(),
-        const UsersScreen(),
-        const InventoryScreen(),
-        const LogsScreen(),
-        const SettingsScreen(),
-        const DataStatusScreen(),
+        const DashboardScreen(),       // 0
+        const CasesScreen(),           // 1
+        const AttendanceScreen(),      // 2 - الحضور والانصراف
+        const ShiftManagementScreen(), // 3 - إدارة الورديات
+        const ProceduresScreen(),      // 4
+        const FinancialsScreen(),      // 5
+        const UsersScreen(),           // 6
+        const InventoryScreen(),       // 7
+        const LogsScreen(),            // 8
+        const SettingsScreen(),        // 9
+        const DataStatusScreen(),      // 10
       ];
     } else {
       return [
         const DashboardScreen(),
         const CasesScreen(),
-        const InventoryScreen(),
+        const AttendanceScreen(), // الحضور متاح للممرضين
       ];
     }
   }

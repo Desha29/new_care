@@ -3,6 +3,8 @@ import 'package:get_it/get_it.dart';
 import '../services/firebase_service.dart';
 import '../services/sqlite_service.dart';
 import '../services/sync_service.dart';
+import '../services/sync_manager.dart';
+import '../services/device_service.dart';
 import '../services/connectivity_service.dart';
 import '../services/notification_service.dart';
 import '../services/report_service.dart';
@@ -15,6 +17,8 @@ import '../../features/cases/logic/cubit/cases_cubit.dart';
 import '../../features/procedures/logic/cubit/procedures_cubit.dart';
 import '../../features/inventory/logic/cubit/inventory_cubit.dart';
 import '../../features/financials/logic/cubit/financials_cubit.dart';
+import '../../features/shifts/logic/cubit/shift_cubit.dart';
+import '../../features/attendance/logic/cubit/attendance_cubit.dart';
 
 final sl = GetIt.instance; // sl: short for Service Locator
 
@@ -30,6 +34,8 @@ Future<void> initDI() async {
   sl.registerLazySingleton<ReportService>(() => ReportService.instance);
   sl.registerLazySingleton<LocalLogService>(() => LocalLogService.instance);
   sl.registerLazySingleton<RemoteConfigService>(() => RemoteConfigService.instance);
+  sl.registerLazySingleton<DeviceService>(() => DeviceService.instance);
+  sl.registerLazySingleton<SyncManager>(() => SyncManager.instance);
   
   // SyncService depends on FirebaseService and SqliteService
   sl.registerLazySingleton<SyncService>(() => SyncService.instance);
@@ -51,4 +57,6 @@ Future<void> initDI() async {
   sl.registerLazySingleton<ProceduresCubit>(() => ProceduresCubit());
   sl.registerLazySingleton<InventoryCubit>(() => InventoryCubit());
   sl.registerLazySingleton<FinancialsCubit>(() => FinancialsCubit());
+  sl.registerLazySingleton<ShiftCubit>(() => ShiftCubit());
+  sl.registerLazySingleton<AttendanceCubit>(() => AttendanceCubit());
 }

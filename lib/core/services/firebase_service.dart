@@ -10,6 +10,8 @@ import '../../features/inventory/data/models/inventory_model.dart';
 import '../../features/activity_logs/data/models/log_model.dart';
 import '../../features/financials/data/models/expense_model.dart';
 import '../../features/procedures/data/models/procedure_model.dart';
+import '../../features/shifts/data/models/shift_model.dart';
+import '../../features/attendance/data/models/attendance_model.dart';
 import '../constants/app_constants.dart';
 
 /// خدمة Firebase Firestore
@@ -594,5 +596,234 @@ class FirebaseService {
       'counts': counts,
       'revenues': revenues,
     };
+  }
+
+  // ============================================
+  // === الورديات - Shifts ===
+  // ============================================
+
+  CollectionReference get _shiftsRef =>
+      _firestore.collection('shifts');
+
+  /// إنشاء وردية - Create shift
+  Future<void> createShift(ShiftModel shift) async {
+    await _shiftsRef.doc(shift.id).set(shift.toMap());
+  }
+
+  /// تحديث وردية - Update shift
+  Future<void> updateShift(ShiftModel shift) async {
+    await _shiftsRef.doc(shift.id).update(shift.toMap());
+  }
+
+  /// حذف وردية - Delete shift
+  Future<void> deleteShift(String shiftId) async {
+    await _shiftsRef.doc(shiftId).delete();
+  }
+
+  /// جلب وردية اليوم للمستخدم - Get today's shift for user
+  Future<ShiftModel?> getTodayShift(String userId) async {
+    final today = _todayString();
+    final snapshot = await _shiftsRef
+        .where('userId', isEqualTo: userId)
+        .where('date', isEqualTo: today)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) return null;
+    return ShiftModel.fromMap(
+      snapshot.docs.first.data() as Map<String, dynamic>,
+      snapshot.docs.first.id,
+    );
+  }
+
+  /// هل المستخدم لديه وردية اليوم؟ - Does user have shift today?
+  Future<bool> hasShiftToday(String userId) async {
+    final shift = await getTodayShift(userId);
+    return shift != null;
+  }
+
+  /// جلب جميع ورديات شهر معين
+  Future<List<ShiftModel>> getMonthlyShifts(int year, int month) async {
+    final startId = '$year-${month.toString().padLeft(2, '0')}-01';
+    final endMonth = month == 12 ? 1 : month + 1;
+    final endYear = month == 12 ? year + 1 : year;
+    final endId = '$endYear-${endMonth.toString().padLeft(2, '0')}-01';
+    
+    final snapshot = await _shiftsRef
+        .where('date', isGreaterThanOrEqualTo: startId)
+        .where('date', isLessThan: endId)
+        .get();
+    return snapshot.docs
+        .map((doc) => ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+  }
+
+  /// جلب جميع ورديات اليوم - Get all today's shifts
+  Future<List<ShiftModel>> getTodayShifts() async {
+    final today = _todayString();
+    final snapshot = await _shiftsRef
+        .where('date', isEqualTo: today)
+        .get();
+    return snapshot.docs
+        .map((doc) => ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+  }
+
+  /// جلب ورديات مستخدم - Get user shifts
+  Future<List<ShiftModel>> getUserShifts(String userId, {int limit = 30}) async {
+    final snapshot = await _shiftsRef
+        .where('userId', isEqualTo: userId)
+        .orderBy('date', descending: true)
+        .limit(limit)
+        .get();
+    return snapshot.docs
+        .map((doc) => ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+  }
+
+  /// جلب ورديات حسب التاريخ - Get shifts by date
+  Future<List<ShiftModel>> getShiftsByDate(String date) async {
+    final snapshot = await _shiftsRef
+        .where('date', isEqualTo: date)
+        .get();
+    return snapshot.docs
+        .map((doc) => ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+  }
+
+  /// بث ورديات اليوم - Stream today's shifts
+  Stream<List<ShiftModel>> streamTodayShifts() {
+    final today = _todayString();
+    return _shiftsRef
+        .where('date', isEqualTo: today)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+            .toList());
+  }
+
+  // ============================================
+  // === الحضور والانصراف - Attendance ===
+  // ============================================
+
+  CollectionReference get _attendanceRef =>
+      _firestore.collection('attendance');
+
+  /// تسجيل حضور - Check in
+  Future<void> checkIn(AttendanceModel attendance) async {
+    await _attendanceRef.doc(attendance.id).set(attendance.toMap());
+  }
+
+  /// تسجيل انصراف - Check out
+  Future<void> checkOut(String attendanceId) async {
+    await _attendanceRef.doc(attendanceId).update({
+      'checkOutTime': DateTime.now().toIso8601String(),
+      'status': 'checked_out',
+    });
+  }
+
+  /// جلب حضور اليوم للمستخدم - Get today's attendance for user
+  Future<AttendanceModel?> getTodayAttendance(String userId) async {
+    final today = _todayString();
+    final snapshot = await _attendanceRef
+        .where('userId', isEqualTo: userId)
+        .where('date', isEqualTo: today)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) return null;
+    return AttendanceModel.fromMap(
+      snapshot.docs.first.data() as Map<String, dynamic>,
+      snapshot.docs.first.id,
+    );
+  }
+
+  /// هل المستخدم سجل حضوره اليوم؟ - Is user checked in today?
+  Future<bool> isCheckedInToday(String userId) async {
+    final attendance = await getTodayAttendance(userId);
+    return attendance != null && attendance.isCheckedIn;
+  }
+
+  /// جلب جميع سجلات حضور شهر معين
+  Future<List<AttendanceModel>> getMonthlyAttendanceRecords(int year, int month) async {
+    final startId = '$year-${month.toString().padLeft(2, '0')}-01';
+    final endMonth = month == 12 ? 1 : month + 1;
+    final endYear = month == 12 ? year + 1 : year;
+    final endId = '$endYear-${endMonth.toString().padLeft(2, '0')}-01';
+    
+    final snapshot = await _attendanceRef
+        .where('date', isGreaterThanOrEqualTo: startId)
+        .where('date', isLessThan: endId)
+        .get();
+    return snapshot.docs
+        .map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+  }
+
+  /// جلب جميع سجلات حضور اليوم - Get all today's attendance
+  Future<List<AttendanceModel>> getTodayAttendanceRecords() async {
+    final today = _todayString();
+    final snapshot = await _attendanceRef
+        .where('date', isEqualTo: today)
+        .get();
+    return snapshot.docs
+        .map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+  }
+
+  /// جلب سجلات حضور مستخدم - Get user attendance history
+  Future<List<AttendanceModel>> getUserAttendance(String userId, {int limit = 30}) async {
+    final snapshot = await _attendanceRef
+        .where('userId', isEqualTo: userId)
+        .orderBy('date', descending: true)
+        .limit(limit)
+        .get();
+    return snapshot.docs
+        .map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+  }
+
+  /// بث حضور اليوم - Stream today's attendance
+  Stream<List<AttendanceModel>> streamTodayAttendance() {
+    final today = _todayString();
+    return _attendanceRef
+        .where('date', isEqualTo: today)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+            .toList());
+  }
+
+  /// تحديث معرف الجهاز للمستخدم - Update user device ID
+  Future<void> updateUserDeviceId(String userId, String deviceId) async {
+    await _usersRef.doc(userId).update({
+      'deviceId': deviceId,
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// إضافة جهاز مسموح به - Add allowed device
+  Future<void> addAllowedDevice(String userId, String deviceId) async {
+    final user = await getUser(userId);
+    if (user != null) {
+      final devices = List<String>.from(user.allowedDeviceIds);
+      if (!devices.contains(deviceId)) {
+        devices.add(deviceId);
+        await _usersRef.doc(userId).update({
+          'allowedDeviceIds': devices,
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
+      }
+    }
+  }
+
+  // ============================================
+  // === مساعدات - Helpers ===
+  // ============================================
+
+  /// تاريخ اليوم بصيغة نصية - Today's date string
+  String _todayString() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 }

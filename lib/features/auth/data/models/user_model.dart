@@ -8,6 +8,8 @@ class UserModel extends Equatable {
   final String phone;
   final UserRole role;
   final bool isActive;
+  final String deviceId; // معرف الجهاز الحالي
+  final List<String> allowedDeviceIds; // الأجهزة المسموح بها
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -18,6 +20,8 @@ class UserModel extends Equatable {
     this.phone = '',
     this.role = UserRole.nurse,
     this.isActive = true,
+    this.deviceId = '',
+    this.allowedDeviceIds = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -31,6 +35,8 @@ class UserModel extends Equatable {
       phone: map['phone'] ?? '',
       role: UserRole.fromString(map['role'] ?? 'nurse'),
       isActive: map['isActive'] ?? true,
+      deviceId: map['deviceId'] ?? '',
+      allowedDeviceIds: List<String>.from(map['allowedDeviceIds'] ?? []),
       createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
     );
@@ -44,6 +50,8 @@ class UserModel extends Equatable {
       'phone': phone,
       'role': role.value,
       'isActive': isActive,
+      'deviceId': deviceId,
+      'allowedDeviceIds': allowedDeviceIds,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -51,7 +59,17 @@ class UserModel extends Equatable {
 
   /// إلى SQLite Map
   Map<String, dynamic> toSqliteMap() {
-    return {'id': id, ...toMap(), 'isActive': isActive ? 1 : 0};
+    return {
+      'id': id,
+      'name': name,
+      'email': email,
+      'phone': phone,
+      'role': role.value,
+      'isActive': isActive ? 1 : 0,
+      'deviceId': deviceId,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
   }
 
   /// من SQLite Map
@@ -63,6 +81,7 @@ class UserModel extends Equatable {
       phone: map['phone'] ?? '',
       role: UserRole.fromString(map['role'] ?? 'nurse'),
       isActive: (map['isActive'] ?? 1) == 1,
+      deviceId: map['deviceId'] ?? '',
       createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
     );
@@ -75,6 +94,8 @@ class UserModel extends Equatable {
     String? phone,
     UserRole? role,
     bool? isActive,
+    String? deviceId,
+    List<String>? allowedDeviceIds,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -85,6 +106,8 @@ class UserModel extends Equatable {
       phone: phone ?? this.phone,
       role: role ?? this.role,
       isActive: isActive ?? this.isActive,
+      deviceId: deviceId ?? this.deviceId,
+      allowedDeviceIds: allowedDeviceIds ?? this.allowedDeviceIds,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -98,6 +121,8 @@ class UserModel extends Equatable {
     phone,
     role,
     isActive,
+    deviceId,
+    allowedDeviceIds,
     createdAt,
     updatedAt,
   ];

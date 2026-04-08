@@ -29,7 +29,7 @@ class SqliteService {
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 4, // تم الترقية لإضافة عمود timestamp في جدول السجلات
+        version: 5, // ترقية لإضافة جداول الورديات والحضور
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -58,6 +58,7 @@ class SqliteService {
         phone TEXT DEFAULT '',
         role TEXT DEFAULT 'nurse',
         isActive INTEGER DEFAULT 1,
+        deviceId TEXT DEFAULT '',
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
       )
@@ -116,7 +117,7 @@ class SqliteService {
       )
     ''');
 
-    // جدول الإعدادات - Settings table (للمزامنة وغيرها)
+    // جدول الإعدادات - Settings table
     await db.execute('''
       CREATE TABLE IF NOT EXISTS settings (
         id TEXT PRIMARY KEY,
@@ -125,17 +126,69 @@ class SqliteService {
         updatedAt TEXT NOT NULL
       )
     ''');
+
+    // جدول الورديات - Shifts table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS shifts (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        userName TEXT DEFAULT '',
+        date TEXT NOT NULL,
+        roleToday TEXT DEFAULT 'cases',
+        canAccessCases INTEGER DEFAULT 0,
+        canAccessInventory INTEGER DEFAULT 0,
+        canGoExternal INTEGER DEFAULT 0,
+        canManageFinancials INTEGER DEFAULT 0,
+        notes TEXT DEFAULT '',
+        createdBy TEXT DEFAULT '',
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    ''');
+
+    // جدول الحضور - Attendance table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS attendance (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        userName TEXT DEFAULT '',
+        date TEXT NOT NULL,
+        checkInTime TEXT NOT NULL,
+        checkOutTime TEXT,
+        deviceId TEXT DEFAULT '',
+        location TEXT DEFAULT '',
+        status TEXT DEFAULT 'checked_in',
+        notes TEXT DEFAULT ''
+      )
+    ''');
+
+    // جدول العمليات المعلقة (للمزامنة عند عودة الاتصال)
+    // Pending sync operations table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pending_sync (
+        id TEXT PRIMARY KEY,
+        tableName TEXT NOT NULL,
+        operation TEXT NOT NULL,
+        docId TEXT NOT NULL,
+        data TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        retryCount INTEGER DEFAULT 0
+      )
+    ''');
   }
 
   /// ترقية قاعدة البيانات - Upgrade database
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 4) {
+    if (oldVersion < 5) {
       await db.execute('DROP TABLE IF EXISTS users');
       await db.execute('DROP TABLE IF EXISTS patients');
       await db.execute('DROP TABLE IF EXISTS cases');
       await db.execute('DROP TABLE IF EXISTS inventory');
       await db.execute('DROP TABLE IF EXISTS logs');
       await db.execute('DROP TABLE IF EXISTS settings');
+      await db.execute('DROP TABLE IF EXISTS shifts');
+      await db.execute('DROP TABLE IF EXISTS attendance');
+      await db.execute('DROP TABLE IF EXISTS pending_sync');
       await _onCreate(db, newVersion);
     }
   }

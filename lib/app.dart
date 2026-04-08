@@ -15,6 +15,8 @@ import 'features/cases/logic/cubit/cases_cubit.dart';
 import 'features/procedures/logic/cubit/procedures_cubit.dart';
 import 'features/inventory/logic/cubit/inventory_cubit.dart';
 import 'features/financials/logic/cubit/financials_cubit.dart';
+import 'features/shifts/logic/cubit/shift_cubit.dart';
+import 'features/attendance/logic/cubit/attendance_cubit.dart';
 
 class NewCareApp extends StatelessWidget {
   const NewCareApp({super.key});
@@ -30,6 +32,8 @@ class NewCareApp extends StatelessWidget {
         BlocProvider(create: (_) => sl<ProceduresCubit>()..loadProcedures()),
         BlocProvider(create: (_) => sl<InventoryCubit>()..loadInventory()),
         BlocProvider(create: (_) => sl<FinancialsCubit>()..loadFinancials()),
+        BlocProvider(create: (_) => sl<ShiftCubit>()),
+        BlocProvider(create: (_) => sl<AttendanceCubit>()),
       ],
       child: MaterialApp(
         title: AppStrings.appName,
