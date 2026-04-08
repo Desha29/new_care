@@ -5,6 +5,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/utils/ui_feedback.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../features/auth/logic/cubit/auth_cubit.dart';
+import '../logic/connectivity_cubit.dart';
 
 /// نموذج عنصر الشريط الجانبي
 class _SidebarItem {
@@ -45,13 +46,14 @@ class _SidebarWidgetState extends State<SidebarWidget> {
 
   final List<_SidebarItem> _items = [
     _SidebarItem(icon: Icons.dashboard_rounded, label: AppStrings.dashboard),
-    _SidebarItem(icon: Icons.people_rounded, label: AppStrings.patients),
-    _SidebarItem(icon: Icons.medical_services_rounded, label: AppStrings.cases),
+    _SidebarItem(icon: Icons.assignment_rounded, label: AppStrings.cases),
+    _SidebarItem(icon: Icons.medical_services_rounded, label: 'الخدمات والإجراءات', roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.account_balance_rounded, label: 'المالية', roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.person_rounded, label: AppStrings.users, roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.inventory_2_rounded, label: AppStrings.inventory, roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.history_rounded, label: AppStrings.activityLogs, roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.settings_rounded, label: AppStrings.settings, roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.analytics_rounded, label: 'حالة البيانات', roles: ['admin', 'super_admin']),
   ];
 
   List<_SidebarItem> get _filteredItems => _items.where((item) {
@@ -107,6 +109,10 @@ class _SidebarWidgetState extends State<SidebarWidget> {
               // === معلومات المستخدم - User Info ===
               _buildUserInfo(isNarrow),
               
+              // === تغيير كلمة المرور للمستخدم - Change Password ===
+              _buildChangePasswordButton(isNarrow),
+              const SizedBox(height: 4),
+
               // === تسجيل الخروج - Logout ===
               _buildLogoutButton(isNarrow),
               const SizedBox(height: 12),
@@ -364,11 +370,123 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
+                      const SizedBox(height: 4),
+                      _buildConnectivityStatus(),
                     ],
                   ),
                 ),
               ],
             ),
+    );
+  }
+
+  /// مؤشر حالة الاتصال - Connectivity Status Indicator
+  Widget _buildConnectivityStatus() {
+    return BlocBuilder<ConnectivityCubit, ConnectivityStatus>(
+      builder: (context, state) {
+        final isOnline = state == ConnectivityStatus.online;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: (isOnline ? Colors.green : Colors.red).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: (isOnline ? Colors.green : Colors.red).withValues(alpha: 0.3),
+              width: 0.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: isOnline ? Colors.green : Colors.red,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isOnline ? Colors.green : Colors.red).withValues(alpha: 0.5),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isOnline ? 'متصل' : 'غير متصل',
+                style: TextStyle(
+                  color: isOnline ? Colors.green : Colors.red,
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Cairo',
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// زر تغيير كلمة المرور - Change Password Button
+  Widget _buildChangePasswordButton(bool isNarrow) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: InkWell(
+        onTap: () async {
+          final newPassword = await UIFeedback.showChangePasswordDialog(context);
+          if (newPassword != null && mounted) {
+            try {
+              await context.read<AuthCubit>().changePassword(newPassword);
+              UIFeedback.showSuccess(context, 'تم تغيير كلمة المرور بنجاح');
+            } catch (e) {
+              UIFeedback.showError(context, e.toString());
+            }
+          }
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: AppConstants.animationFast,
+          padding: EdgeInsets.symmetric(
+            horizontal: isNarrow ? 0 : 16,
+            vertical: 12,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: isNarrow
+              ? const Center(
+                  child: Icon(
+                    Icons.lock_reset_rounded,
+                    color: AppColors.info,
+                    size: 20,
+                  ),
+                )
+              : Row(
+                  children: [
+                    const Icon(
+                      Icons.lock_reset_rounded,
+                      color: AppColors.info,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Text(
+                        'تغيير كلمة المرور',
+                        style: TextStyle(
+                          color: AppColors.info,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Cairo',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
     );
   }
 

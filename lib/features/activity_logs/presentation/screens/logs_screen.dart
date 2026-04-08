@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/widgets/search_bar_widget.dart';
@@ -52,45 +53,64 @@ class _LogsScreenState extends State<LogsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final padding = ResponsiveHelper.getScreenPadding(context);
+    final titleSize = ResponsiveHelper.getTitleFontSize(context);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(padding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(AppStrings.activityLogs,
-                          style: TextStyle(
-                              fontFamily: 'Cairo',
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary)),
-                      Text('متابعة جميع الإجراءات والعمليات في النظام (محلياً)',
-                          style: TextStyle(
-                              fontFamily: 'Cairo',
-                              fontSize: 13,
-                              color: AppColors.textSecondary)),
-                    ],
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(AppStrings.activityLogs,
+                        style: TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: titleSize,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary)),
+                    Text('متابعة جميع الإجراءات والعمليات في النظام (محلياً)',
+                        style: TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: ResponsiveHelper.getSubtitleFontSize(context),
+                            color: AppColors.textSecondary)),
+                  ],
                 ),
-                SearchBarWidget(
-                    hintText: AppStrings.searchLogs,
-                    controller: _searchController,
-                    onChanged: (v) => setState(() => _searchQuery = v)),
-                const SizedBox(width: 12),
-                IconButton(
-                  onPressed: _loadLogs,
-                  icon: const Icon(Icons.refresh_rounded),
-                  tooltip: AppStrings.refresh,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!isMobile)
+                      SearchBarWidget(
+                          hintText: AppStrings.searchLogs,
+                          controller: _searchController,
+                          onChanged: (v) => setState(() => _searchQuery = v)),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      onPressed: _loadLogs,
+                      icon: const Icon(Icons.refresh_rounded),
+                      tooltip: AppStrings.refresh,
+                    ),
+                  ],
                 ),
               ],
             ),
+            if (isMobile) ...[
+              const SizedBox(height: 12),
+              SearchBarWidget(
+                  hintText: AppStrings.searchLogs,
+                  controller: _searchController,
+                  onChanged: (v) => setState(() => _searchQuery = v)),
+            ],
             const SizedBox(height: 20),
             Expanded(
               child: _isLoading

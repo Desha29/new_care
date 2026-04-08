@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_constants.dart';
@@ -27,30 +28,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final padding = ResponsiveHelper.getScreenPadding(context);
+    final isSmall = !ResponsiveHelper.isDesktop(context);
+    final titleSize = ResponsiveHelper.getTitleFontSize(context);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(padding),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text(AppStrings.settings, style: TextStyle(fontFamily: 'Cairo', fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-          const Text('إعدادات النظام والنسخ الاحتياطي والتحكم عن بُعد', style: TextStyle(fontFamily: 'Cairo', fontSize: 13, color: AppColors.textSecondary)),
+          Text(AppStrings.settings, style: TextStyle(fontFamily: 'Cairo', fontSize: titleSize, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          Text('إعدادات النظام والنسخ الاحتياطي والتحكم عن بُعد', style: TextStyle(fontFamily: 'Cairo', fontSize: ResponsiveHelper.getSubtitleFontSize(context), color: AppColors.textSecondary)),
           const SizedBox(height: 24),
 
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // النسخ الاحتياطي - Backup
-            Expanded(flex: 1, child: _buildBackupSection()),
-            const SizedBox(width: 20),
-            // التحكم عن بعد - Remote Config
-            Expanded(flex: 1, child: _buildRemoteConfigSection()),
-          ]),
-          const SizedBox(height: 20),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // حالة النظام - System Status
-            Expanded(flex: 1, child: _buildSystemStatus()),
-            const SizedBox(width: 20),
-            // معلومات التطبيق - App Info
-            Expanded(flex: 1, child: _buildAppInfo()),
-          ]),
+          if (isSmall) ...[
+            // Stack vertically on small screens
+            _buildBackupSection(),
+            const SizedBox(height: 20),
+            _buildRemoteConfigSection(),
+            const SizedBox(height: 20),
+            _buildSystemStatus(),
+            const SizedBox(height: 20),
+            _buildAppInfo(),
+          ] else ...[
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(flex: 1, child: _buildBackupSection()),
+              const SizedBox(width: 20),
+              Expanded(flex: 1, child: _buildRemoteConfigSection()),
+            ]),
+            const SizedBox(height: 20),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(flex: 1, child: _buildSystemStatus()),
+              const SizedBox(width: 20),
+              Expanded(flex: 1, child: _buildAppInfo()),
+            ]),
+          ],
         ]),
       ),
     );

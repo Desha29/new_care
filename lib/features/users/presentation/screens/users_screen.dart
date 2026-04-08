@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/widgets/status_badge.dart';
@@ -26,14 +27,29 @@ class _UsersScreenState extends State<UsersScreen> {
   String _searchQuery = '';
  
   bool _isOffline = false;
+  bool _isLoading = true;
   List<UserModel> _users = [];
-  late Stream<List<UserModel>> _usersStream; // Store stream to prevent redundant listeners
 
   @override
   void initState() {
     super.initState();
-    _usersStream = FirebaseService.instance.usersStream();
     _loadConnectionStatus();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    setState(() => _isLoading = true);
+    try {
+      final items = await FirebaseService.instance.getAllUsers();
+      if (mounted) {
+        setState(() {
+          _users = items;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadConnectionStatus() async {
@@ -59,18 +75,10 @@ class _UsersScreenState extends State<UsersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: StreamBuilder<List<UserModel>>(
-        stream: _usersStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('خطأ في التحميل: ${snapshot.error}'));
-          }
-          _users = snapshot.data ?? [];
+      body: _isLoading ? const Center(child: CircularProgressIndicator()) : Builder(
+        builder: (context) {
           return Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(ResponsiveHelper.getScreenPadding(context)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -108,43 +116,45 @@ class _UsersScreenState extends State<UsersScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text(
+                              Text(
                                 AppStrings.users,
                                 style: TextStyle(
                                   fontFamily: 'Cairo',
-                                  fontSize: 24,
+                                  fontSize: ResponsiveHelper.getTitleFontSize(context),
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.textPrimary,
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              IconButton(onPressed: _loadConnectionStatus, icon: const Icon(Icons.refresh_rounded, color: AppColors.primary, size: 20)),
+                              IconButton(onPressed: _loadUsers, icon: const Icon(Icons.refresh_rounded, color: AppColors.primary, size: 20)),
                             ],
                           ),
-                          const Text(
+                          Text(
                             'إدارة حسابات المستخدمين والصلاحيات',
                             style: TextStyle(
                               fontFamily: 'Cairo',
-                              fontSize: 13,
+                              fontSize: ResponsiveHelper.getSubtitleFontSize(context),
                               color: AppColors.textSecondary,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    SearchBarWidget(
-                      hintText: AppStrings.searchUsers,
-                      controller: _searchController,
-                      onChanged: (v) => setState(() => _searchQuery = v),
-                    ),
+                    if (!ResponsiveHelper.isMobile(context))
+                      SearchBarWidget(
+                        hintText: AppStrings.searchUsers,
+                        controller: _searchController,
+                        onChanged: (v) => setState(() => _searchQuery = v),
+                      ),
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       onPressed: () => _showUserDialog(),
                       icon: const Icon(Icons.person_add_rounded, size: 20),
-                      label: const Text(
-                        AppStrings.addUser,
-                        style: TextStyle(fontFamily: 'Cairo'),
+                      label: Text(
+                        ResponsiveHelper.isMobile(context) ? 'إضافة' : AppStrings.addUser,
+                        style: const TextStyle(fontFamily: 'Cairo'),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
@@ -160,9 +170,23 @@ class _UsersScreenState extends State<UsersScreen> {
                     ),
                   ],
                 ),
+                if (ResponsiveHelper.isMobile(context)) ...[
+                  const SizedBox(height: 12),
+                  SearchBarWidget(
+                    hintText: AppStrings.searchUsers,
+                    controller: _searchController,
+                    onChanged: (v) => setState(() => _searchQuery = v),
+                  ),
+                ],
                 const SizedBox(height: 20),
                 // Stats cards
-                Row(
+                GridView.count(
+                  crossAxisCount: ResponsiveHelper.isMobile(context) ? 2 : 4,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: ResponsiveHelper.isMobile(context) ? 2.0 : 2.5,
                   children: [
                     _statCard(
                       'إجمالي المستخدمين',
@@ -170,21 +194,18 @@ class _UsersScreenState extends State<UsersScreen> {
                       Icons.people_rounded,
                       AppColors.primary,
                     ),
-                    const SizedBox(width: 16),
                     _statCard(
                       'الممرضون',
                       '${_users.where((u) => u.role == UserRole.nurse).length}',
                       Icons.medical_services_rounded,
                       AppColors.secondary,
                     ),
-                    const SizedBox(width: 16),
                     _statCard(
                       'المشرفون',
                       '${_users.where((u) => u.role == UserRole.admin).length}',
                       Icons.admin_panel_settings_rounded,
                       const Color(0xFF8B5CF6),
                     ),
-                    const SizedBox(width: 16),
                     _statCard(
                       'نشط',
                       '${_users.where((u) => u.isActive).length}',
@@ -204,9 +225,8 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 
   Widget _statCard(String title, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
+    return Container(
+      padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
@@ -247,8 +267,7 @@ class _UsersScreenState extends State<UsersScreen> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildTable() {
@@ -400,6 +419,13 @@ class _UsersScreenState extends State<UsersScreen> {
                                   ),
                                   const SizedBox(width: 4),
                                   _ab(
+                                    Icons.key_rounded,
+                                    AppColors.info,
+                                    'إرسال رابط إعادة تعيين كلمة المرور',
+                                    () => _resetPassword(u),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  _ab(
                                     u.isActive ? Icons.block_rounded : Icons.check_circle_rounded,
                                     u.isActive ? AppColors.error : AppColors.success,
                                     u.isActive ? 'تعطيل' : 'تفعيل',
@@ -436,6 +462,28 @@ class _UsersScreenState extends State<UsersScreen> {
       ),
     ),
   );
+
+  void _resetPassword(UserModel u) async {
+    final confirm = await UIFeedback.showConfirmDialog(
+      context: context,
+      title: 'إعادة تعيين كلمة المرور',
+      message: 'هل تريد إرسال رابط إعادة تعيين كلمة المرور إلى ${u.email}؟',
+      confirmLabel: 'إرسال',
+    );
+    
+    if (confirm && mounted) {
+      try {
+        await context.read<AuthCubit>().resetUserPassword(u.email);
+        if (mounted) {
+          UIFeedback.showSuccess(context, 'تم إرسال رابط إعادة التعيين بنجاح');
+        }
+      } catch (e) {
+        if (mounted) {
+          UIFeedback.showError(context, e.toString());
+        }
+      }
+    }
+  }
 
   Widget _hc(String t, int f) => Expanded(
     flex: f,
@@ -477,7 +525,16 @@ class _UsersScreenState extends State<UsersScreen> {
           actionLabel: 'حذف مستخدم',
           details: 'تم حذف المستخدم ${u.name}',
         );
-        _loadConnectionStatus();
+        if (mounted) {
+          Navigator.pop(context); // Close dialog
+          _loadUsers();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تم حذف المستخدم بنجاح', style: TextStyle(fontFamily: 'Cairo')),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -506,7 +563,7 @@ class _UsersScreenState extends State<UsersScreen> {
         targetId: updatedUser.id,
         details: 'تم ${newStatus ? "تفعيل" : "تعطيل"} حساب المستخدم: ${updatedUser.name}',
       );
-      _loadConnectionStatus();
+      _loadUsers();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('تم ${newStatus ? 'تفعيل' : 'تعطيل'} الحساب', style: const TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.success),
@@ -655,16 +712,22 @@ class _UsersScreenState extends State<UsersScreen> {
                                     );
                                     await FirebaseService.instance.updateUser(updatedUser);
                                   } else {
-                                    // لإنشاء مستخدم يحتاج لإنشائه في FirebaseAuth أيضاً. هنا يتطلب Authentication. 
-                                    // حالياً نقوم فقط بحفظه في Firestore كبيانات، ولكن عملياً يحتاج لعمل Authentication 
-                                    // لذلك عادة المشرف يملك صلاحية لإنشاء حساب ولكن في Firebase Client لا يمكنه تجاوز حساب نفسه بدون Admin SDK.
-                                    // سنكتفي بإضافته لقاعدة البيانات بـ UID وهمي أو الاعتماد على أن الـ Backend سيتكفل بالباقي
-                                    String id = FirebaseService.instance.generateId();
+                                    // 1. إنشاء الحساب في Firebase Authentication أولاً
+                                    final email = emailCtrl.text.trim().contains('@') 
+                                        ? emailCtrl.text.trim() 
+                                        : '${emailCtrl.text.trim()}@newcare.com';
+                                    
+                                    final uid = await FirebaseService.instance.registerUserAuth(
+                                      email, 
+                                      passCtrl.text.trim()
+                                    );
+
+                                    // 2. حفظ البيانات الإضافية في Firestore باستخدام الـ UID الحقيقي
                                     final newUser = UserModel(
-                                        id: id,
-                                        name: nameCtrl.text.trim(),
-                                        email: emailCtrl.text.trim().contains('@') ? emailCtrl.text.trim() : '${emailCtrl.text.trim()}@newcare.com',
-                                        phone: phoneCtrl.text.trim(),
+                                      id: uid,
+                                      name: nameCtrl.text.trim(),
+                                      email: email,
+                                      phone: phoneCtrl.text.trim(),
                                       role: role,
                                       isActive: true,
                                       createdAt: DateTime.now(),
@@ -675,8 +738,18 @@ class _UsersScreenState extends State<UsersScreen> {
                                   
                                   if (mounted) {
                                     Navigator.pop(ctx);
-                                    _loadConnectionStatus();
-                                    UIFeedback.showSuccess(context, isEdit ? 'تم تحديث المستخدم بنجاح' : 'تم إضافة المستخدم بنجاح');
+                                    _loadUsers();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          isEdit
+                                              ? 'تم تحديث بيانات المستخدم بنجاح'
+                                              : 'تم إضافة المستخدم بنجاح',
+                                          style: const TextStyle(fontFamily: 'Cairo'),
+                                        ),
+                                        backgroundColor: AppColors.success,
+                                      ),
+                                    );
                                   }
                                 } catch (e) {
                                   ss(() => isSaving = false);

@@ -17,11 +17,11 @@ class ReportService {
   Future<void> generateCaseInvoice(CaseModel caseData) async {
     final pdf = pw.Document();
     
-    // تحميل الخطوط لدعم العربية - Using Google Fonts for reliability
+    // تحميل الخطوط لدعم العربية
     final ttf = await PdfGoogleFonts.cairoRegular();
     final boldTtf = await PdfGoogleFonts.cairoBold();
 
-    // تحميل الشعار إذا وجد - Load Logo
+    // تحميل الشعار إذا وجد
     pw.MemoryImage? logo;
     try {
       final logoData = await rootBundle.load('assets/images/logo.png');
@@ -36,7 +36,7 @@ class ReportService {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // الهيدر - Logo & Info
+              // الهيدر الاحترافي
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
@@ -44,16 +44,16 @@ class ReportService {
                     children: [
                       if (logo != null)
                         pw.Container(
-                          width: 40,
-                          height: 40,
+                          width: 45,
+                          height: 45,
                           margin: const pw.EdgeInsets.only(left: 10),
                           child: pw.Image(logo),
                         ),
                       pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text(AppStrings.appName, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-                          pw.Text('مركز نيو كير للتمريض والخدمات الطبية', style: const pw.TextStyle(fontSize: 9)),
+                          pw.Text(AppStrings.appName, style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                          pw.Text('مركز نيو كير للرعاية الطبية والتمريض المنزلي', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
                         ],
                       ),
                     ],
@@ -61,81 +61,123 @@ class ReportService {
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      pw.Text('رقم الفاتورة: #${caseData.id.substring(0, 8).toUpperCase()}', style: const pw.TextStyle(fontSize: 10)),
-                      pw.Text('التاريخ: ${intl.DateFormat('yyyy-MM-dd').format(caseData.caseDate)}', style: const pw.TextStyle(fontSize: 10)),
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: const pw.BoxDecoration(color: PdfColors.blue900, borderRadius: pw.BorderRadius.all(pw.Radius.circular(4))),
+                        child: pw.Text('فاتورة رقم: #${caseData.id.substring(0, 6).toUpperCase()}', style: const pw.TextStyle(color: PdfColors.white, fontSize: 10)),
+                      ),
+                      pw.SizedBox(height: 5),
+                      pw.Text('تاريخ الإدراج: ${intl.DateFormat('yyyy/MM/dd').format(caseData.caseDate)}', style: const pw.TextStyle(fontSize: 9)),
                     ],
                   ),
                 ],
               ),
               
-              pw.SizedBox(height: 30),
-              pw.Divider(thickness: 2, color: PdfColors.blue900),
+              pw.SizedBox(height: 20),
+              pw.Divider(thickness: 1, color: PdfColors.grey300),
               pw.SizedBox(height: 10),
               
-              pw.Center(child: pw.Text('فاتورة ضريبية مبسطة', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold))),
-              pw.SizedBox(height: 20),
-
-              // بيانات العميل
-              pw.Container(
-                padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(color: PdfColors.grey100, borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8))),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    _invoiceRow('اسم المريض:', caseData.patientName),
-                    _invoiceRow('الخدمة المقدمة:', caseData.caseType.label),
-                    _invoiceRow('الممرض المسؤول:', caseData.nurseName),
-                  ],
-                ),
-              ),
-
-              pw.SizedBox(height: 30),
-
-              // التفاصيل المالية
-              pw.Table(
-                border: const pw.TableBorder(bottom: pw.BorderSide(color: PdfColors.grey400)),
+              // بيانات المريض مع ممرات تصميمية
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.blue900),
-                    children: [
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('الوصف', style: const pw.TextStyle(color: PdfColors.white, fontSize: 12))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('المبلغ', style: const pw.TextStyle(color: PdfColors.white, fontSize: 12), textAlign: pw.TextAlign.right)),
-                    ],
+                   pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('إلى السيد / المريض:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                        pw.Text(caseData.patientName, style: const pw.TextStyle(fontSize: 14)),
+                        if (caseData.patientPhone.isNotEmpty) pw.Text('رقم الهاتف: ${caseData.patientPhone}', style: const pw.TextStyle(fontSize: 9)),
+                        if (caseData.patientAddress.isNotEmpty) pw.Text('العنوان: ${caseData.patientAddress}', style: const pw.TextStyle(fontSize: 9)),
+                      ],
+                    ),
                   ),
-                  pw.TableRow(
-                    children: [
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(caseData.caseType.label)),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('${caseData.totalPrice} ${AppStrings.currency}', textAlign: pw.TextAlign.right)),
-                    ],
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text('نوع الخدمة:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                        pw.Text(caseData.caseType.label, style: const pw.TextStyle(fontSize: 11)),
+                        pw.Text('القائم بالخدمة:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                        pw.Text(caseData.nurseName, style: const pw.TextStyle(fontSize: 11)),
+                      ],
+                    ),
                   ),
                 ],
               ),
 
-              pw.SizedBox(height: 40),
+              pw.SizedBox(height: 20),
+
+              // جدول الخدمات بالتفصيل
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey200, width: 0.5),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(3),
+                  1: const pw.FlexColumnWidth(1),
+                  2: const pw.FlexColumnWidth(1),
+                },
+                children: [
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(color: PdfColors.blue50),
+                    children: [
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('البيان / الخدمة', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('الكمية', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10), textAlign: pw.TextAlign.center)),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('المبلغ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10), textAlign: pw.TextAlign.right)),
+                    ],
+                  ),
+                  // إضافة الخدمات
+                  ...caseData.services.map((s) => pw.TableRow(
+                    children: [
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(s.name, style: const pw.TextStyle(fontSize: 9))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('${s.quantity}', style: const pw.TextStyle(fontSize: 9), textAlign: pw.TextAlign.center)),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('${s.total} ${AppStrings.currency}', style: const pw.TextStyle(fontSize: 9), textAlign: pw.TextAlign.right)),
+                    ],
+                  )),
+                  // إضافة المستلزمات (إن وجدت)
+                  ...caseData.suppliesUsed.map((su) => pw.TableRow(
+                    children: [
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('${su.name} (مستلزم)', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('${su.quantity}', style: const pw.TextStyle(fontSize: 9), textAlign: pw.TextAlign.center)),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('${su.total} ${AppStrings.currency}', style: const pw.TextStyle(fontSize: 9), textAlign: pw.TextAlign.right)),
+                    ],
+                  )),
+                ],
+              ),
+
+              pw.SizedBox(height: 15),
               
-              // المجموع النهائي
+              // ملخص الحساب
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.end,
                 children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
-                    children: [
-                      pw.Text('الإجمالي المستحق', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-                      pw.SizedBox(height: 5),
-                      pw.Text('${caseData.totalPrice} ${AppStrings.currency}', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-                    ],
+                  pw.Container(
+                    width: 150,
+                    child: pw.Column(
+                      children: [
+                        _summaryLine('المجموع:', '${caseData.totalPrice} ${AppStrings.currency}', false),
+                        _summaryLine('الخصم:', '0 ${AppStrings.currency}', false),
+                        pw.Divider(color: PdfColors.blue900, thickness: 1),
+                        _summaryLine('الإجمالي الصافي:', '${caseData.totalPrice} ${AppStrings.currency}', true),
+                      ],
+                    ),
                   ),
                 ],
               ),
 
               pw.Spacer(),
               
-              pw.Divider(),
-              pw.Center(
-                child: pw.Text('شكراً لاختياركم نيو كير لرعايتكم الطبية', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-              ),
-              pw.Center(
-                child: pw.Text('New Care - We Care for Your Health', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500)),
+              // فوتر
+              pw.Container(
+                decoration: const pw.BoxDecoration(border: pw.Border(top: pw.BorderSide(color: PdfColors.grey300))),
+                padding: const pw.EdgeInsets.only(top: 10),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('صدرت بواسطة: ${caseData.nurseName}', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
+                    pw.Text('شكراً لاختياركم نيو كير لرعايتكم', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                    pw.Text('صفحة 1/1', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
+                  ],
+                ),
               ),
             ],
           );
@@ -144,17 +186,17 @@ class ReportService {
     );
 
     // معاينة أو طباعة
-    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => pdf.save());
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => pdf.save(), name: 'Invoice-${caseData.patientName}');
   }
 
-  pw.Widget _invoiceRow(String label, String value) {
+  pw.Widget _summaryLine(String label, String value, bool isBold) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 4),
+      padding: const pw.EdgeInsets.symmetric(vertical: 2),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(label, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-          pw.Text(value),
+          pw.Text(label, style: pw.TextStyle(fontSize: 10, fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+          pw.Text(value, style: pw.TextStyle(fontSize: 11, fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal, color: isBold ? PdfColors.blue900 : PdfColors.black)),
         ],
       ),
     );
@@ -169,7 +211,7 @@ class ReportService {
   }) async {
     final pdf = pw.Document();
     
-    // تحميل الخطوط لدعم العربية - Using Google Fonts for reliability
+    // تحميل الخطوط لدعم العربية
     final ttf = await PdfGoogleFonts.cairoRegular();
     final boldTtf = await PdfGoogleFonts.cairoBold();
 
@@ -186,53 +228,83 @@ class ReportService {
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text(AppStrings.appName, style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
-                pw.Text('تقرير الأداء المالي', style: const pw.TextStyle(fontSize: 16)),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(AppStrings.appName, style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                    pw.Text('نظام إدارة مركز التمريض والخدمات الطبية', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                  ],
+                ),
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                  decoration: const pw.BoxDecoration(color: PdfColors.blue900, borderRadius: pw.BorderRadius.all(pw.Radius.circular(5))),
+                  child: pw.Text('تقرير مالي رسمي', style: pw.TextStyle(color: PdfColors.white, fontSize: 14)),
+                ),
               ],
             ),
-            pw.Divider(),
+            pw.SizedBox(height: 10),
+            pw.Divider(thickness: 2, color: PdfColors.blue900),
             pw.SizedBox(height: 10),
           ],
         ),
         build: (pw.Context context) => [
-          pw.Text('الفترة من: ${intl.DateFormat('yyyy-MM-dd').format(start)} إلى: ${intl.DateFormat('yyyy-MM-dd').format(end)}', style: const pw.TextStyle(fontSize: 12)),
-          pw.SizedBox(height: 20),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('الفترة من: ${intl.DateFormat('yyyy-MM-dd').format(start)}', style: const pw.TextStyle(fontSize: 11)),
+              pw.Text('إلى: ${intl.DateFormat('yyyy-MM-dd').format(end)}', style: const pw.TextStyle(fontSize: 11)),
+              pw.Text('تاريخ الاستخراج: ${intl.DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}', style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey600)),
+            ],
+          ),
+          pw.SizedBox(height: 25),
 
-          // ملخص مالي
+          // كروت الملخص المالي بتصميم جديد
           pw.Row(
             children: [
-              _summaryBox('إجمالي الدخل', '${totalIncome.toStringAsFixed(0)} ${AppStrings.currency}', PdfColors.green900),
-              pw.SizedBox(width: 10),
-              _summaryBox('إجمالي المصروفات', '${totalExpenses.toStringAsFixed(0)} ${AppStrings.currency}', PdfColors.red900),
-              pw.SizedBox(width: 10),
-              _summaryBox('صافي الربح', '${netProfit.toStringAsFixed(0)} ${AppStrings.currency}', PdfColors.blue900),
+                 _reportStatCard('إجمالي الأداء (إيراد)', '${totalIncome.toStringAsFixed(0)} ${AppStrings.currency}', PdfColors.green800),
+                 pw.SizedBox(width: 15),
+                 _reportStatCard('إجمالي المصاريف', '${totalExpenses.toStringAsFixed(0)} ${AppStrings.currency}', PdfColors.red800),
+                 pw.SizedBox(width: 15),
+                 _reportStatCard('صافي الأرباح', '${netProfit.toStringAsFixed(0)} ${AppStrings.currency}', PdfColors.blue900),
             ],
           ),
 
-          pw.SizedBox(height: 30),
-          pw.Text('تفاصيل الدخل (الحالات)', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 35),
+          pw.Text('تفاصيل الدخل (عمليات الحالات المرضية)', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
           pw.SizedBox(height: 10),
           
           pw.Table.fromTextArray(
-            headers: ['التاريخ', 'المريض', 'النوع', 'المبلغ'],
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+            headers: ['#', 'التاريخ', 'اسم المريض', 'النوع', 'الممرض', 'المبلغ'],
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 10),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey800),
-            data: cases.map((c) => [
-              intl.DateFormat('yyyy-MM-dd').format(c.caseDate),
-              c.patientName,
-              c.caseType.label,
-              '${c.totalPrice.toStringAsFixed(0)} ${AppStrings.currency}',
-            ]).toList(),
+            cellPadding: const pw.EdgeInsets.all(6),
+            cellAlignments: {
+              0: pw.Alignment.center,
+              1: pw.Alignment.center,
+              5: pw.Alignment.centerLeft,
+            },
+            data: List<List<dynamic>>.generate(cases.length, (index) {
+              final c = cases[index];
+              return [
+                index + 1,
+                intl.DateFormat('MM/dd').format(c.caseDate),
+                c.patientName,
+                c.caseType.label,
+                c.nurseName,
+                '${c.totalPrice.toStringAsFixed(0)}'
+              ];
+            }),
           ),
 
-          pw.SizedBox(height: 30),
-          pw.Text('تفاصيل المصروفات', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 35),
+          pw.Text('تفصيل المصروفات والبنود المالية', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.red800)),
           pw.SizedBox(height: 10),
           
           pw.Table.fromTextArray(
-            headers: ['التاريخ', 'البند', 'الوصف', 'المبلغ'],
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-            headerDecoration: const pw.BoxDecoration(color: PdfColors.red800),
+            headers: ['التاريخ', 'التصنيف', 'البيان الوصفي', 'القيمة'],
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 10),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.red900),
+            cellPadding: const pw.EdgeInsets.all(6),
             data: expenses.map((e) => [
               intl.DateFormat('yyyy-MM-dd').format(e.date),
               e.category,
@@ -240,6 +312,20 @@ class ReportService {
               '${e.amount.toStringAsFixed(0)} ${AppStrings.currency}',
             ]).toList(),
           ),
+          
+          pw.SizedBox(height: 50),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.end,
+            children: [
+               pw.Column(
+                 children: [
+                   pw.Text('توقيع المدير المسؤول', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                   pw.SizedBox(height: 40),
+                   pw.Container(width: 150, height: 1, color: PdfColors.black),
+                 ]
+               )
+            ]
+          )
         ],
         footer: (pw.Context context) => pw.Column(
           children: [
@@ -247,8 +333,8 @@ class ReportService {
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('تم استخراج هذا التقرير آلياً من نظام نيو كير', style: const pw.TextStyle(fontSize: 8)),
-                pw.Text('صفحة ${context.pageNumber} من ${context.pagesCount}', style: const pw.TextStyle(fontSize: 8)),
+                pw.Text('هذا التقرير مخصص للاستخدام الداخلي بمركز نيو كير', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+                pw.Text('صفحة ${context.pageNumber} من ${context.pagesCount}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
               ],
             ),
           ],
@@ -256,25 +342,28 @@ class ReportService {
       ),
     );
 
-    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => pdf.save());
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => pdf.save(), name: 'Financial_Report_${intl.DateFormat('yyyy_MM').format(start)}');
   }
 
-  pw.Widget _summaryBox(String title, String value, PdfColor color) {
+  pw.Widget _reportStatCard(String title, String value, PdfColor color) {
     return pw.Expanded(
       child: pw.Container(
-        padding: const pw.EdgeInsets.all(12),
+        padding: const pw.EdgeInsets.all(15),
         decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: color, width: 2),
-          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+          color: PdfColors.white,
+          border: pw.Border(right: pw.BorderSide(color: color, width: 4)),
+          boxShadow: const [pw.BoxShadow(color: PdfColors.grey200, blurRadius: 3)],
         ),
         child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text(title, style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-            pw.SizedBox(height: 5),
-            pw.Text(value, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: color)),
+            pw.Text(title, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+            pw.SizedBox(height: 8),
+            pw.Text(value, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: color)),
           ],
         ),
       ),
     );
   }
+
 }

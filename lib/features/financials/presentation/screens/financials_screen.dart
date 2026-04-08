@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/widgets/stat_card.dart';
@@ -43,23 +44,31 @@ class _FinancialsView extends StatelessWidget {
           }
           
           if (state is FinancialsLoaded) {
+            final padding = ResponsiveHelper.getScreenPadding(context);
+            final isSmall = !ResponsiveHelper.isDesktop(context);
+
             return SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(padding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeader(context, state),
                   const SizedBox(height: 24),
-                  _buildStats(state),
+                  _buildStats(context, state),
                   const SizedBox(height: 24),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 3, child: _buildExpensesTable(context, state)),
-                      const SizedBox(width: 20),
-                      Expanded(flex: 2, child: _buildIncomeSummary(state)),
-                    ],
-                  ),
+                  if (isSmall) ...[
+                    _buildExpensesTable(context, state),
+                    const SizedBox(height: 20),
+                    _buildIncomeSummary(state),
+                  ] else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 3, child: _buildExpensesTable(context, state)),
+                        const SizedBox(width: 20),
+                        Expanded(flex: 2, child: _buildIncomeSummary(state)),
+                      ],
+                    ),
                 ],
               ),
             );
@@ -72,23 +81,31 @@ class _FinancialsView extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context, FinancialsLoaded state) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final titleSize = ResponsiveHelper.getTitleFontSize(context);
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'التقارير المالية',
-              style: TextStyle(fontFamily: 'Cairo', fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: TextStyle(fontFamily: 'Cairo', fontSize: titleSize, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
             ),
             Text(
               'إدارة الدخل والمصروفات والأرباح - ${DateFormat('MMMM yyyy', 'ar').format(DateTime.now())}',
-              style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, color: AppColors.textSecondary),
+              style: TextStyle(fontFamily: 'Cairo', fontSize: ResponsiveHelper.getSubtitleFontSize(context), color: AppColors.textSecondary),
             ),
           ],
         ),
-        Row(
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
           children: [
             OutlinedButton.icon(
               onPressed: () => ReportService.instance.generateFinancialReport(
@@ -98,14 +115,13 @@ class _FinancialsView extends StatelessWidget {
                 end: DateTime.now(),
               ),
               icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-              label: const Text('تقرير PDF مجمع', style: TextStyle(fontFamily: 'Cairo')),
+              label: Text(isMobile ? 'PDF' : 'تقرير PDF مجمع', style: const TextStyle(fontFamily: 'Cairo')),
               style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
             ),
-            const SizedBox(width: 12),
             ElevatedButton.icon(
               onPressed: () => _showAddExpenseDialog(context),
               icon: const Icon(Icons.add_rounded, size: 20),
-              label: const Text('إضافة مصروف', style: TextStyle(fontFamily: 'Cairo')),
+              label: Text(isMobile ? 'إضافة' : 'إضافة مصروف', style: const TextStyle(fontFamily: 'Cairo')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -119,37 +135,36 @@ class _FinancialsView extends StatelessWidget {
     );
   }
 
-  Widget _buildStats(FinancialsLoaded state) {
-    return Row(
+  Widget _buildStats(BuildContext context, FinancialsLoaded state) {
+    final columns = ResponsiveHelper.isMobile(context) ? 1 : 3;
+    return GridView.count(
+      crossAxisCount: columns,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      childAspectRatio: ResponsiveHelper.isMobile(context) ? 2.8 : 2.0,
       children: [
-        Expanded(
-          child: StatCard(
-            title: 'إجمالي الدخل',
-            value: '${state.totalIncome.toStringAsFixed(0)} ${AppStrings.currency}',
-            icon: Icons.trending_up_rounded,
-            color: AppColors.success,
-            subtitle: 'من الحالات المؤكدة',
-          ),
+        StatCard(
+          title: 'إجمالي الدخل',
+          value: '${state.totalIncome.toStringAsFixed(0)} ${AppStrings.currency}',
+          icon: Icons.trending_up_rounded,
+          color: AppColors.success,
+          subtitle: 'من الحالات المؤكدة',
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: StatCard(
-            title: 'إجمالي المصروفات',
-            value: '${state.totalExpenses.toStringAsFixed(0)} ${AppStrings.currency}',
-            icon: Icons.trending_down_rounded,
-            color: AppColors.error,
-            subtitle: 'تكاليف وشراء مستلزمات',
-          ),
+        StatCard(
+          title: 'إجمالي المصروفات',
+          value: '${state.totalExpenses.toStringAsFixed(0)} ${AppStrings.currency}',
+          icon: Icons.trending_down_rounded,
+          color: AppColors.error,
+          subtitle: 'تكاليف وشراء مستلزمات',
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: StatCard(
-            title: 'صافي الربح',
-            value: '${state.netProfit.toStringAsFixed(0)} ${AppStrings.currency}',
-            icon: Icons.account_balance_wallet_rounded,
-            color: AppColors.primary,
-            subtitle: 'الأرباح القابلة للتوزيع',
-          ),
+        StatCard(
+          title: 'صافي الربح',
+          value: '${state.netProfit.toStringAsFixed(0)} ${AppStrings.currency}',
+          icon: Icons.account_balance_wallet_rounded,
+          color: AppColors.primary,
+          subtitle: 'الأرباح القابلة للتوزيع',
         ),
       ],
     );

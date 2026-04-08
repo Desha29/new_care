@@ -11,10 +11,12 @@ import 'core/services/notification_service.dart';
 import 'core/app_bloc_observer.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'firebase_options.dart';
+import 'core/di/injection.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  await initDI();
   await initializeDateFormatting('ar');
 
   sqfliteFfiInit();

@@ -1,13 +1,15 @@
+import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:new_care/core/enums/user_role.dart';
 import 'package:uuid/uuid.dart';
 import '../../features/auth/data/models/user_model.dart';
-import '../../features/patients/data/models/patient_model.dart';
 import '../../features/cases/data/models/case_model.dart';
 import '../../features/inventory/data/models/inventory_model.dart';
 import '../../features/activity_logs/data/models/log_model.dart';
 import '../../features/financials/data/models/expense_model.dart';
+import '../../features/procedures/data/models/procedure_model.dart';
 import '../constants/app_constants.dart';
 
 /// خدمة Firebase Firestore
@@ -26,6 +28,47 @@ class FirebaseService {
 
   /// توليد معرف فريد - Generate unique ID
   String generateId() => _uuid.v4();
+
+  /// إنشاء حساب مستخدم في Firebase Authentication (للمشرفين)
+  /// Create a Firebase Auth account for a new user without logging out the admin
+  Future<String> registerUserAuth(String email, String password) async {
+    FirebaseApp? secondaryApp;
+    try {
+      // إعداد تطبيق ثانوي لتجنب تسجيل خروج المشرف الحالي
+      secondaryApp = await Firebase.initializeApp(
+        name: 'SecondaryApp_${DateTime.now().millisecondsSinceEpoch}',
+        options: Firebase.app().options,
+      );
+
+      final auth = FirebaseAuth.instanceFor(app: secondaryApp);
+      final credential = await auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
+
+      final uid = credential.user?.uid;
+      if (uid == null) throw 'فشل في الحصول على معرف المستخدم';
+
+      // تنظيف التطبيق الثانوي فور الانتهاء
+      await secondaryApp.delete();
+      return uid;
+    } catch (e) {
+      if (secondaryApp != null) await secondaryApp.delete();
+      throw _handleAuthError(e);
+    }
+  }
+
+  String _handleAuthError(dynamic e) {
+    if (e is FirebaseAuthException) {
+      switch (e.code) {
+        case 'email-already-in-use': return 'البريد الإلكتروني مستخدم بالفعل';
+        case 'weak-password': return 'كلمة المرور ضعيفة جداً';
+        case 'invalid-email': return 'البريد الإلكتروني غير صالح';
+        default: return e.message ?? 'فشل إنشاء الحساب';
+      }
+    }
+    return e.toString();
+  }
 
   // ============================================
   // === المستخدمون - Users ===
@@ -51,9 +94,18 @@ class FirebaseService {
 
   /// جلب مستخدم - Get user by ID
   Future<UserModel?> getUser(String userId) async {
-    final doc = await _usersRef.doc(userId).get();
-    if (!doc.exists) return null;
-    return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    try {
+      final doc = await _usersRef.doc(userId).get();
+      if (!doc.exists) {
+        log('[Firestore] User not found: $userId');
+        return null;
+      }
+      log('[Firestore] User found: $userId');
+      return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    } catch (e) {
+      log('[Firestore] Error getting user $userId: $e');
+      rethrow;
+    }
   }
 
   /// جلب جميع المستخدمين - Get all users
@@ -62,6 +114,12 @@ class FirebaseService {
     return snapshot.docs
         .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
         .toList();
+  }
+
+  /// جلب عدد المستخدمين - Get users count
+  Future<int> getUsersCount() async {
+    final snapshot = await _usersRef.get();
+    return snapshot.size;
   }
 
   /// بث المستخدمين - Stream all users
@@ -84,13 +142,25 @@ class FirebaseService {
         .toList();
   }
 
-  /// تهيئة المستخدمين الافتراضيين - Seed Default Users
+  /// تهيئة المستخدمين والإجراءات الافتراضية - Seed Default Users & Procedures
   Future<void> seedDefaultUsers() async {
+    await seedDefaultProcedures();
     final auth = FirebaseAuth.instance;
+
+    // Check if the database is already seeded (has a super admin)
+    // If so, exit immediately to prevent overwriting the active authentication session.
+    try {
+      final superAdmins = await _usersRef.where('role', isEqualTo: 'super_admin').limit(1).get();
+      if (superAdmins.docs.isNotEmpty) {
+        return; // Already seeded, safe to exit.
+      }
+    } catch (_) {
+      // Offline or network error, skip seed
+      return; 
+    }
     
-    // تحقق مما إذا كانت هناك مستندات بالفعل في Firestore لتجنب إعادة إنشاء المحذوف
-    final snapshot = await _usersRef.limit(1).get();
-    if (snapshot.docs.isNotEmpty) return;
+    // سنقوم الآن بالتحقق من كل مستخدم افتراضي على حدة لضمان وجوده في Firestore
+    // حتى لو كانت المجموعة غير فارغة، فقد يكون المشرف الافتراضي مفقوداً
 
     // قائمة المستخدمين الافتراضيين
     final seedUsers = [
@@ -129,11 +199,16 @@ class FirebaseService {
           }
         }
 
-        if (uid == null) continue;
+        if (uid == null) {
+          log('[Seed] ERROR: UID is null for ${seedData['email']}');
+          continue;
+        }
 
+        log('[Seed] Checking Firestore for $uid (${seedData['email']})');
         // تحقق من وجود المستند في Firestore، وأنشئه إن لم يكن موجوداً
         final existingDoc = await _usersRef.doc(uid).get();
         if (!existingDoc.exists) {
+          log('[Seed] User doc not found for $uid. Creating now...');
           final user = UserModel(
             id: uid,
             name: seedData['name'] as String,
@@ -145,9 +220,12 @@ class FirebaseService {
             updatedAt: DateTime.now(),
           );
           await createUser(user);
+          log('[Seed] User doc created successfully for ${seedData['email']}');
+        } else {
+          log('[Seed] User profile already exists in Firestore for ${seedData['email']}');
         }
       } catch (e) {
-        // تجاهل الخطأ والمتابعة للمستخدم التالي
+        log('[Seed] Error processing user ${seedData['email']}: $e');
       }
     }
 
@@ -157,57 +235,79 @@ class FirebaseService {
     } catch (_) {}
   }
 
+  /// تهيئة الإجراءات الافتراضية - Seed Default Procedures
+  Future<void> seedDefaultProcedures() async {
+    try {
+      final snapshot = await _proceduresRef.limit(1).get();
+      if (snapshot.docs.isNotEmpty) return; // Already seeded
+
+      final defaults = [
+        {'name': 'متابعة', 'price': 50.0},
+        {'name': 'جهاز وريد', 'price': 80.0},
+        {'name': 'كانيولا', 'price': 30.0},
+        {'name': 'حقن عضل', 'price': 20.0},
+        {'name': 'تغيير جرح', 'price': 60.0},
+        {'name': 'غيار طبي', 'price': 40.0},
+      ];
+
+      for (var d in defaults) {
+        final id = _proceduresRef.doc().id;
+        await _proceduresRef.doc(id).set({
+          'name': d['name'],
+          'defaultPrice': d['price'],
+          'notes': 'خدمة افتراضية مُضافة آلياً',
+        });
+      }
+    } catch (_) {}
+  }
+
   // ============================================
-  // === المرضى - Patients ===
+  // === الإجراءات الطبية - Procedures ===
   // ============================================
 
-  CollectionReference get _patientsRef =>
-      _firestore.collection(AppConstants.patientsCollection);
+  CollectionReference get _proceduresRef =>
+      _firestore.collection('procedures');
 
-  /// إنشاء مريض - Create patient
-  Future<void> createPatient(PatientModel patient) async {
-    await _patientsRef.doc(patient.id).set(patient.toMap());
+  Future<void> createProcedure(ProcedureModel procedure) async {
+    await _proceduresRef.doc(procedure.id).set(procedure.toMap());
   }
 
-  /// تحديث مريض - Update patient
-  Future<void> updatePatient(PatientModel patient) async {
-    await _patientsRef.doc(patient.id).update(patient.toMap());
+  Future<void> updateProcedure(ProcedureModel procedure) async {
+    await _proceduresRef.doc(procedure.id).update(procedure.toMap());
   }
 
-  /// حذف مريض - Delete patient
-  Future<void> deletePatient(String patientId) async {
-    await _patientsRef.doc(patientId).delete();
+  Future<void> deleteProcedure(String id) async {
+    await _proceduresRef.doc(id).delete();
   }
 
-  /// جلب جميع المرضى - Get all patients
-  Future<List<PatientModel>> getAllPatients() async {
-    final snapshot = await _patientsRef.get();
-    final patients = snapshot.docs
-        .map((doc) => PatientModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-        .toList();
-    
-    // الترتيب في الذاكرة لتجنب استبعاد المستندات التي تفتقد لحقل createdAt
-    patients.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return patients;
+  Stream<List<ProcedureModel>> streamProcedures() {
+    return _proceduresRef.snapshots().map(
+          (snapshot) => snapshot.docs
+              .map((doc) => ProcedureModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+              .toList(),
+        );
   }
 
-  /// بحث المرضى - Search patients
-  Future<List<PatientModel>> searchPatients(String query) async {
-    final snapshot = await _patientsRef.get();
+  Future<List<ProcedureModel>> getAllProcedures() async {
+    final snapshot = await _proceduresRef.get();
     return snapshot.docs
-        .map((doc) => PatientModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-        .where((p) =>
-            p.name.toLowerCase().contains(query.toLowerCase()) ||
-            p.phone.contains(query))
+        .map((doc) => ProcedureModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
         .toList();
   }
 
   // ============================================
-  // === الحالات - Cases ===
+  // === الحالات و المرضى - Cases & Patients ===
   // ============================================
 
   CollectionReference get _casesRef =>
       _firestore.collection(AppConstants.casesCollection);
+
+  /// جلب عدد المرضى (الحالات حالياً) - Get patients count
+  Future<int> getPatientsCount() async {
+    final snapshot = await _casesRef.get();
+    return snapshot.size;
+  }
+
 
   /// إنشاء حالة - Create case
   Future<void> createCase(CaseModel caseModel) async {
@@ -418,7 +518,7 @@ class FirebaseService {
 
     // جلب البيانات بشكل متوازي
     final results = await Future.wait([
-      _patientsRef.count().get(),
+      _casesRef.count().get(),
       _casesRef
           .where('caseDate', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
           .where('caseDate', isLessThan: endOfDay.toIso8601String())

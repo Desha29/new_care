@@ -5,6 +5,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/widgets/stat_card.dart';
 import '../../../../core/services/firebase_service.dart';
 import '../../../../core/services/connectivity_service.dart';
+import '../../../../core/utils/responsive_helper.dart';
 import '../../../cases/data/models/case_model.dart';
 import 'package:intl/intl.dart';
 
@@ -86,12 +87,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final padding = ResponsiveHelper.getScreenPadding(context);
+    final isSmall = !ResponsiveHelper.isDesktop(context);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(padding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -144,27 +148,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 24),
 
                   // === الرسوم البيانية - Charts ===
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // رسم بياني للحالات - Cases Chart
-                      Expanded(flex: 3, child: _buildCasesChart()),
-                      const SizedBox(width: 20),
-                      // رسم بياني دائري - Pie Chart
-                      Expanded(flex: 2, child: _buildStatusPieChart()),
-                    ],
-                  ),
+                  if (isSmall) ...[
+                    _buildCasesChart(),
+                    const SizedBox(height: 20),
+                    _buildStatusPieChart(),
+                  ] else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 3, child: _buildCasesChart()),
+                        const SizedBox(width: 20),
+                        Expanded(flex: 2, child: _buildStatusPieChart()),
+                      ],
+                    ),
                   const SizedBox(height: 24),
 
-                  // === الإيرادات والحالات الأخيرة - Revenue & Recent Cases ===
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 3, child: _buildRevenueChart()),
-                      const SizedBox(width: 20),
-                      Expanded(flex: 2, child: _buildRecentCases()),
-                    ],
-                  ),
+                  // === الإيرادات والحالات الأخيرة ===
+                  if (isSmall) ...[
+                    _buildRevenueChart(),
+                    const SizedBox(height: 20),
+                    _buildRecentCases(),
+                  ] else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 3, child: _buildRevenueChart()),
+                        const SizedBox(width: 20),
+                        Expanded(flex: 2, child: _buildRecentCases()),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -179,26 +191,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ? 'مساء الخير'
         : 'مساء الخير';
     final user = context.read<AuthCubit>().currentUser;
+    final titleSize = ResponsiveHelper.getTitleFontSize(context);
+    final isMobile = ResponsiveHelper.isMobile(context);
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Wrap(
+      spacing: 16,
+      runSpacing: 12,
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               '$greeting ${user?.name ?? ""} 👋',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Cairo',
-                fontSize: 14,
+                fontSize: isMobile ? 12 : 14,
                 color: AppColors.textSecondary,
               ),
             ),
-            const Text(
+            Text(
               AppStrings.dashboard,
               style: TextStyle(
                 fontFamily: 'Cairo',
-                fontSize: 26,
+                fontSize: titleSize,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
@@ -214,6 +231,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             border: Border.all(color: AppColors.border),
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(
                 Icons.calendar_today_rounded,
@@ -248,13 +266,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// بطاقات الإحصائيات - Stats Cards Grid
   Widget _buildStatsCards() {
+    final columns = ResponsiveHelper.getStatCardColumns(context);
+    final aspectRatio = ResponsiveHelper.getAspectRatio(context);
+
     return GridView.count(
-      crossAxisCount: 4,
+      crossAxisCount: columns,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: 1.8,
+      childAspectRatio: aspectRatio,
       children: [
         StatCard(
           title: AppStrings.todayCases,
@@ -311,7 +332,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'حالات آخر 7 أيام (بيانات حقيقية)',
+            'حالات آخر 7 أيام',
             style: TextStyle(
               fontFamily: 'Cairo',
               fontSize: 12,
@@ -597,7 +618,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'الإيرادات خلال آخر 7 أيام (بيانات حقيقية)',
+            'الإيرادات خلال آخر 7 أيام',
             style: TextStyle(
               fontFamily: 'Cairo',
               fontSize: 12,

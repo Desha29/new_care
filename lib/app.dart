@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import 'core/constants/app_theme.dart';
 import 'core/constants/app_strings.dart';
+import 'core/constants/app_colors.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'core/logic/connectivity_cubit.dart';
+import 'core/logic/error_cubit.dart';
+import 'core/di/injection.dart';
 import 'features/auth/logic/cubit/auth_cubit.dart';
 import 'features/auth/logic/cubit/auth_state.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/dashboard/presentation/screens/main_layout.dart';
+
+import 'features/cases/logic/cubit/cases_cubit.dart';
+import 'features/procedures/logic/cubit/procedures_cubit.dart';
+import 'features/inventory/logic/cubit/inventory_cubit.dart';
+import 'features/financials/logic/cubit/financials_cubit.dart';
 
 class NewCareApp extends StatelessWidget {
   const NewCareApp({super.key});
@@ -13,20 +22,48 @@ class NewCareApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
-      providers: [BlocProvider(create: (_) => AuthCubit()..checkAuthState())],
+      providers: [
+        BlocProvider(create: (_) => sl<AuthCubit>()..checkAuthState()),
+        BlocProvider(create: (_) => sl<ConnectivityCubit>()),
+        BlocProvider(create: (_) => sl<ErrorCubit>()),
+        BlocProvider(create: (_) => sl<CasesCubit>()..loadCases()),
+        BlocProvider(create: (_) => sl<ProceduresCubit>()..loadProcedures()),
+        BlocProvider(create: (_) => sl<InventoryCubit>()..loadInventory()),
+        BlocProvider(create: (_) => sl<FinancialsCubit>()..loadFinancials()),
+      ],
       child: MaterialApp(
         title: AppStrings.appName,
         debugShowCheckedModeBanner: false,
-
         theme: AppTheme.lightTheme,
-
         builder: (context, child) {
           return Directionality(
             textDirection: TextDirection.rtl,
-            child: child!,
+            child: MultiBlocListener(
+              listeners: [
+                // ممع الاستماع للأخطاء - Global Error Listener
+                BlocListener<ErrorCubit, GlobalErrorState>(
+                  listener: (context, state) {
+                    if (state.isError && state.message != null) {
+                      _showSnackBar(context, state.message!, isError: true);
+                      context.read<ErrorCubit>().clearError();
+                    }
+                  },
+                ),
+                // الاستماع لاتصال الشبكة - Connectivity Listener
+                BlocListener<ConnectivityCubit, ConnectivityStatus>(
+                  listener: (context, status) {
+                    if (status == ConnectivityStatus.offline) {
+                      _showSnackBar(context, AppStrings.offlineMode, isError: true);
+                    } else {
+                      _showSnackBar(context, 'أنت متصل الآن', isError: false);
+                    }
+                  },
+                ),
+              ],
+              child: child!,
+            ),
           );
         },
-
         home: BlocBuilder<AuthCubit, AuthState>(
           builder: (context, state) {
             if (state is AuthAuthenticated) {
@@ -38,6 +75,21 @@ class NewCareApp extends StatelessWidget {
             return const LoginScreen();
           },
         ),
+      ),
+    );
+  }
+
+  void _showSnackBar(BuildContext context, String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(fontFamily: 'Cairo', color: Colors.white),
+        ),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }

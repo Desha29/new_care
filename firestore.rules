@@ -39,10 +39,10 @@ service cloud.firestore {
 
     // === المستخدمون - Users ===
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow read: if true;
       
-      // الإنشاء: للمديرين
-      allow create: if isAdmin();
+      // الإنشاء: للمديرين أو المستخدم لنفسه (هام للتهيئة الأولية)
+      allow create: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
       
       // التعديل: المدير العام لكل شيء، المدير لغير المديرين العامين، المستخدم لنفسه (حقول محدودة)
       allow update: if isSuperAdmin() 
@@ -53,40 +53,41 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // === المرضى - Patients ===
+    // المرضى - Patients ===
     match /patients/{patientId} {
-      allow read: if isActiveUser();
-      allow create, update: if isAdmin() && isActiveUser();
-      allow delete: if isAdmin();
+      allow read, create, update, delete: if isAuthenticated();
     }
 
-    // === الحالات - Cases ===
+    // الحالات - Cases ===
     match /cases/{caseId} {
-      allow read: if isActiveUser();
-      allow create: if isActiveUser();
-      allow update: if isActiveUser() && (isAdmin() || resource.data.nurseId == request.auth.uid);
-      allow delete: if isAdmin() && isActiveUser();
-    }
-
-    // === المستلزمات - Inventory ===
-    match /inventory/{itemId} {
-      allow read: if isActiveUser();
-      allow create, update: if isAdmin() && isActiveUser();
-      allow delete: if isAdmin();
-    }
-
-    // === المصاريف والماليات - Expenses ===
-    match /expenses/{expenseId} {
-      // المالية متاحة للإدارة فقط
-      allow read, create, update: if isAdmin() && isActiveUser();
-      allow delete: if isAdmin();
-    }
-
-    // === سجلات النشاط - Activity Logs ===
-    match /logs/{logId} {
-      allow read: if isAdmin() && isActiveUser();
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update, delete: if false;
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // المستلزمات - Inventory ===
+    match /inventory/{itemId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // الإجراءات والخدمات - Procedures ===
+    match /procedures/{procedureId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // المصاريف والماليات - Expenses ===
+    match /expenses/{expenseId} {
+      allow read, create, update, delete: if isAuthenticated();
+    }
+
+    // سجلات النشاط - Activity Logs ===
+    match /logs/{logId} {
+      allow read, create, update, delete: if isAuthenticated();
     }
 
     // === الإعدادات - Settings ===

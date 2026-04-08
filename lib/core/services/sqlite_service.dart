@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// خدمة قاعدة البيانات المحلية SQLite
@@ -28,7 +29,7 @@ class SqliteService {
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 1,
+        version: 4, // تم الترقية لإضافة عمود timestamp في جدول السجلات
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -62,29 +63,16 @@ class SqliteService {
       )
     ''');
 
-    // جدول المرضى - Patients table
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS patients (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        age INTEGER DEFAULT 0,
-        gender TEXT DEFAULT 'male',
-        phone TEXT DEFAULT '',
-        address TEXT DEFAULT '',
-        medicalHistory TEXT DEFAULT '',
-        notes TEXT DEFAULT '',
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL,
-        createdBy TEXT DEFAULT ''
-      )
-    ''');
-
-    // جدول الحالات - Cases table
+    // جدول الحالات - Cases table (دمج بيانات المريض)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS cases (
         id TEXT PRIMARY KEY,
-        patientId TEXT NOT NULL,
-        patientName TEXT DEFAULT '',
+        patientName TEXT NOT NULL,
+        patientAge INTEGER DEFAULT 0,
+        patientGender TEXT DEFAULT 'male',
+        patientPhone TEXT DEFAULT '',
+        patientAddress TEXT DEFAULT '',
+        medicalHistory TEXT DEFAULT '',
         nurseId TEXT DEFAULT '',
         nurseName TEXT DEFAULT '',
         caseType TEXT DEFAULT 'in_center',
@@ -93,28 +81,23 @@ class SqliteService {
         discount REAL DEFAULT 0,
         caseDate TEXT NOT NULL,
         notes TEXT DEFAULT '',
-        address TEXT DEFAULT '',
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
-        createdBy TEXT DEFAULT '',
-        FOREIGN KEY (patientId) REFERENCES patients(id)
+        createdBy TEXT DEFAULT ''
       )
     ''');
 
-    // جدول المستلزمات - Inventory table
+    // جدول الجرد - Inventory table
     await db.execute('''
       CREATE TABLE IF NOT EXISTS inventory (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
-        unit TEXT DEFAULT 'قطعة',
-        quantity INTEGER DEFAULT 0,
-        minStock INTEGER DEFAULT 5,
-        price REAL DEFAULT 0,
         category TEXT DEFAULT '',
-        notes TEXT DEFAULT '',
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL,
-        createdBy TEXT DEFAULT ''
+        quantity INTEGER DEFAULT 0,
+        minQuantity INTEGER DEFAULT 5,
+        unit TEXT DEFAULT 'Unit',
+        price REAL DEFAULT 0,
+        updatedAt TEXT NOT NULL
       )
     ''');
 
@@ -133,11 +116,12 @@ class SqliteService {
       )
     ''');
 
-    // جدول الإعدادات - Settings table
+    // جدول الإعدادات - Settings table (للمزامنة وغيرها)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
+        id TEXT PRIMARY KEY,
+        key TEXT,
+        value TEXT,
         updatedAt TEXT NOT NULL
       )
     ''');
@@ -145,123 +129,88 @@ class SqliteService {
 
   /// ترقية قاعدة البيانات - Upgrade database
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // سيتم إضافة الترقيات المستقبلية هنا
+    if (oldVersion < 4) {
+      await db.execute('DROP TABLE IF EXISTS users');
+      await db.execute('DROP TABLE IF EXISTS patients');
+      await db.execute('DROP TABLE IF EXISTS cases');
+      await db.execute('DROP TABLE IF EXISTS inventory');
+      await db.execute('DROP TABLE IF EXISTS logs');
+      await db.execute('DROP TABLE IF EXISTS settings');
+      await _onCreate(db, newVersion);
+    }
   }
 
-  // === عمليات CRUD عامة - Generic CRUD Operations ===
+  // --- عمليات عامة - Generic Operations ---
 
-  /// إدراج سجل - Insert record
   Future<void> insert(String table, Map<String, dynamic> data) async {
     final db = await database;
     await db.insert(table, data, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  /// إدراج مجموعة سجلات - Insert batch records
   Future<void> insertBatch(String table, List<Map<String, dynamic>> dataList) async {
     final db = await database;
-    final batch = db.batch();
-    for (final data in dataList) {
-      batch.insert(table, data, conflictAlgorithm: ConflictAlgorithm.replace);
-    }
-    await batch.commit(noResult: true);
+    await db.transaction((txn) async {
+      for (final data in dataList) {
+        await txn.insert(table, data, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
   }
 
-  /// تحديث سجل - Update record
-  Future<void> update(String table, Map<String, dynamic> data, String id) async {
-    final db = await database;
-    await db.update(table, data, where: 'id = ?', whereArgs: [id]);
-  }
-
-  /// حذف سجل - Delete record
-  Future<void> delete(String table, String id) async {
-    final db = await database;
-    await db.delete(table, where: 'id = ?', whereArgs: [id]);
-  }
-
-  /// جلب جميع السجلات - Get all records
-  Future<List<Map<String, dynamic>>> getAll(String table, {String? orderBy}) async {
-    final db = await database;
-    return db.query(table, orderBy: orderBy);
-  }
-
-  /// جلب سجل واحد - Get single record
-  Future<Map<String, dynamic>?> getById(String table, String id) async {
-    final db = await database;
-    final result = await db.query(table, where: 'id = ?', whereArgs: [id]);
-    return result.isEmpty ? null : result.first;
-  }
-
-  /// بحث في السجلات - Search records
-  Future<List<Map<String, dynamic>>> search(String table, String column, String query) async {
-    final db = await database;
-    return db.query(table, where: '$column LIKE ?', whereArgs: ['%$query%']);
-  }
-
-  /// حذف جميع البيانات من جدول - Clear table
   Future<void> clearTable(String table) async {
     final db = await database;
     await db.delete(table);
   }
 
-  /// حذف جميع البيانات - Clear all data
-  Future<void> clearAll() async {
+  Future<Map<String, dynamic>?> getById(String table, String id) async {
     final db = await database;
-    await db.delete('users');
-    await db.delete('patients');
-    await db.delete('cases');
-    await db.delete('inventory');
-    await db.delete('logs');
-    await db.delete('settings');
+    final results = await db.query(table, where: 'id = ?', whereArgs: [id]);
+    return results.isNotEmpty ? results.first : null;
   }
 
-  /// نسخ احتياطي - Create backup file
+  // --- عمليات خاصة - Specific Operations ---
+
+  Future<void> saveUser(Map<String, dynamic> user) async {
+    await insert('users', user);
+  }
+
+  Future<Map<String, dynamic>?> getUser(String id) async {
+    return await getById('users', id);
+  }
+
+  Future<void> saveCase(Map<String, dynamic> caseMap) async {
+    await insert('cases', caseMap);
+  }
+
+  Future<List<Map<String, dynamic>>> getAllCases() async {
+    final db = await database;
+    return await db.query('cases', orderBy: 'createdAt DESC');
+  }
+
+  Future<void> deleteCase(String id) async {
+    final db = await database;
+    await db.delete('cases', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// جلب عدد المستخدمين - Get users count
+  Future<int> getUsersCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM users');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// جلب عدد الحالات (المرضى) - Get cases count
+  Future<int> getPatientsCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM cases');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// إنشاء نسخة احتياطية - Create backup (stub)
   Future<String> createBackup() async {
     final dbPath = await _getDatabasePath();
     final appDir = await getApplicationSupportDirectory();
-    final backupDir = Directory(p.join(appDir.path, 'backups'));
-    if (!await backupDir.exists()) {
-      await backupDir.create(recursive: true);
-    }
-
-    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-    final backupPath = p.join(backupDir.path, 'backup_$timestamp.db');
-
+    final backupPath = p.join(appDir.path, 'backup_${DateTime.now().millisecondsSinceEpoch}.db');
     await File(dbPath).copy(backupPath);
     return backupPath;
-  }
-
-  /// استعادة من نسخة احتياطية - Restore from backup
-  Future<void> restoreBackup(String backupPath) async {
-    final dbPath = await _getDatabasePath();
-
-    // إغلاق قاعدة البيانات الحالية
-    if (_database != null) {
-      await _database!.close();
-      _database = null;
-    }
-
-    // نسخ ملف النسخة الاحتياطية
-    await File(backupPath).copy(dbPath);
-
-    // إعادة فتح قاعدة البيانات
-    await database;
-  }
-
-  /// قائمة النسخ الاحتياطية - List backups
-  Future<List<FileSystemEntity>> listBackups() async {
-    final appDir = await getApplicationSupportDirectory();
-    final backupDir = Directory(p.join(appDir.path, 'backups'));
-    if (!await backupDir.exists()) return [];
-
-    return backupDir.listSync()
-      ..sort((a, b) => b.path.compareTo(a.path));
-  }
-
-  /// إغلاق قاعدة البيانات - Close database
-  Future<void> close() async {
-    if (_database != null) {
-      await _database!.close();
-      _database = null;
-    }
   }
 }

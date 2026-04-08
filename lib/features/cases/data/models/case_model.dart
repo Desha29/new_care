@@ -73,10 +73,17 @@ class SupplyUsed extends Equatable {
 }
 
 /// نموذج الحالة الطبية - Medical Case Model
+/// يدمج بيانات المريض مباشرة في الحالة - Integrates patient data directly
 class CaseModel extends Equatable {
   final String id;
-  final String patientId;
+  // Patient Details (Merged)
   final String patientName;
+  final int patientAge;
+  final String patientGender;
+  final String patientPhone;
+  final String patientAddress;
+  final String medicalHistory;
+  
   final String nurseId;
   final String nurseName;
   final CaseType caseType;
@@ -87,15 +94,18 @@ class CaseModel extends Equatable {
   final double discount;
   final DateTime caseDate;
   final String notes;
-  final String address; // For home visits
   final DateTime createdAt;
   final DateTime updatedAt;
   final String createdBy;
 
   const CaseModel({
     required this.id,
-    required this.patientId,
-    this.patientName = '',
+    required this.patientName,
+    this.patientAge = 0,
+    this.patientGender = 'male',
+    this.patientPhone = '',
+    this.patientAddress = '',
+    this.medicalHistory = '',
     this.nurseId = '',
     this.nurseName = '',
     this.caseType = CaseType.inCenter,
@@ -106,7 +116,6 @@ class CaseModel extends Equatable {
     this.discount = 0,
     required this.caseDate,
     this.notes = '',
-    this.address = '',
     required this.createdAt,
     required this.updatedAt,
     this.createdBy = '',
@@ -121,12 +130,19 @@ class CaseModel extends Equatable {
   /// مجموع المستلزمات
   double get suppliesTotal => suppliesUsed.fold(0, (sum, s) => sum + s.total);
 
+  /// الجنس بالعربية
+  String get patientGenderLabel => patientGender == 'male' ? 'ذكر' : 'أنثى';
+
   /// من Firestore Map
   factory CaseModel.fromMap(Map<String, dynamic> map, String id) {
     return CaseModel(
       id: id,
-      patientId: map['patientId'] ?? '',
       patientName: map['patientName'] ?? '',
+      patientAge: map['patientAge'] ?? 0,
+      patientGender: map['patientGender'] ?? 'male',
+      patientPhone: map['patientPhone'] ?? '',
+      patientAddress: map['patientAddress'] ?? '',
+      medicalHistory: map['medicalHistory'] ?? '',
       nurseId: map['nurseId'] ?? '',
       nurseName: map['nurseName'] ?? '',
       caseType: CaseType.fromString(map['caseType'] ?? 'in_center'),
@@ -145,7 +161,6 @@ class CaseModel extends Equatable {
       discount: (map['discount'] ?? 0).toDouble(),
       caseDate: DateTime.tryParse(map['caseDate'] ?? '') ?? DateTime.now(),
       notes: map['notes'] ?? '',
-      address: map['address'] ?? '',
       createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
       createdBy: map['createdBy'] ?? '',
@@ -155,8 +170,12 @@ class CaseModel extends Equatable {
   /// إلى Firestore Map
   Map<String, dynamic> toMap() {
     return {
-      'patientId': patientId,
       'patientName': patientName,
+      'patientAge': patientAge,
+      'patientGender': patientGender,
+      'patientPhone': patientPhone,
+      'patientAddress': patientAddress,
+      'medicalHistory': medicalHistory,
       'nurseId': nurseId,
       'nurseName': nurseName,
       'caseType': caseType.value,
@@ -167,7 +186,6 @@ class CaseModel extends Equatable {
       'discount': discount,
       'caseDate': caseDate.toIso8601String(),
       'notes': notes,
-      'address': address,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'createdBy': createdBy,
@@ -178,8 +196,12 @@ class CaseModel extends Equatable {
   Map<String, dynamic> toSqliteMap() {
     return {
       'id': id,
-      'patientId': patientId,
       'patientName': patientName,
+      'patientAge': patientAge,
+      'patientGender': patientGender,
+      'patientPhone': patientPhone,
+      'patientAddress': patientAddress,
+      'medicalHistory': medicalHistory,
       'nurseId': nurseId,
       'nurseName': nurseName,
       'caseType': caseType.value,
@@ -188,7 +210,6 @@ class CaseModel extends Equatable {
       'discount': discount,
       'caseDate': caseDate.toIso8601String(),
       'notes': notes,
-      'address': address,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'createdBy': createdBy,
@@ -197,8 +218,12 @@ class CaseModel extends Equatable {
 
   CaseModel copyWith({
     String? id,
-    String? patientId,
     String? patientName,
+    int? patientAge,
+    String? patientGender,
+    String? patientPhone,
+    String? patientAddress,
+    String? medicalHistory,
     String? nurseId,
     String? nurseName,
     CaseType? caseType,
@@ -209,15 +234,18 @@ class CaseModel extends Equatable {
     double? discount,
     DateTime? caseDate,
     String? notes,
-    String? address,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? createdBy,
   }) {
     return CaseModel(
       id: id ?? this.id,
-      patientId: patientId ?? this.patientId,
       patientName: patientName ?? this.patientName,
+      patientAge: patientAge ?? this.patientAge,
+      patientGender: patientGender ?? this.patientGender,
+      patientPhone: patientPhone ?? this.patientPhone,
+      patientAddress: patientAddress ?? this.patientAddress,
+      medicalHistory: medicalHistory ?? this.medicalHistory,
       nurseId: nurseId ?? this.nurseId,
       nurseName: nurseName ?? this.nurseName,
       caseType: caseType ?? this.caseType,
@@ -228,7 +256,6 @@ class CaseModel extends Equatable {
       discount: discount ?? this.discount,
       caseDate: caseDate ?? this.caseDate,
       notes: notes ?? this.notes,
-      address: address ?? this.address,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       createdBy: createdBy ?? this.createdBy,
@@ -238,8 +265,12 @@ class CaseModel extends Equatable {
   @override
   List<Object?> get props => [
     id,
-    patientId,
     patientName,
+    patientAge,
+    patientGender,
+    patientPhone,
+    patientAddress,
+    medicalHistory,
     nurseId,
     nurseName,
     caseType,
@@ -250,7 +281,6 @@ class CaseModel extends Equatable {
     discount,
     caseDate,
     notes,
-    address,
     createdAt,
     updatedAt,
     createdBy,

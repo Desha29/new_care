@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/models/user_model.dart';
 import '../../../../core/services/firebase_service.dart';
 import '../../../../core/services/local_log_service.dart';
+import '../../../../core/enums/user_role.dart';
 import 'auth_state.dart';
 
 class AuthCubit extends Cubit<AuthState> {
@@ -10,10 +11,12 @@ class AuthCubit extends Cubit<AuthState> {
   final FirebaseService _firebaseService;
   UserModel? _currentUser;
 
-  AuthCubit()
-    : _firebaseAuth = FirebaseAuth.instance,
-      _firebaseService = FirebaseService.instance,
-      super(AuthInitial());
+  AuthCubit({
+    FirebaseAuth? firebaseAuth,
+    FirebaseService? firebaseService,
+  }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+       _firebaseService = firebaseService ?? FirebaseService.instance,
+       super(AuthInitial());
 
   /// المستخدم الحالي - Current user
   UserModel? get currentUser => _currentUser;
@@ -56,7 +59,34 @@ class AuthCubit extends Cubit<AuthState> {
       );
 
       if (credential.user != null) {
-        final user = await _firebaseService.getUser(credential.user!.uid);
+        final uid = credential.user!.uid;
+        final email = credential.user!.email;
+        // ignore: avoid_print
+        print('[Auth] Success login for $email (UID: $uid)');
+        
+        var user = await _firebaseService.getUser(uid);
+        
+        // Auto-fix orphaned users (in Auth but missing Firestore doc)
+        if (user == null && email != null) {
+          user = UserModel(
+            id: uid,
+            name: email.split('@').first,
+            email: email,
+            phone: '',
+            role: UserRole.nurse, // Fallback default
+            isActive: true,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+          try {
+            await _firebaseService.createUser(user);
+          } catch (e) {
+            await _firebaseAuth.signOut();
+            emit(AuthError('لم نتمكن من تهيئة ملفك بصورة صحيحة: $e'));
+            return;
+          }
+        }
+
         if (user != null) {
           if (!user.isActive) {
             await _firebaseAuth.signOut();
@@ -75,9 +105,6 @@ class AuthCubit extends Cubit<AuthState> {
           );
 
           emit(AuthAuthenticated(user));
-        } else {
-          await _firebaseAuth.signOut();
-          emit(const AuthError('لم يتم العثور على بيانات المستخدم'));
         }
       }
     } on FirebaseAuthException catch (e) {
@@ -142,6 +169,56 @@ class AuthCubit extends Cubit<AuthState> {
       emit(AuthUnauthenticated());
     } catch (e) {
       emit(const AuthError('خطأ في تسجيل الخروج'));
+    }
+  }
+
+  /// تغيير كلمة المرور للمستخدم الحالي - Change password for current user
+  Future<void> changePassword(String newPassword) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user != null) {
+        await user.updatePassword(newPassword);
+        
+        // تسجيل النشاط - Log activity
+        if (_currentUser != null) {
+          await LocalLogService.instance.logActivity(
+            userId: _currentUser!.id,
+            userName: _currentUser!.name,
+            action: 'change_password',
+            actionLabel: 'تغيير كلمة المرور',
+            details: 'قام ${_currentUser!.name} بتغيير كلمة المرور الخاصة به',
+          );
+        }
+      } else {
+        throw 'المستخدم غير موجود';
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw 'هذه العملية حساسة وتتطلب تسجيل الدخول مرة أخرى حديثاً';
+      }
+      throw e.message ?? 'خطأ في تغيير كلمة المرور';
+    } catch (e) {
+      throw 'خطأ: $e';
+    }
+  }
+
+  /// طلب إعادة تعيين كلمة المرور لمستخدم آخر (للمسؤولين) - Reset user password email (for admins)
+  Future<void> resetUserPassword(String email) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email.trim());
+      
+      // تسجيل النشاط - Log activity
+      if (_currentUser != null) {
+        await LocalLogService.instance.logActivity(
+          userId: _currentUser!.id,
+          userName: _currentUser!.name,
+          action: 'admin_reset_password',
+          actionLabel: 'إعادة تعيين كلمة مرور',
+          details: 'قام ${_currentUser!.name} بإرسال رابط إعادة تعيين كلمة مرور لـ $email',
+        );
+      }
+    } catch (e) {
+      throw 'خطأ في إرسال رابط إعادة التعيين: $e';
     }
   }
 

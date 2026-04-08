@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/utils/responsive_helper.dart';
 import '../../logic/cubit/auth_cubit.dart';
 import '../../logic/cubit/auth_state.dart';
 import '../../../dashboard/presentation/screens/main_layout.dart';
@@ -27,10 +28,10 @@ class _LoginScreenState extends State<LoginScreen>
   void initState() {
     super.initState();
     _animController = AnimationController(
-       duration: const Duration(milliseconds: 1200),
-       vsync: this,
-     );
-     _animController.forward();
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    _animController.forward();
   }
 
   @override
@@ -43,6 +44,9 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isSmallScreen = ResponsiveHelper.isMobile(context);
+    final isTablet = ResponsiveHelper.isTablet(context);
+
     return BlocListener<AuthCubit, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
@@ -54,253 +58,470 @@ class _LoginScreenState extends State<LoginScreen>
         }
       },
       child: Scaffold(
-        body: Row(
-          children: [
-            // === الجانب الأيمن (نموذج الدخول) ===
-            Expanded(
-              flex: 4,
-              child: Container(
-                color: AppColors.background,
-                child: Center(
-                  child: Container(
-                    width: 420,
-                    padding: const EdgeInsets.all(40),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.shadow.withValues(alpha: 0.1),
-                          blurRadius: 30,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildStaggeredItem(
-                            const Text(
-                              AppStrings.loginWelcome,
-                              style: TextStyle(
-                                fontFamily: 'Cairo',
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            0,
-                          ),
-                          const SizedBox(height: 4),
-                          _buildStaggeredItem(
-                            const Text(
-                              AppStrings.loginSubtitle,
-                              style: TextStyle(
-                                fontFamily: 'Cairo',
-                                fontSize: 14,
-                                color: AppColors.textSecondary,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            1,
-                          ),
-                          const SizedBox(height: 36),
-                          _buildStaggeredItem(
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildLabel(AppStrings.email),
-                                const SizedBox(height: 8),
-                                TextFormField(
-                                  controller: _emailController,
-                                  keyboardType: TextInputType.emailAddress,
-                                  textDirection: TextDirection.ltr,
-                                  textInputAction: TextInputAction.next,
-                                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
-                                  decoration: _inputDecoration(
-                                    hint: 'اسم المستخدم',
-                                    icon: Icons.alternate_email_rounded,
-                                    suffixText: '@newcare.com',
-                                  ),
-                                  validator: Validators.required,
-                                ),
-                              ],
-                            ),
-                            2,
-                          ),
-                          const SizedBox(height: 20),
-                          _buildStaggeredItem(
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildLabel(AppStrings.password),
-                                const SizedBox(height: 8),
-                                TextFormField(
-                                  controller: _passwordController,
-                                  obscureText: _obscurePassword,
-                                  textDirection: TextDirection.ltr,
-                                  textInputAction: TextInputAction.done,
-                                  onFieldSubmitted: (_) => _onLogin(),
-                                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
-                                  decoration: _inputDecoration(
-                                    hint: '••••••••',
-                                    icon: Icons.lock_rounded,
-                                    suffixIcon: IconButton(
-                                      icon: Icon(_obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: AppColors.textHint, size: 20),
-                                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                                    ),
-                                  ),
-                                  validator: Validators.password,
-                                ),
-                              ],
-                            ),
-                            3,
-                          ),
-                          const SizedBox(height: 32),
-                          _buildStaggeredItem(
-                            BlocBuilder<AuthCubit, AuthState>(
-                              builder: (context, state) {
-                                final isLoading = state is AuthLoading;
-                                return ElevatedButton(
-                                  onPressed: isLoading ? null : _onLogin,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                    elevation: 0,
-                                  ),
-                                  child: isLoading
-                                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                      : const Text(AppStrings.loginButton, style: TextStyle(fontFamily: 'Cairo', fontSize: 16, fontWeight: FontWeight.w600)),
-                                );
-                              },
-                            ),
-                            4,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+        body: isSmallScreen
+            ? _buildMobileLayout()
+            : _buildDesktopLayout(isTablet),
+      ),
+    );
+  }
+
+  /// === تخطيط الموبايل - Mobile Layout (stacked) ===
+  Widget _buildMobileLayout() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // === البانر العلوي (مصغر) ===
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF1B558E),
+                  Color(0xFF103E6F),
+                  Color(0xFF0A294A),
+                ],
+              ),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(32),
+                bottomRight: Radius.circular(32),
               ),
             ),
-
-            // === الجانب الأيسر (تصميم الشعار) - Side Banner ===
-            Expanded(
-              flex: 5,
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF1B558E), // Lighter professional blue
-                      Color(0xFF103E6F), // NEW Primary color #103E6F
-                      Color(0xFF0A294A), // Deep navy shadow
-                    ],
+            child: SafeArea(
+              child: Column(
+                children: [
+                  _buildStaggeredItem(
+                    Hero(
+                      tag: 'app_logo',
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: const Image(
+                            image: AssetImage('assets/images/logo.png'),
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
+                    0,
                   ),
+
+                  _buildStaggeredItem(
+                    const Text(
+                      AppStrings.appName,
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                    1,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildStaggeredItem(
+                    Text(
+                      'الخدمات الطبية والتمريضية المتطورة',
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    2,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // === نموذج تسجيل الدخول ===
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: _buildLoginForm(maxWidth: double.infinity),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// === تخطيط سطح المكتب - Desktop Layout (side by side) ===
+  Widget _buildDesktopLayout(bool isTablet) {
+    return Row(
+      children: [
+        // === الجانب الأيمن (نموذج الدخول) ===
+        Expanded(
+          flex: isTablet ? 5 : 4,
+          child: Container(
+            color: AppColors.background,
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: _buildLoginForm(maxWidth: isTablet ? 380 : 420),
+              ),
+            ),
+          ),
+        ),
+
+        // === الجانب الأيسر (تصميم الشعار) - Side Banner ===
+        Expanded(
+          flex: 5,
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF1B558E),
+                  Color(0xFF103E6F),
+                  Color(0xFF0A294A),
+                ],
+              ),
+            ),
+            child: Stack(
+              children: [
+                // === الأشكال الهندسية (Geometric Patterns) ===
+                Positioned(
+                  top: 40,
+                  left: -50,
+                  child: _buildGeometricShape(180, 0.15, rotation: 0.8),
                 ),
-                child: Stack(
-                  children: [
-                    // === الأشكال الهندسية (Geometric Patterns) ===
-                    Positioned(
-                      top: 40, left: -50,
-                      child: _buildGeometricShape(180, 0.15, rotation: 0.8),
-                    ),
-                    Positioned(
-                      top: 220, left: 60,
-                      child: _buildGeometricShape(120, 0.1, rotation: 0.8),
-                    ),
-                    Positioned(
-                      bottom: 100, left: -20,
-                      child: _buildGeometricShape(150, 0.12, rotation: 0.8),
-                    ),
-                    Positioned(
-                      top: -40, right: 40,
-                      child: _buildGeometricShape(140, 0.08, rotation: 0.8),
-                    ),
-                    
-                    // === المحتوى (Content) ===
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildStaggeredItem(
-                            Container(
-                              width: 140, height: 140, padding: const EdgeInsets.all(12),
+                Positioned(
+                  top: 220,
+                  left: 60,
+                  child: _buildGeometricShape(120, 0.1, rotation: 0.8),
+                ),
+                Positioned(
+                  bottom: 100,
+                  left: -20,
+                  child: _buildGeometricShape(150, 0.12, rotation: 0.8),
+                ),
+                Positioned(
+                  top: -40,
+                  right: 40,
+                  child: _buildGeometricShape(140, 0.08, rotation: 0.8),
+                ),
+
+                // === المحتوى (Content) ===
+                Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildStaggeredItem(
+                          Hero(
+                            tag: 'app_logo',
+                            child: Container(
+                              width: isTablet ? 100 : 150,
+                              height: isTablet ? 100 : 150,
+                              padding: EdgeInsets.all(isTablet ? 10 : 16),
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(40),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 4),
+                                borderRadius: BorderRadius.circular(
+                                  isTablet ? 30 : 45,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 40,
+                                    offset: const Offset(0, 15),
+                                  ),
+                                ],
                               ),
                               child: ClipRRect(
-                                borderRadius: BorderRadius.circular(28),
-                                child: const Image(image: AssetImage('assets/images/logo.png'), fit: BoxFit.contain)
+                                borderRadius: BorderRadius.circular(
+                                  isTablet ? 20 : 30,
+                                ),
+                                child: const Image(
+                                  image: AssetImage('assets/images/logo.png'),
+                                  fit: BoxFit.contain,
+                                ),
                               ),
                             ),
-                            0,
                           ),
-                          const SizedBox(height: 32),
-                          _buildStaggeredItem(
-                            const Text(
-                              AppStrings.appName,
-                              style: TextStyle(fontFamily: 'Cairo', fontSize: 44, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.2),
+                          0,
+                        ),
+                        const SizedBox(height: 8),
+                        _buildStaggeredItem(
+                          Text(
+                            AppStrings.appName,
+                            style: TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: isTablet ? 36 : 48,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 1.5,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
                             ),
-                            1,
                           ),
-                          _buildStaggeredItem(
-                            Text(
-                              'NEW CARE - NURSING CARE SERVES',
-                              style: TextStyle(fontFamily: 'Cairo', fontSize: 13, color: Colors.white.withValues(alpha: 0.8), fontWeight: FontWeight.w600, letterSpacing: 1.5),
+                          1,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildStaggeredItem(
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 6,
                             ),
-                            1,
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFFF4D03F,
+                              ).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(
+                                  0xFFF4D03F,
+                                ).withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Text(
+                              'الخدمات الطبية والتمريضية المتطورة',
+                              style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: isTablet ? 11 : 13,
+                                color: const Color(0xFFF4D03F),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                          const SizedBox(height: 48),
+                          2,
+                        ),
+                        if (!isTablet) ...[
+                          const SizedBox(height: 54),
                           _buildStaggeredItem(
                             Column(children: _buildFeatureList()),
                             3,
                           ),
                         ],
-                      ),
+                      ],
                     ),
-
-                    // === شعار "صحتك أمانة" (Bottom Left Text) ===
-                    Positioned(
-                      bottom: 40, left: 40,
-                      child: _buildStaggeredItem(
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'صحتك',
-                              style: TextStyle(fontFamily: 'Cairo', fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white, height: 1.1),
-                            ),
-                            Text(
-                              'أمانة',
-                              style: TextStyle(fontFamily: 'Cairo', fontSize: 36, fontWeight: FontWeight.w900, color: Color(0xFFF4D03F), height: 1.1),
-                            ),
-                          ],
-                        ),
-                        4,
-                      ),
-                    ),
-                    
-                    // === أيقونة توضيحية (Bottom Right Illustration) ===
-                    Positioned(
-                      bottom: 30, right: 30,
-                      child: Opacity(
-                        opacity: 0.15,
-                        child: Icon(Icons.medical_services_outlined, size: 100, color: Colors.white),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
+
+                // === شعار "صحتك أمانة" (Bottom Left Text) ===
+                if (!isTablet)
+                  Positioned(
+                    bottom: 40,
+                    left: 40,
+                    child: _buildStaggeredItem(
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'صحتك',
+                            style: TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              height: 1.1,
+                            ),
+                          ),
+                          Text(
+                            'أمانة',
+                            style: TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: 36,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFF4D03F),
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      4,
+                    ),
+                  ),
+
+                // === أيقونة توضيحية (Bottom Right Illustration) ===
+                Positioned(
+                  bottom: 30,
+                  right: 30,
+                  child: Opacity(
+                    opacity: 0.15,
+                    child: Icon(
+                      Icons.medical_services_outlined,
+                      size: isTablet ? 60 : 100,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// === نموذج تسجيل الدخول - Login Form ===
+  Widget _buildLoginForm({required double maxWidth}) {
+    return Container(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      padding: EdgeInsets.all(maxWidth == double.infinity ? 24 : 40),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow.withValues(alpha: 0.1),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildStaggeredItem(
+              const Text(
+                AppStrings.loginWelcome,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+                textAlign: TextAlign.center,
               ),
+              0,
+            ),
+            const SizedBox(height: 4),
+            _buildStaggeredItem(
+              const Text(
+                AppStrings.loginSubtitle,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              1,
+            ),
+            const SizedBox(height: 36),
+            _buildStaggeredItem(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildLabel(AppStrings.email),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    textDirection: TextDirection.ltr,
+                    textInputAction: TextInputAction.next,
+                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
+                    decoration: _inputDecoration(
+                      hint: 'اسم المستخدم',
+                      icon: Icons.alternate_email_rounded,
+                      suffixText: '@newcare.com',
+                    ),
+                    validator: Validators.required,
+                  ),
+                ],
+              ),
+              2,
+            ),
+            const SizedBox(height: 20),
+            _buildStaggeredItem(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildLabel(AppStrings.password),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    textDirection: TextDirection.ltr,
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _onLogin(),
+                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
+                    decoration: _inputDecoration(
+                      hint: '••••••••',
+                      icon: Icons.lock_rounded,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_rounded
+                              : Icons.visibility_rounded,
+                          color: AppColors.textHint,
+                          size: 20,
+                        ),
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
+                      ),
+                    ),
+                    validator: Validators.password,
+                  ),
+                ],
+              ),
+              3,
+            ),
+            const SizedBox(height: 32),
+            _buildStaggeredItem(
+              BlocBuilder<AuthCubit, AuthState>(
+                builder: (context, state) {
+                  final isLoading = state is AuthLoading;
+                  return ElevatedButton(
+                    onPressed: isLoading ? null : _onLogin,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            AppStrings.loginButton,
+                            style: TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  );
+                },
+              ),
+              4,
             ),
           ],
         ),
@@ -332,7 +553,11 @@ class _LoginScreenState extends State<LoginScreen>
       prefixIcon: Icon(icon, color: AppColors.textHint, size: 20),
       suffixIcon: suffixIcon,
       suffixText: suffixText,
-      suffixStyle: const TextStyle(color: AppColors.textHint, fontFamily: 'Cairo', fontSize: 12),
+      suffixStyle: const TextStyle(
+        color: AppColors.textHint,
+        fontFamily: 'Cairo',
+        fontSize: 12,
+      ),
       filled: true,
       fillColor: AppColors.surfaceVariant,
       border: OutlineInputBorder(
@@ -357,49 +582,78 @@ class _LoginScreenState extends State<LoginScreen>
 
   List<Widget> _buildFeatureList() {
     final features = [
-      {'icon': Icons.people_outline_rounded, 'text': 'إدارة المرضى والحالات الرقمية'},
-      {'icon': Icons.inventory_2_outlined, 'text': 'متابعة المخزون والمستلزمات'},
-      {'icon': Icons.analytics_outlined, 'text': 'تقارير الأداء المالي والطبّي'},
-      {'icon': Icons.picture_as_pdf_outlined, 'text': 'فواتير احترافية وتقارير PDF'},
+      {
+        'icon': Icons.people_outline_rounded,
+        'title': 'إدارة رقمية',
+        'text': 'تنظيم وإدارة حالات المرضى بفعالية',
+      },
+      {
+        'icon': Icons.inventory_2_outlined,
+        'title': 'المخزون والمستلزمات',
+        'text': 'متابعة دقيقة للأدوات والموارد',
+      },
+      {
+        'icon': Icons.analytics_outlined,
+        'title': 'تقارير شاملة',
+        'text': 'تحليلات للأداء المالي والطبّي',
+      },
+      {
+        'icon': Icons.picture_as_pdf_outlined,
+        'title': 'فواتير احترافية',
+        'text': 'إنشاء وطباعة الفواتير بضغطة زر',
+      },
     ];
 
     return features.map((f) {
-      return Container(
-        width: 280,
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                f['icon'] as IconData,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                f['text'] as String,
-                style: const TextStyle(
-                  fontFamily: 'Cairo',
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: SizedBox(
+          width: 320,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4D03F).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  f['icon'] as IconData,
+                  color: const Color(0xFFF4D03F),
+                  size: 24,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      f['title'] as String,
+                      style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      f['text'] as String,
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }).toList();
@@ -409,42 +663,41 @@ class _LoginScreenState extends State<LoginScreen>
     if (_formKey.currentState?.validate() ?? false) {
       final email = _emailController.text.trim();
       final fullEmail = email.contains('@') ? email : '$email@newcare.com';
-      
-      context.read<AuthCubit>().login(
-        fullEmail,
-        _passwordController.text,
-      );
+
+      context.read<AuthCubit>().login(fullEmail, _passwordController.text);
     }
   }
 
   Widget _buildStaggeredItem(Widget child, int index) {
     final start = index * 0.15;
     final end = (start + 0.5).clamp(0.0, 1.0);
-    
+
     final fade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _animController, 
-        curve: Interval(start, end, curve: Curves.easeOutCubic)
-      )
+        parent: _animController,
+        curve: Interval(start, end, curve: Curves.easeOutCubic),
+      ),
     );
-    
-    final slide = Tween<Offset>(begin: const Offset(0.0, 0.4), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _animController, 
-        curve: Interval(start, end, curve: Curves.easeOutCubic)
-      )
-    );
+
+    final slide = Tween<Offset>(begin: const Offset(0.0, 0.4), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _animController,
+            curve: Interval(start, end, curve: Curves.easeOutCubic),
+          ),
+        );
 
     return FadeTransition(
       opacity: fade,
-      child: SlideTransition(
-        position: slide,
-        child: child,
-      ),
+      child: SlideTransition(position: slide, child: child),
     );
   }
 
-  Widget _buildGeometricShape(double size, double opacity, {double rotation = 0.0}) {
+  Widget _buildGeometricShape(
+    double size,
+    double opacity, {
+    double rotation = 0.0,
+  }) {
     return Transform.rotate(
       angle: rotation,
       child: Container(
