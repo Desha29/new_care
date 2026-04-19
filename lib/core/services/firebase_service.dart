@@ -21,11 +21,20 @@ class FirebaseService {
   final FirebaseFirestore _firestore;
   final Uuid _uuid = const Uuid();
 
+  // Telemetry - إحصائيات الاستخدام
+  static int readCount = 0;
+  static int writeCount = 0;
+
   FirebaseService._() : _firestore = FirebaseFirestore.instance;
 
   static FirebaseService get instance {
     _instance ??= FirebaseService._();
     return _instance!;
+  }
+
+  void resetStats() {
+    readCount = 0;
+    writeCount = 0;
   }
 
   /// توليد معرف فريد - Generate unique ID
@@ -81,21 +90,25 @@ class FirebaseService {
 
   /// إنشاء مستخدم - Create user
   Future<void> createUser(UserModel user) async {
+    writeCount++;
     await _usersRef.doc(user.id).set(user.toMap());
   }
 
   /// تحديث مستخدم - Update user
   Future<void> updateUser(UserModel user) async {
+    writeCount++;
     await _usersRef.doc(user.id).update(user.toMap());
   }
 
   /// حذف مستخدم - Delete user
   Future<void> deleteUser(String userId) async {
+    writeCount++;
     await _usersRef.doc(userId).delete();
   }
 
   /// جلب مستخدم - Get user by ID
   Future<UserModel?> getUser(String userId) async {
+    readCount++;
     try {
       final doc = await _usersRef.doc(userId).get();
       if (!doc.exists) {
@@ -112,6 +125,7 @@ class FirebaseService {
 
   /// جلب جميع المستخدمين - Get all users
   Future<List<UserModel>> getAllUsers() async {
+    readCount++;
     final snapshot = await _usersRef.orderBy('name').get();
     return snapshot.docs
         .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
@@ -120,6 +134,7 @@ class FirebaseService {
 
   /// جلب عدد المستخدمين - Get users count
   Future<int> getUsersCount() async {
+    readCount++;
     final snapshot = await _usersRef.get();
     return snapshot.size;
   }
@@ -133,14 +148,16 @@ class FirebaseService {
     });
   }
 
-  /// جلب الممرضين النشطين - Get active nurses
+  /// جلب الطاقم النشط (ممرضين أو مدراء) - Get active staff for assignments
   Future<List<UserModel>> getActiveNurses() async {
+    readCount++;
     final snapshot = await _usersRef
-        .where('role', isEqualTo: 'nurse')
         .where('isActive', isEqualTo: true)
         .get();
     return snapshot.docs
         .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        // يمكن تعيين الحالات لأي شخص نشط (ممرض أو مدير)
+        .where((u) => u.role.value == 'nurse' || u.role.value == 'admin' || u.role.value == 'super_admin')
         .toList();
   }
 
@@ -240,25 +257,85 @@ class FirebaseService {
   /// تهيئة الإجراءات الافتراضية - Seed Default Procedures
   Future<void> seedDefaultProcedures() async {
     try {
-      final snapshot = await _proceduresRef.limit(1).get();
-      if (snapshot.docs.isNotEmpty) return; // Already seeded
+      final snapshot = await _proceduresRef.get();
+      final existingNames = snapshot.docs.map((d) => d['name'] as String).toSet();
 
       final defaults = [
-        {'name': 'متابعة', 'price': 50.0},
-        {'name': 'جهاز وريد', 'price': 80.0},
-        {'name': 'كانيولا', 'price': 30.0},
-        {'name': 'حقن عضل', 'price': 20.0},
-        {'name': 'تغيير جرح', 'price': 60.0},
-        {'name': 'غيار طبي', 'price': 40.0},
+        {'name': 'تركيب كانيولا كبار', 'inside': 50.0, 'outside': 80.0, 'notes': ''},
+        {'name': 'متابعه كبار + زيارة', 'inside': 40.0, 'outside': 50.0, 'notes': ''},
+        {'name': 'غيار', 'inside': 50.0, 'outside': 80.0, 'notes': ''},
+        {'name': 'اختبار حساسية', 'inside': 60.0, 'outside': 80.0, 'notes': ''},
+        {'name': 'قسطرة', 'inside': 300.0, 'outside': 400.0, 'notes': ''},
+        {'name': 'تعليق حديد', 'inside': 250.0, 'outside': 250.0, 'notes': ''},
+        {'name': 'تعليق دم', 'inside': 350.0, 'outside': 500.0, 'notes': ''},
+        {'name': 'قياس سكر', 'inside': 30.0, 'outside': 50.0, 'notes': ''},
+        {'name': 'جلسة', 'inside': 50.0, 'outside': 100.0, 'notes': ''},
+        {'name': 'خياطة', 'inside': 200.0, 'outside': 200.0, 'notes': ''},
+        {'name': 'قياس ضغط', 'inside': 30.0, 'outside': 30.0, 'notes': ''},
+        {'name': 'قياس ضغط وسكر', 'inside': 60.0, 'outside': 60.0, 'notes': ''},
+        {'name': 'غيار فاكيم شامل الجهاز', 'inside': 500.0, 'outside': 500.0, 'notes': ''},
+        {'name': 'تركيب رايل', 'inside': 200.0, 'outside': 300.0, 'notes': ''},
+        {'name': 'حقنه شرجية', 'inside': 250.0, 'outside': 350.0, 'notes': ''},
+        {'name': 'غسول انف', 'inside': 30.0, 'outside': 50.0, 'notes': ''},
+        {'name': 'علاج طبيعي ع الصدر', 'inside': 30.0, 'outside': 50.0, 'notes': ''},
+        {'name': 'تشفيط', 'inside': 50.0, 'outside': 100.0, 'notes': ''},
+        {'name': 'متابعه اطفال', 'inside': 100.0, 'outside': 100.0, 'notes': ''},
+        {'name': 'تركيب كانيولا اطفال', 'inside': 70.0, 'outside': 100.0, 'notes': ''},
       ];
 
       for (var d in defaults) {
-        final id = _proceduresRef.doc().id;
-        await _proceduresRef.doc(id).set({
-          'name': d['name'],
-          'defaultPrice': d['price'],
-          'notes': 'خدمة افتراضية مُضافة آلياً',
-        });
+        if (!existingNames.contains(d['name'])) {
+          final id = _proceduresRef.doc().id;
+          await _proceduresRef.doc(id).set({
+            'name': d['name'],
+            'defaultPrice': d['outside'], 
+            'priceInside': d['inside'],
+            'priceOutside': d['outside'],
+            'notes': d['notes'],
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// تهيئة المستلزمات الافتراضية - Seed Default Inventory
+  Future<void> seedDefaultInventory() async {
+    try {
+      final snapshot = await _inventoryRef.get();
+      final existingNames = snapshot.docs.map((d) => d['name'] as String).toSet();
+
+      final defaults = [
+        {'name': 'سرنجات 1/3/5', 'price': 5.0},
+        {'name': 'كانيولا', 'price': 15.0},
+        {'name': 'ماسك جلسات', 'price': 30.0},
+        {'name': 'ماسك اكسجين', 'price': 25.0},
+        {'name': 'جهاز وريد', 'price': 30.0},
+        {'name': 'جهاز نقل دم', 'price': 30.0},
+        {'name': 'كيس جمع بول', 'price': 30.0},
+        {'name': 'نيزل مقاسات', 'price': 25.0},
+        {'name': 'رباط شاش مقاسات', 'price': 15.0},
+        {'name': 'رباط ضغط', 'price': 20.0},
+        {'name': 'سرنجة 20سم', 'price': 15.0},
+        {'name': 'محاليل بانواعها', 'price': 30.0},
+        {'name': 'محلول بديامنت', 'price': 50.0},
+        {'name': 'محلول بانثول', 'price': 50.0},
+        {'name': 'سرنجة رايل', 'price': 20.0},
+      ];
+
+      for (var d in defaults) {
+        if (!existingNames.contains(d['name'])) {
+          final id = _inventoryRef.doc().id;
+          await _inventoryRef.doc(id).set({
+            'name': d['name'],
+            'category': 'مستلزمات عامة',
+            'quantity': 100, // Default stock
+            'price': d['price'],
+            'isLowStock': false,
+            'isOutOfStock': false,
+            'createdAt': DateTime.now().toIso8601String(),
+            'updatedAt': DateTime.now().toIso8601String(),
+          });
+        }
       }
     } catch (_) {}
   }
@@ -271,14 +348,17 @@ class FirebaseService {
       _firestore.collection('procedures');
 
   Future<void> createProcedure(ProcedureModel procedure) async {
+    writeCount++;
     await _proceduresRef.doc(procedure.id).set(procedure.toMap());
   }
 
   Future<void> updateProcedure(ProcedureModel procedure) async {
+    writeCount++;
     await _proceduresRef.doc(procedure.id).update(procedure.toMap());
   }
 
   Future<void> deleteProcedure(String id) async {
+    writeCount++;
     await _proceduresRef.doc(id).delete();
   }
 
@@ -291,10 +371,17 @@ class FirebaseService {
   }
 
   Future<List<ProcedureModel>> getAllProcedures() async {
+    readCount++;
     final snapshot = await _proceduresRef.get();
     return snapshot.docs
         .map((doc) => ProcedureModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
         .toList();
+  }
+
+  Future<int> getProceduresCount() async {
+    readCount++;
+    final snapshot = await _proceduresRef.get();
+    return snapshot.size;
   }
 
   // ============================================
@@ -306,6 +393,7 @@ class FirebaseService {
 
   /// جلب عدد المرضى (الحالات حالياً) - Get patients count
   Future<int> getPatientsCount() async {
+    readCount++;
     final snapshot = await _casesRef.get();
     return snapshot.size;
   }
@@ -313,21 +401,25 @@ class FirebaseService {
 
   /// إنشاء حالة - Create case
   Future<void> createCase(CaseModel caseModel) async {
+    writeCount++;
     await _casesRef.doc(caseModel.id).set(caseModel.toMap());
   }
 
   /// تحديث حالة - Update case
   Future<void> updateCase(CaseModel caseModel) async {
+    writeCount++;
     await _casesRef.doc(caseModel.id).update(caseModel.toMap());
   }
 
   /// حذف حالة - Delete case
   Future<void> deleteCase(String caseId) async {
+    writeCount++;
     await _casesRef.doc(caseId).delete();
   }
 
   /// جلب جميع الحالات - Get all cases
   Future<List<CaseModel>> getAllCases() async {
+    readCount++;
     final snapshot = await _casesRef.orderBy('caseDate', descending: true).get();
     return snapshot.docs
         .map((doc) => CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
@@ -400,10 +492,17 @@ class FirebaseService {
 
   /// جلب جميع المستلزمات - Get all inventory
   Future<List<InventoryModel>> getAllInventory() async {
-    final snapshot = await _inventoryRef.orderBy('name').get();
+    readCount++;
+    final snapshot = await _firestore.collection('inventory').get();
     return snapshot.docs
-        .map((doc) => InventoryModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map((doc) => InventoryModel.fromMap(doc.data(), doc.id))
         .toList();
+  }
+
+  Future<int> getInventoryCount() async {
+    readCount++;
+    final snapshot = await _firestore.collection('inventory').get();
+    return snapshot.size;
   }
 
   /// جلب المستلزمات منخفضة المخزون - Get low stock items
@@ -557,6 +656,47 @@ class FirebaseService {
     };
   }
 
+  /// إحصائيات الممرض - Nurse dashboard stats
+  Future<Map<String, dynamic>> getNurseDashboardStats(String nurseId) async {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    try {
+      // جلب جميع حالات اليوم وفلترتها في الذاكرة لتجنب طلب فهرس مركب (Composite Index)
+      final allTodayCases = await getTodayCases();
+      final nurseTodayCases = allTodayCases.where((c) => c.nurseId == nurseId).toList();
+
+      final todayAttendance = await getTodayAttendance(nurseId);
+      
+      // جلب سجلات حضور الشهر لحساب الساعات
+      final monthlyAttendance = await getMonthlyAttendanceRecords(now.year, now.month);
+      final nurseMonthlyAttendance = monthlyAttendance.where((a) => a.userId == nurseId).toList();
+
+      double totalHours = 0;
+      for (var a in nurseMonthlyAttendance) {
+        if (a.checkOutTime != null) {
+          totalHours += a.checkOutTime!.difference(a.checkInTime).inMinutes / 60.0;
+        }
+      }
+
+      return {
+        'todayCasesCount': nurseTodayCases.length,
+        'monthHours': totalHours,
+        'attendance': todayAttendance,
+        'todayCases': nurseTodayCases,
+      };
+    } catch (e) {
+      log('[NurseStats] Error: $e');
+      return {
+        'todayCasesCount': 0,
+        'monthHours': 0.0,
+        'attendance': null,
+        'todayCases': <CaseModel>[],
+      };
+    }
+  }
+
   /// بيانات الرسم البياني للأسبوع - Weekly Chart Data (Last 7 Days)
   Future<Map<String, List<double>>> getDashboardChartData() async {
     final now = DateTime.now();
@@ -683,12 +823,17 @@ class FirebaseService {
 
   /// جلب ورديات حسب التاريخ - Get shifts by date
   Future<List<ShiftModel>> getShiftsByDate(String date) async {
-    final snapshot = await _shiftsRef
-        .where('date', isEqualTo: date)
-        .get();
+    readCount++;
+    final snapshot = await _shiftsRef.where('date', isEqualTo: date).get();
     return snapshot.docs
         .map((doc) => ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
         .toList();
+  }
+
+  Future<int> getShiftsCount() async {
+    readCount++;
+    final snapshot = await _shiftsRef.get();
+    return snapshot.size;
   }
 
   /// بث ورديات اليوم - Stream today's shifts

@@ -17,6 +17,8 @@ import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../../settings/presentation/screens/data_status_screen.dart';
 import '../../../attendance/presentation/screens/attendance_screen.dart';
 import '../../../shifts/presentation/screens/shift_management_screen.dart';
+import '../../../payroll/presentation/screens/payroll_screen.dart';
+import '../../../reports/presentation/screens/reports_screen.dart';
 
 /// التخطيط الرئيسي - Main Layout
 /// يحتوي على الشريط الجانبي والمحتوى الرئيسي
@@ -42,11 +44,13 @@ class _MainLayoutState extends State<MainLayout> {
         const ShiftManagementScreen(), // 3 - إدارة الورديات
         const ProceduresScreen(),      // 4
         const FinancialsScreen(),      // 5
-        const UsersScreen(),           // 6
-        const InventoryScreen(),       // 7
-        const LogsScreen(),            // 8
-        const SettingsScreen(),        // 9
-        const DataStatusScreen(),      // 10
+        const PayrollScreen(),         // 6 - الرواتب
+        const ReportsScreen(),         // 7 - التقارير
+        const UsersScreen(),           // 8
+        const InventoryScreen(),       // 9
+        const LogsScreen(),            // 10
+        const SettingsScreen(),        // 11
+        const DataStatusScreen(),      // 12
       ];
     } else {
       return [

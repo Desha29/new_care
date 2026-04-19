@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/constants/app_typography.dart';
 import '../../../../core/services/firebase_service.dart';
 import '../../../../core/widgets/search_bar_widget.dart';
 import '../../../../core/widgets/dialogs/confirm_dialog.dart';
+import '../../../../core/widgets/empty_state_widget.dart';
+import '../../../../core/widgets/buttons/primary_button.dart';
+import '../../../../core/widgets/buttons/icon_action_button.dart';
 import '../../data/models/procedure_model.dart';
 
 class ProceduresScreen extends StatefulWidget {
@@ -49,26 +53,14 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'الإجراءات والخدمات',
-                style: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
+                style: AppTypography.pageTitle.copyWith(fontSize: 24),
               ),
-              ElevatedButton.icon(
+              PrimaryButton(
+                label: 'إضافة إجراء جديد',
+                icon: Icons.add_rounded,
                 onPressed: () => _showProcedureDialog(),
-                icon: const Icon(Icons.add_rounded, size: 20),
-                label: const Text('إضافة إجراء جديد', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w600)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
               ),
             ],
           ),
@@ -97,11 +89,12 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
                 }).toList();
 
                 if (filtered.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'لا توجد إجراءات مطابقة للبحث أو لم يتم إضافتها بعد',
-                      style: TextStyle(fontFamily: 'Cairo', fontSize: 16, color: AppColors.textHint),
-                    ),
+                  return EmptyStateWidget(
+                    icon: Icons.medical_services_rounded,
+                    title: 'لا توجد إجراءات',
+                    subtitle: 'تأكد من اختيار إجراءات وإضافتها للنظام',
+                    actionLabel: 'إضافة إجراء',
+                    onAction: () => _showProcedureDialog(),
                   );
                 }
 
@@ -123,8 +116,9 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
                           children: [
                             _hc('م', 1),
                             _hc('اسم الإجراء', 3),
-                            _hc('السعر الافتراضي', 2),
-                            _hc('ملاحظات', 3),
+                            _hc('سعر الداخل', 2),
+                            _hc('سعر الخارج', 2),
+                            _hc('ملاحظات', 2),
                             _hc('إجراءات', 2),
                           ],
                         ),
@@ -151,15 +145,7 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
   Widget _hc(String text, int flex) {
     return Expanded(
       flex: flex,
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontFamily: 'Cairo',
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textSecondary,
-        ),
-      ),
+      child: Text(text, style: AppTypography.tableHeader.copyWith(fontSize: 13)),
     );
   }
 
@@ -177,15 +163,22 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
           Expanded(
             flex: 2,
             child: Text(
-              '${item.defaultPrice} ${AppStrings.currency}',
-              style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary),
+              '${item.priceInside} ${AppStrings.currency}',
+              style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary),
             ),
           ),
           Expanded(
-            flex: 3,
+            flex: 2,
+            child: Text(
+              '${item.priceOutside} ${AppStrings.currency}',
+              style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary),
+            ),
+          ),
+          Expanded(
+            flex: 2,
             child: Text(
               item.notes.isEmpty ? '---' : item.notes,
-              style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, color: AppColors.textSecondary),
+              style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -194,9 +187,9 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
             flex: 2,
             child: Row(
               children: [
-                _actionBtn(Icons.edit_rounded, Colors.orange, () => _showProcedureDialog(item: item)),
+                IconActionButton.edit(onPressed: () => _showProcedureDialog(item: item)),
                 const SizedBox(width: 8),
-                _actionBtn(Icons.delete_rounded, AppColors.error, () => _confirmDelete(item)),
+                IconActionButton.delete(onPressed: () => _confirmDelete(item)),
               ],
             ),
           ),
@@ -205,28 +198,11 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
     );
   }
 
-  Widget _actionBtn(IconData icon, Color color, VoidCallback onTap) {
-    return Tooltip(
-      message: 'إجراء',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 16, color: color),
-        ),
-      ),
-    );
-  }
-
   Future<void> _showProcedureDialog({ProcedureModel? item}) async {
     final formKey = GlobalKey<FormState>();
     final nameCtrl = TextEditingController(text: item?.name ?? '');
-    final priceCtrl = TextEditingController(text: item?.defaultPrice.toString() ?? '');
+    final priceInsideCtrl = TextEditingController(text: item?.priceInside.toString() ?? '');
+    final priceOutsideCtrl = TextEditingController(text: item?.priceOutside.toString() ?? '');
     final notesCtrl = TextEditingController(text: item?.notes ?? '');
     final isEdit = item != null;
     bool isSaving = false;
@@ -267,7 +243,13 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
                         const SizedBox(height: 24),
                         _dialogField('اسم الخدمة / الإجراء', nameCtrl, Icons.medical_services_rounded, isRequired: true),
                         const SizedBox(height: 16),
-                        _dialogField('السعر الافتراضي', priceCtrl, Icons.attach_money_rounded, isNumber: true, isRequired: true),
+                        Row(
+                          children: [
+                            Expanded(child: _dialogField('سعر الداخل', priceInsideCtrl, Icons.add_home_work_rounded, isNumber: true, isRequired: true)),
+                            const SizedBox(width: 12),
+                            Expanded(child: _dialogField('سعر الخارج', priceOutsideCtrl, Icons.home_rounded, isNumber: true, isRequired: true)),
+                          ],
+                        ),
                         const SizedBox(height: 16),
                         _dialogField('ملاحظات', notesCtrl, Icons.notes_rounded, maxLines: 3),
                         const SizedBox(height: 30),
@@ -290,7 +272,9 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
                                       final newItem = ProcedureModel(
                                         id: item?.id == null || item!.id.isEmpty ? FirebaseService.instance.generateId() : item.id,
                                         name: nameCtrl.text.trim(),
-                                        defaultPrice: double.tryParse(priceCtrl.text) ?? 0,
+                                        priceInside: double.tryParse(priceInsideCtrl.text) ?? 0,
+                                        priceOutside: double.tryParse(priceOutsideCtrl.text) ?? 0,
+                                        defaultPrice: double.tryParse(priceInsideCtrl.text) ?? 0, // Fallback for old compatibility
                                         notes: notesCtrl.text.trim(),
                                       );
 

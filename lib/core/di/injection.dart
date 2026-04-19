@@ -9,7 +9,17 @@ import '../services/connectivity_service.dart';
 import '../services/notification_service.dart';
 import '../services/report_service.dart';
 import '../services/local_log_service.dart';
-import '../services/remote_config_service.dart';
+import '../services/backup_service.dart';
+import '../services/export_service.dart';
+import '../services/firebase/users_repository.dart';
+import '../services/firebase/cases_repository.dart';
+import '../services/firebase/inventory_repository.dart';
+import '../services/firebase/shifts_repository.dart';
+import '../services/firebase/attendance_repository.dart';
+import '../services/firebase/expenses_repository.dart';
+import '../services/firebase/procedures_repository.dart';
+import '../services/firebase/logs_repository.dart';
+import '../services/firebase/dashboard_repository.dart';
 import '../../features/auth/logic/cubit/auth_cubit.dart';
 import '../logic/connectivity_cubit.dart';
 import '../logic/error_cubit.dart';
@@ -19,6 +29,7 @@ import '../../features/inventory/logic/cubit/inventory_cubit.dart';
 import '../../features/financials/logic/cubit/financials_cubit.dart';
 import '../../features/shifts/logic/cubit/shift_cubit.dart';
 import '../../features/attendance/logic/cubit/attendance_cubit.dart';
+import '../../features/payroll/logic/cubit/payroll_cubit.dart';
 
 final sl = GetIt.instance; // sl: short for Service Locator
 
@@ -33,12 +44,29 @@ Future<void> initDI() async {
   sl.registerLazySingleton<NotificationService>(() => NotificationService.instance);
   sl.registerLazySingleton<ReportService>(() => ReportService.instance);
   sl.registerLazySingleton<LocalLogService>(() => LocalLogService.instance);
-  sl.registerLazySingleton<RemoteConfigService>(() => RemoteConfigService.instance);
   sl.registerLazySingleton<DeviceService>(() => DeviceService.instance);
   sl.registerLazySingleton<SyncManager>(() => SyncManager.instance);
   
   // SyncService depends on FirebaseService and SqliteService
   sl.registerLazySingleton<SyncService>(() => SyncService.instance);
+
+  // === خدمات جديدة - New Services ===
+  sl.registerLazySingleton<BackupService>(() => BackupService.instance);
+  sl.registerLazySingleton<ExportService>(() => ExportService.instance);
+
+  // ============================================
+  // === المستودعات - Firebase Repositories ===
+  // ============================================
+  
+  sl.registerLazySingleton<UsersRepository>(() => UsersRepository());
+  sl.registerLazySingleton<CasesRepository>(() => CasesRepository());
+  sl.registerLazySingleton<InventoryRepository>(() => InventoryRepository());
+  sl.registerLazySingleton<ShiftsRepository>(() => ShiftsRepository());
+  sl.registerLazySingleton<AttendanceRepository>(() => AttendanceRepository());
+  sl.registerLazySingleton<ExpensesRepository>(() => ExpensesRepository());
+  sl.registerLazySingleton<ProceduresRepository>(() => ProceduresRepository());
+  sl.registerLazySingleton<LogsRepository>(() => LogsRepository());
+  sl.registerLazySingleton<DashboardRepository>(() => DashboardRepository());
 
   // ============================================
   // === Cubits (State Management) ===
@@ -59,4 +87,5 @@ Future<void> initDI() async {
   sl.registerLazySingleton<FinancialsCubit>(() => FinancialsCubit());
   sl.registerLazySingleton<ShiftCubit>(() => ShiftCubit());
   sl.registerLazySingleton<AttendanceCubit>(() => AttendanceCubit());
+  sl.registerLazySingleton<PayrollCubit>(() => PayrollCubit());
 }

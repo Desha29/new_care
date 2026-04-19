@@ -53,6 +53,7 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> login(String email, String password) async {
     emit(AuthLoading());
     try {
+      print('[Auth] Attempting login for $email');
       final credential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
@@ -108,6 +109,7 @@ class AuthCubit extends Cubit<AuthState> {
         }
       }
     } on FirebaseAuthException catch (e) {
+      print('[Auth] FirebaseAuthException: Code: ${e.code}, Message: ${e.message}');
       String message;
       switch (e.code) {
         case 'user-not-found':
@@ -129,17 +131,8 @@ class AuthCubit extends Cubit<AuthState> {
           message = 'خطأ في تسجيل الدخول: ${e.message}';
       }
       emit(AuthError(message));
-    } on FirebaseException catch (e) {
-      if (e.code == 'permission-denied') {
-        emit(
-          const AuthError(
-            'حدث خطأ في الصلاحيات (Permission Denied). يرجى التأكد من تحديث Firestore Rules في كونسول فايربيز.',
-          ),
-        );
-      } else {
-        emit(AuthError('خطأ في الاتصال بقاعدة البيانات: ${e.message}'));
-      }
     } catch (e) {
+      print('[Auth] Unknown Error during login: $e');
       if (e.toString().contains('permission-denied')) {
         emit(
           const AuthError(

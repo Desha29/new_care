@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/number_formatter.dart';
 import '../../../../core/widgets/stat_card.dart';
 import '../../../../core/services/firebase_service.dart';
 import '../../../../core/services/connectivity_service.dart';
@@ -11,6 +13,7 @@ import 'package:intl/intl.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../auth/logic/cubit/auth_cubit.dart';
+import 'nurse_dashboard_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -87,6 +90,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthCubit>().currentUser;
+    final isAdmin = user?.role.isAdmin ?? false;
+
+    if (!isAdmin) {
+      return const NurseDashboardScreen();
+    }
+
     final padding = ResponsiveHelper.getScreenPadding(context);
     final isSmall = !ResponsiveHelper.isDesktop(context);
 
@@ -94,90 +104,94 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: AppColors.background,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: EdgeInsets.all(padding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_isOffline)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.error),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.wifi_off_rounded,
-                            color: AppColors.error,
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              AppStrings.offlineMode,
-                              style: TextStyle(
-                                fontFamily: 'Cairo',
-                                color: AppColors.error,
-                                fontWeight: FontWeight.w700,
+          : RefreshIndicator(
+              onRefresh: _loadDashboardData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.all(padding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_isOffline)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.error),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.wifi_off_rounded,
+                              color: AppColors.error,
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                AppStrings.offlineMode,
+                                style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  color: AppColors.error,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                          ),
-                          TextButton(
-                            onPressed: _loadDashboardData,
-                            child: const Text(
-                              'إعادة المحاولة',
-                              style: TextStyle(fontFamily: 'Cairo'),
+                            TextButton(
+                              onPressed: _loadDashboardData,
+                              child: const Text(
+                                'إعادة المحاولة',
+                                style: TextStyle(fontFamily: 'Cairo'),
+                              ),
                             ),
-                          ),
+                          ],
+                        ),
+                      ),
+
+                    // === الرأس - Header ===
+                    _buildHeader(),
+                    const SizedBox(height: 24),
+
+                    // === بطاقات الإحصائيات - Stats Cards ===
+                    _buildStatsCards(),
+                    const SizedBox(height: 24),
+
+                    // === الرسوم البيانية - Charts ===
+                    if (isSmall) ...[
+                      _buildCasesChart(),
+                      const SizedBox(height: 20),
+                      _buildStatusPieChart(),
+                    ] else
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 3, child: _buildCasesChart()),
+                          const SizedBox(width: 20),
+                          Expanded(flex: 2, child: _buildStatusPieChart()),
                         ],
                       ),
-                    ),
+                    const SizedBox(height: 24),
 
-                  // === الرأس - Header ===
-                  _buildHeader(),
-                  const SizedBox(height: 24),
-
-                  // === بطاقات الإحصائيات - Stats Cards ===
-                  _buildStatsCards(),
-                  const SizedBox(height: 24),
-
-                  // === الرسوم البيانية - Charts ===
-                  if (isSmall) ...[
-                    _buildCasesChart(),
-                    const SizedBox(height: 20),
-                    _buildStatusPieChart(),
-                  ] else
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(flex: 3, child: _buildCasesChart()),
-                        const SizedBox(width: 20),
-                        Expanded(flex: 2, child: _buildStatusPieChart()),
-                      ],
-                    ),
-                  const SizedBox(height: 24),
-
-                  // === الإيرادات والحالات الأخيرة ===
-                  if (isSmall) ...[
-                    _buildRevenueChart(),
-                    const SizedBox(height: 20),
-                    _buildRecentCases(),
-                  ] else
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(flex: 3, child: _buildRevenueChart()),
-                        const SizedBox(width: 20),
-                        Expanded(flex: 2, child: _buildRecentCases()),
-                      ],
-                    ),
-                ],
+                    // === الإيرادات والحالات الأخيرة ===
+                    if (isSmall) ...[
+                      _buildRevenueChart(),
+                      const SizedBox(height: 20),
+                      _buildRecentCases(),
+                    ] else
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 3, child: _buildRevenueChart()),
+                          const SizedBox(width: 20),
+                          Expanded(flex: 2, child: _buildRecentCases()),
+                        ],
+                      ),
+                  ],
+                ),
               ),
             ),
     );
@@ -213,12 +227,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             Text(
               AppStrings.dashboard,
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: titleSize,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+              style: AppTypography.pageTitle.copyWith(fontSize: titleSize),
             ),
           ],
         ),
@@ -293,10 +302,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         StatCard(
           title: AppStrings.totalRevenue,
-          value: (_stats['todayRevenue'] as double).toStringAsFixed(0),
+          value: NumberFormatter.currency((_stats['todayRevenue'] as double)),
           icon: Icons.account_balance_wallet_rounded,
           color: AppColors.success,
-          subtitle: '${AppStrings.currency} إيرادات اليوم',
+          subtitle: 'إيرادات اليوم',
         ),
         StatCard(
           title: AppStrings.availableNurses,

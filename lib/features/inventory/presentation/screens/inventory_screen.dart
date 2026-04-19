@@ -3,9 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:new_care/core/utils/responsive_helper.dart';
 import 'package:new_care/core/constants/app_colors.dart';
 import 'package:new_care/core/constants/app_strings.dart';
+import 'package:new_care/core/constants/app_typography.dart';
 import 'package:new_care/core/widgets/status_badge.dart';
 import 'package:new_care/core/widgets/search_bar_widget.dart';
 import 'package:new_care/core/widgets/dialogs/confirm_dialog.dart';
+import 'package:new_care/core/widgets/empty_state_widget.dart';
+import 'package:new_care/core/widgets/buttons/primary_button.dart';
+import 'package:new_care/core/widgets/buttons/icon_action_button.dart';
 import 'package:new_care/features/inventory/data/models/inventory_model.dart';
 import 'package:new_care/features/inventory/logic/cubit/inventory_cubit.dart';
 import 'package:new_care/features/inventory/logic/cubit/inventory_state.dart';
@@ -51,7 +55,7 @@ class InventoryScreen extends StatelessWidget {
     if (state is InventoryLoading) {
       return const Center(child: CircularProgressIndicator());
     } else if (state is InventoryError) {
-      return Center(child: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')));
+      return Center(child: Text(state.message, style: AppTypography.tableCell));
     } else if (state is InventoryLoaded) {
       return _buildTable(context, state.items);
     }
@@ -67,20 +71,19 @@ class InventoryScreen extends StatelessWidget {
       children: [
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(AppStrings.inventory, style: TextStyle(fontFamily: 'Cairo', fontSize: titleSize, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            Text(AppStrings.inventory, style: AppTypography.pageTitle.copyWith(fontSize: titleSize)),
             const SizedBox(width: 12),
             IconButton(onPressed: () => context.read<InventoryCubit>().loadInventory(), icon: const Icon(Icons.refresh_rounded, color: AppColors.primary, size: 20)),
           ]),
-          Text('إدارة ومتابعة المستلزمات الطبية والمخزون', style: TextStyle(fontFamily: 'Cairo', fontSize: ResponsiveHelper.getSubtitleFontSize(context), color: AppColors.textSecondary)),
+          Text('إدارة ومتابعة المستلزمات الطبية والمخزون', style: AppTypography.pageSubtitle.copyWith(fontSize: ResponsiveHelper.getSubtitleFontSize(context))),
         ]),
         Row(mainAxisSize: MainAxisSize.min, children: [
           if (!isMobile) SearchBarWidget(hintText: AppStrings.searchInventory, controller: TextEditingController(), onChanged: (v) => context.read<InventoryCubit>().searchInventory(v)),
           if (!isMobile) const SizedBox(width: 12),
-          ElevatedButton.icon(
+          PrimaryButton(
+            label: isMobile ? 'إضافة' : AppStrings.addItem,
+            icon: Icons.add_rounded,
             onPressed: () => _showItemDialog(context),
-            icon: const Icon(Icons.add_rounded, size: 20),
-            label: Text(isMobile ? 'إضافة' : AppStrings.addItem, style: const TextStyle(fontFamily: 'Cairo')),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
           ),
         ]),
         if (isMobile) SearchBarWidget(hintText: AppStrings.searchInventory, controller: TextEditingController(), onChanged: (v) => context.read<InventoryCubit>().searchInventory(v)),
@@ -114,7 +117,9 @@ class InventoryScreen extends StatelessWidget {
         const Divider(height: 1, color: AppColors.border),
         Expanded(
           child: items.isEmpty
-              ? const Center(child: Text(AppStrings.noInventory, style: TextStyle(fontFamily: 'Cairo', color: AppColors.textHint)))
+              ? EmptyStateWidget.inventory(
+                  onAction: () => _showItemDialog(context),
+                )
               : ListView.separated(
                   itemCount: items.length,
                   separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.borderLight),
@@ -125,7 +130,7 @@ class InventoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _hc(String t, int f) => Expanded(flex: f, child: Text(t, style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textSecondary)));
+  Widget _hc(String t, int f) => Expanded(flex: f, child: Text(t, style: AppTypography.tableHeader.copyWith(fontSize: 13, color: AppColors.textSecondary)));
 
   Widget _row(BuildContext context, InventoryModel item, int i) {
     return Container(
@@ -144,11 +149,16 @@ class InventoryScreen extends StatelessWidget {
         Expanded(flex: 1, child: Text('${item.price.toStringAsFixed(0)} ${AppStrings.currency}', style: const TextStyle(fontFamily: 'Cairo', fontSize: 12))),
         Expanded(flex: 2, child: StockBadge(quantity: item.quantity, minStock: item.minStock, fontSize: 11)),
         Expanded(flex: 2, child: Row(children: [
-          _ab(Icons.edit_rounded, AppColors.warning, 'تعديل', () => _showItemDialog(context, item: item)),
+          IconActionButton.edit(onPressed: () => _showItemDialog(context, item: item)),
           const SizedBox(width: 4),
-          _ab(Icons.add_circle_rounded, AppColors.success, 'إضافة كمية', () => _showAddStockDialog(context, item)),
+          IconActionButton(
+            icon: Icons.add_circle_rounded,
+            tooltip: 'إضافة كمية',
+            color: AppColors.success,
+            onPressed: () => _showAddStockDialog(context, item),
+          ),
           const SizedBox(width: 4),
-          _ab(Icons.delete_rounded, AppColors.error, 'حذف', () => _confirmDelete(context, item)),
+          IconActionButton.delete(onPressed: () => _confirmDelete(context, item)),
         ])),
       ]),
     );

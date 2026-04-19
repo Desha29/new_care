@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/constants/app_typography.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../../core/widgets/search_bar_widget.dart';
+import '../../../../core/widgets/empty_state_widget.dart';
+import '../../../../core/widgets/buttons/primary_button.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/utils/validators.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -120,11 +123,8 @@ class _UsersScreenState extends State<UsersScreen> {
                             children: [
                               Text(
                                 AppStrings.users,
-                                style: TextStyle(
-                                  fontFamily: 'Cairo',
+                                style: AppTypography.pageTitle.copyWith(
                                   fontSize: ResponsiveHelper.getTitleFontSize(context),
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -133,10 +133,8 @@ class _UsersScreenState extends State<UsersScreen> {
                           ),
                           Text(
                             'إدارة حسابات المستخدمين والصلاحيات',
-                            style: TextStyle(
-                              fontFamily: 'Cairo',
+                            style: AppTypography.pageSubtitle.copyWith(
                               fontSize: ResponsiveHelper.getSubtitleFontSize(context),
-                              color: AppColors.textSecondary,
                             ),
                           ),
                         ],
@@ -149,24 +147,10 @@ class _UsersScreenState extends State<UsersScreen> {
                         onChanged: (v) => setState(() => _searchQuery = v),
                       ),
                     const SizedBox(width: 12),
-                    ElevatedButton.icon(
+                    PrimaryButton(
+                      label: ResponsiveHelper.isMobile(context) ? 'إضافة' : AppStrings.addUser,
+                      icon: Icons.person_add_rounded,
                       onPressed: () => _showUserDialog(),
-                      icon: const Icon(Icons.person_add_rounded, size: 20),
-                      label: Text(
-                        ResponsiveHelper.isMobile(context) ? 'إضافة' : AppStrings.addUser,
-                        style: const TextStyle(fontFamily: 'Cairo'),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 14,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
                     ),
                   ],
                 ),
@@ -302,7 +286,11 @@ class _UsersScreenState extends State<UsersScreen> {
           const Divider(height: 1, color: AppColors.border),
           Expanded(
             child: _filtered.isEmpty
-                ? const Center(child: Text('لا يوجد مستخدمين', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textHint)))
+                ? const EmptyStateWidget(
+                    icon: Icons.people_rounded,
+                    title: 'لا يوجد مستخدمين',
+                    subtitle: 'أضف مستخدمين جدد لإدارة النظام',
+                  )
                 : ListView.separated(
                     itemCount: _filtered.length,
                     separatorBuilder: (context, index) =>
@@ -487,15 +475,7 @@ class _UsersScreenState extends State<UsersScreen> {
 
   Widget _hc(String t, int f) => Expanded(
     flex: f,
-    child: Text(
-      t,
-      style: const TextStyle(
-        fontFamily: 'Cairo',
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textSecondary,
-      ),
-    ),
+    child: Text(t, style: AppTypography.tableHeader.copyWith(fontSize: 13)),
   );
 
   Future<void> _confirmDeleteUser(UserModel u) async {

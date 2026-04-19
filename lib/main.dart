@@ -5,7 +5,6 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'app.dart';
 import 'core/services/sqlite_service.dart';
 import 'core/services/firebase_service.dart';
-import 'core/services/remote_config_service.dart';
 import 'core/services/connectivity_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/app_bloc_observer.dart';
@@ -20,7 +19,6 @@ void main() async {
   await initializeDateFormatting('ar');
 
   sqfliteFfiInit();
-  databaseFactory = databaseFactoryFfi;
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -31,9 +29,8 @@ void main() async {
   await ConnectivityService.instance.initialize();
   await NotificationService.instance.initialize();
 
-  await RemoteConfigService.instance.initialize();
-  
   await FirebaseService.instance.seedDefaultUsers();
+  await FirebaseService.instance.seedDefaultInventory();
 
   Bloc.observer = AppBlocObserver();
 

@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/constants/app_typography.dart';
 import '../../../../core/enums/case_status.dart';
 import '../../../../core/widgets/search_bar_widget.dart';
 import '../../../../core/widgets/dialogs/confirm_dialog.dart';
+import '../../../../core/widgets/empty_state_widget.dart';
+import '../../../../core/widgets/buttons/primary_button.dart';
+import '../../../../core/widgets/buttons/icon_action_button.dart';
 import '../../../../core/services/firebase_service.dart';
 import '../../../invoice/presentation/screens/invoice_preview_screen.dart';
 
@@ -40,24 +44,9 @@ class CasesScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (state is CasesError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    state.message,
-                    style: const TextStyle(
-                      fontFamily: 'Cairo',
-                      color: AppColors.error,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: () => context.read<CasesCubit>().loadCases(),
-                    child: const Text('إعادة المحاولة'),
-                  ),
-                ],
-              ),
+            return EmptyStateWidget.error(
+              message: state.message,
+              onRetry: () => context.read<CasesCubit>().loadCases(),
             );
           }
           if (state is CasesLoaded) {
@@ -97,12 +86,7 @@ class CasesScreen extends StatelessWidget {
               children: [
                 Text(
                   'الحالات / المرضى',
-                  style: TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: titleSize,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
+                  style: AppTypography.pageTitle.copyWith(fontSize: titleSize),
                 ),
                 const SizedBox(width: 12),
                 IconButton(
@@ -117,10 +101,8 @@ class CasesScreen extends StatelessWidget {
             ),
             Text(
               'إدارة و مراجعة الحالات الطبية المسجلة',
-              style: TextStyle(
-                fontFamily: 'Cairo',
+              style: AppTypography.pageSubtitle.copyWith(
                 fontSize: ResponsiveHelper.getSubtitleFontSize(context),
-                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -134,24 +116,10 @@ class CasesScreen extends StatelessWidget {
                 onChanged: (v) => context.read<CasesCubit>().searchCases(v),
               ),
             if (!isMobile) const SizedBox(width: 12),
-            ElevatedButton.icon(
+            PrimaryButton(
+              label: isMobile ? 'إضافة' : AppStrings.addCase,
+              icon: Icons.add_rounded,
               onPressed: () => _showCaseDialog(context),
-              icon: const Icon(Icons.add_rounded, size: 20),
-              label: Text(
-                isMobile ? 'إضافة' : AppStrings.addCase,
-                style: const TextStyle(fontFamily: 'Cairo'),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
             ),
           ],
         ),
@@ -196,14 +164,8 @@ class CasesScreen extends StatelessWidget {
           const Divider(height: 1, color: AppColors.border),
           Expanded(
             child: filtered.isEmpty
-                ? const Center(
-                    child: Text(
-                      AppStrings.noCases,
-                      style: TextStyle(
-                        fontFamily: 'Cairo',
-                        color: AppColors.textHint,
-                      ),
-                    ),
+                ? EmptyStateWidget.cases(
+                    onAction: () => _showCaseDialog(context),
                   )
                 : ListView.separated(
                     itemCount: filtered.length,
@@ -221,10 +183,8 @@ class CasesScreen extends StatelessWidget {
     flex: f,
     child: Text(
       t,
-      style: const TextStyle(
-        fontFamily: 'Cairo',
+      style: AppTypography.tableHeader.copyWith(
         fontSize: 13,
-        fontWeight: FontWeight.w700,
         color: AppColors.textSecondary,
       ),
     ),
@@ -305,48 +265,29 @@ class CasesScreen extends StatelessWidget {
             flex: 2,
             child: Row(
               children: [
-                _ab(
-                  Icons.receipt_long_rounded,
-                  AppColors.success,
-                  () => Navigator.push(
+                IconActionButton(
+                  icon: Icons.receipt_long_rounded,
+                  tooltip: 'فاتورة',
+                  color: AppColors.success,
+                  onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => InvoicePreviewScreen(caseData: c)),
+                    MaterialPageRoute(
+                      builder: (_) => InvoicePreviewScreen(caseData: c),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 4),
-                _ab(
-                  Icons.edit_rounded,
-                  AppColors.warning,
-                  () => _showCaseDialog(context, caseData: c),
+                IconActionButton.edit(
+                  onPressed: () => _showCaseDialog(context, caseData: c),
                 ),
-                const SizedBox(width: 8),
-                _ab(
-                  Icons.delete_rounded,
-                  AppColors.error,
-                  () => _confirmDelete(context, c),
+                const SizedBox(width: 4),
+                IconActionButton.delete(
+                  onPressed: () => _confirmDelete(context, c),
                 ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _ab(IconData icon, Color color, VoidCallback onTap) {
-    return Tooltip(
-      message: 'إجراء',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 16, color: color),
-        ),
       ),
     );
   }
@@ -404,137 +345,146 @@ class CasesScreen extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Container(
-                width: 650,
-                padding: const EdgeInsets.all(28),
-                child: Form(
-                  key: formKey,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildDialogHeader(ctx, isEdit),
-                        const SizedBox(height: 20),
-
-                        if (selType == CaseType.homeVisit) ...[
-                          const Text(
-                            'بيانات المريض (للزيارة المنزلية)',
-                            style: TextStyle(
-                              fontFamily: 'Cairo',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _dialogField(
-                                  'رقم الهاتف',
-                                  patientPhoneCtrl,
-                                  Icons.phone_android_rounded,
-                                  isNumber: true,
-                                  isRequired: true,
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: _dialogField(
-                                  'العنوان',
-                                  patientAddressCtrl,
-                                  Icons.location_on_rounded,
-                                  isRequired: true,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Divider(height: 40),
-                        ],
-
-                        const Text(
-                          'بيانات الخدمة / الحالة',
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildCaseTypeSelector(selType, (v) => selType = v),
-                        const SizedBox(height: 16),
-                        Row(
+              child: StatefulBuilder(
+                builder: (context, dialogSetState) {
+                  return Container(
+                    width: 650,
+                    padding: const EdgeInsets.all(28),
+                    child: Form(
+                      key: formKey,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: _buildNurseDropdown(nurses, selNurseId, (
-                                id,
-                                name,
-                              ) {
-                                selNurseId = id;
-                                selNurseName = name;
-                              }),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: _dialogField(
-                                'السعر النهائي للإجراءات',
-                                TextEditingController(
-                                  text: formState.totalPrice.toStringAsFixed(0),
+                            _buildDialogHeader(ctx, isEdit),
+                            const SizedBox(height: 20),
+
+                            if (selType == CaseType.homeVisit) ...[
+                              const Text(
+                                'بيانات المريض (للزيارة المنزلية)',
+                                style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
                                 ),
-                                Icons.payments_rounded,
-                                isReadOnly: true,
                               ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _dialogField(
+                                      'رقم الهاتف',
+                                      patientPhoneCtrl,
+                                      Icons.phone_android_rounded,
+                                      isNumber: true,
+                                      isRequired: true,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: _dialogField(
+                                      'العنوان',
+                                      patientAddressCtrl,
+                                      Icons.location_on_rounded,
+                                      isRequired: true,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Divider(height: 40),
+                            ],
+
+                            const Text(
+                              'بيانات الخدمة / الحالة',
+                              style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _buildCaseTypeSelector(selType, (v) {
+                              dialogSetState(() => selType = v);
+                            }),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildNurseDropdown(
+                                    nurses,
+                                    selNurseId,
+                                    (id, name) {
+                                      selNurseId = id;
+                                      selNurseName = name;
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: _dialogField(
+                                    'السعر النهائي للإجراءات',
+                                    TextEditingController(
+                                      text: formState.totalPrice
+                                          .toStringAsFixed(0),
+                                    ),
+                                    Icons.payments_rounded,
+                                    isReadOnly: true,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+
+                            _buildServicesSection(
+                              formCtx,
+                              formState,
+                              procedures,
+                              tmpServiceName,
+                              (v) => tmpServiceName = v,
+                              tmpServicePriceCtrl,
+                              selType,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildSuppliesSection(
+                              formCtx,
+                              formState,
+                              inventory,
+                              tmpSupplyId,
+                              (v) => tmpSupplyId = v,
+                              tmpSupplyQtyCtrl,
+                            ),
+
+                            const SizedBox(height: 16),
+                            _dialogField(
+                              'ملاحظات عن الحالة',
+                              notesCtrl,
+                              Icons.notes_rounded,
+                              maxLines: 2,
+                            ),
+
+                            const SizedBox(height: 24),
+                            _buildDialogActions(
+                              context,
+                              formCtx,
+                              formState,
+                              isEdit,
+                              caseData,
+                              patientPhoneCtrl,
+                              patientAddressCtrl,
+                              notesCtrl,
+                              selNurseName,
+                              selType,
+                              formKey,
                             ),
                           ],
                         ),
-                        const SizedBox(height: 24),
-
-                        _buildServicesSection(
-                          formCtx,
-                          formState,
-                          procedures,
-                          tmpServiceName,
-                          (v) => tmpServiceName = v,
-                          tmpServicePriceCtrl,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildSuppliesSection(
-                          formCtx,
-                          formState,
-                          inventory,
-                          tmpSupplyId,
-                          (v) => tmpSupplyId = v,
-                          tmpSupplyQtyCtrl,
-                        ),
-
-                        const SizedBox(height: 16),
-                        _dialogField(
-                          'ملاحظات عن الحالة',
-                          notesCtrl,
-                          Icons.notes_rounded,
-                          maxLines: 2,
-                        ),
-
-                        const SizedBox(height: 24),
-                        _buildDialogActions(
-                          context,
-                          formCtx,
-                          formState,
-                          isEdit,
-                          caseData,
-                          patientPhoneCtrl,
-                          patientAddressCtrl,
-                          notesCtrl,
-                          selNurseName,
-                          selType,
-                          formKey,
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             );
           },
@@ -662,6 +612,7 @@ class CasesScreen extends StatelessWidget {
     String? tmpName,
     Function(String?) setTmpName,
     TextEditingController priceCtrl,
+    CaseType selType,
   ) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -711,7 +662,11 @@ class CasesScreen extends StatelessWidget {
                     setTmpName(v);
                     if (v != null) {
                       final proc = procedures.firstWhere((p) => p.name == v);
-                      priceCtrl.text = proc.defaultPrice.toString();
+                      // اختيار السعر بناءً على نوع الحالة (داخل المركز أو زيارة منزلية)
+                      final price = selType == CaseType.inCenter
+                          ? proc.priceInside
+                          : proc.priceOutside;
+                      priceCtrl.text = price.toStringAsFixed(0);
                     }
                   },
                   decoration: InputDecoration(
@@ -982,7 +937,10 @@ class CasesScreen extends StatelessWidget {
                     if (v == true && screenCtx.mounted) {
                       Navigator.push(
                         screenCtx,
-                        MaterialPageRoute(builder: (_) => InvoicePreviewScreen(caseData: updatedCase)),
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              InvoicePreviewScreen(caseData: updatedCase),
+                        ),
                       );
                     }
                   });

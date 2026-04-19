@@ -21,15 +21,13 @@ class SqliteService {
   Future<Database> get database async {
     if (_database != null) return _database!;
 
-    // تهيئة FFI لسطح المكتب - Initialize FFI for desktop
     sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
 
     final dbPath = await _getDatabasePath();
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 5, // ترقية لإضافة جداول الورديات والحضور
+        version: 6, // ترقية لإضافة حقول الجرد المفقودة وتصحيح الأسماء
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -95,10 +93,13 @@ class SqliteService {
         name TEXT NOT NULL,
         category TEXT DEFAULT '',
         quantity INTEGER DEFAULT 0,
-        minQuantity INTEGER DEFAULT 5,
-        unit TEXT DEFAULT 'Unit',
+        minStock INTEGER DEFAULT 5,
+        unit TEXT DEFAULT 'قطعة',
         price REAL DEFAULT 0,
-        updatedAt TEXT NOT NULL
+        notes TEXT DEFAULT '',
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        createdBy TEXT DEFAULT ''
       )
     ''');
 
@@ -179,7 +180,7 @@ class SqliteService {
 
   /// ترقية قاعدة البيانات - Upgrade database
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 5) {
+    if (oldVersion < 6) {
       await db.execute('DROP TABLE IF EXISTS users');
       await db.execute('DROP TABLE IF EXISTS patients');
       await db.execute('DROP TABLE IF EXISTS cases');
@@ -255,7 +256,25 @@ class SqliteService {
   Future<int> getPatientsCount() async {
     final db = await database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM cases');
-    return Sqflite.firstIntValue(result) ?? 0;
+    return result.first['count'] as int? ?? 0;
+  }
+
+  Future<int> getShiftsCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM shifts');
+    return result.first['count'] as int? ?? 0;
+  }
+
+  Future<int> getInventoryCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM inventory');
+    return result.first['count'] as int? ?? 0;
+  }
+
+  Future<int> getProceduresCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM procedures');
+    return result.first['count'] as int? ?? 0;
   }
 
   /// إنشاء نسخة احتياطية - Create backup (stub)

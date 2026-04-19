@@ -5,6 +5,8 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/responsive_helper.dart';
+import '../../../../core/services/firebase_service.dart';
+import '../../data/models/user_model.dart';
 import '../../logic/cubit/auth_cubit.dart';
 import '../../logic/cubit/auth_state.dart';
 import '../../../dashboard/presentation/screens/main_layout.dart';
@@ -21,7 +23,12 @@ class _LoginScreenState extends State<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _searchController = TextEditingController(); // البحث عن المستخدمين
   bool _obscurePassword = true;
+  bool _isQuickLogin = true; // الوضع الافتراضي الجديد هى البطاقات
+  List<UserModel> _allUsers = [];
+  List<UserModel> _filteredUsers = [];
+  bool _isLoadingUsers = false;
   late AnimationController _animController;
 
   @override
@@ -32,12 +39,40 @@ class _LoginScreenState extends State<LoginScreen>
       vsync: this,
     );
     _animController.forward();
+    _fetchUsers();
+  }
+
+  Future<void> _fetchUsers() async {
+    setState(() => _isLoadingUsers = true);
+    try {
+      final users = await FirebaseService.instance.getAllUsers();
+      debugPrint('[Login] Fetched ${users.length} users for quick login');
+      if (mounted) {
+        setState(() {
+          _allUsers = users;
+          _filteredUsers = users;
+          _isLoadingUsers = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[Login] Error fetching users: $e');
+      if (mounted) setState(() => _isLoadingUsers = false);
+    }
+  }
+
+  void _filterUsers(String query) {
+    setState(() {
+      _filteredUsers = _allUsers
+          .where((u) => u.name.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    });
   }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _searchController.dispose();
     _animController.dispose();
     super.dispose();
   }
@@ -380,7 +415,9 @@ class _LoginScreenState extends State<LoginScreen>
   /// === نموذج تسجيل الدخول - Login Form ===
   Widget _buildLoginForm({required double maxWidth}) {
     return Container(
-      constraints: BoxConstraints(maxWidth: maxWidth),
+      constraints: BoxConstraints(
+        maxWidth: maxWidth,
+      ),
       padding: EdgeInsets.all(maxWidth == double.infinity ? 24 : 40),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -393,138 +430,311 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ],
       ),
-      child: Form(
-        key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildStaggeredItem(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    _isQuickLogin ? 'دخول سريع' : AppStrings.loginWelcome,
+                    style: const TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => setState(() => _isQuickLogin = !_isQuickLogin),
+                  icon: Icon(_isQuickLogin ? Icons.keyboard_rounded : Icons.grid_view_rounded, size: 18),
+                  label: Text(
+                    _isQuickLogin ? 'تقليدي' : 'بالبطاقات',
+                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+            0,
+          ),
+          const SizedBox(height: 20),
+          if (_isQuickLogin)
+            _buildQuickLoginView()
+          else
+            _buildStandardLoginForm(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickLoginView() {
+    if (_isLoadingUsers) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 40),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_allUsers.isEmpty) {
+      return Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildStaggeredItem(
-              const Text(
-                AppStrings.loginWelcome,
-                style: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+            Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error.withValues(alpha: 0.5)),
+            const SizedBox(height: 12),
+            const Text(
+              'لا يمكن تحميل قائمة المستخدمين',
+              style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: _fetchUsers,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('إعادة المحاولة', style: TextStyle(fontFamily: 'Cairo')),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.85,
+      ),
+      itemCount: _filteredUsers.length,
+      itemBuilder: (context, index) => _buildUserCard(_filteredUsers[index]),
+    );
+  }
+
+  Widget _buildEmptySearch() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.person_search_rounded, size: 48, color: AppColors.textHint.withValues(alpha: 0.5)),
+          const SizedBox(height: 12),
+          const Text('لم يتم العثور على مستخدم', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textHint)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserCard(UserModel user) {
+    return _HoverUserCard(
+      user: user,
+      onTap: () => _showPasswordDialog(user),
+    );
+  }
+
+  void _showPasswordDialog(UserModel user) {
+    final passwordCtrl = TextEditingController();
+    bool obscure = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, dialogSetState) {
+          final authCubit = context.read<AuthCubit>();
+          
+          void doLogin() {
+            if (passwordCtrl.text.isNotEmpty) {
+              Navigator.pop(ctx);
+              authCubit.login(user.email, passwordCtrl.text);
+            }
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  radius: 35,
+                  backgroundColor: user.role.isAdmin ? AppColors.primary : AppColors.secondary,
+                  child: const Icon(Icons.lock_person_rounded, color: Colors.white, size: 35),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              0,
-            ),
-            const SizedBox(height: 4),
-            _buildStaggeredItem(
-              const Text(
-                AppStrings.loginSubtitle,
-                style: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
+                const SizedBox(height: 16),
+                const Text('كلمة المرور لـ', style: TextStyle(fontFamily: 'Cairo', fontSize: 13)),
+                Text(
+                  user.name,
+                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              1,
-            ),
-            const SizedBox(height: 36),
-            _buildStaggeredItem(
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildLabel(AppStrings.email),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    textDirection: TextDirection.ltr,
-                    textInputAction: TextInputAction.next,
-                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
-                    decoration: _inputDecoration(
-                      hint: 'اسم المستخدم',
-                      icon: Icons.alternate_email_rounded,
-                      suffixText: '@newcare.com',
+                const SizedBox(height: 24),
+                TextField(
+                  controller: passwordCtrl,
+                  obscureText: obscure,
+                  textAlign: TextAlign.center,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => doLogin(),
+                  style: const TextStyle(fontFamily: 'Cairo', letterSpacing: 5),
+                  decoration: _inputDecoration(
+                    hint: '••••••••',
+                    icon: Icons.lock_rounded,
+                    suffixIcon: IconButton(
+                      icon: Icon(obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                      onPressed: () => dialogSetState(() => obscure = !obscure),
                     ),
-                    validator: Validators.required,
                   ),
-                ],
-              ),
-              2,
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            _buildStaggeredItem(
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildLabel(AppStrings.password),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    textDirection: TextDirection.ltr,
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _onLogin(),
-                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
-                    decoration: _inputDecoration(
-                      hint: '••••••••',
-                      icon: Icons.lock_rounded,
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off_rounded
-                              : Icons.visibility_rounded,
-                          color: AppColors.textHint,
-                          size: 20,
-                        ),
-                        onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
-                      ),
-                    ),
-                    validator: Validators.password,
-                  ),
-                ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
               ),
-              3,
-            ),
-            const SizedBox(height: 32),
-            _buildStaggeredItem(
               BlocBuilder<AuthCubit, AuthState>(
                 builder: (context, state) {
                   final isLoading = state is AuthLoading;
                   return ElevatedButton(
-                    onPressed: isLoading ? null : _onLogin,
+                    onPressed: isLoading ? null : doLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     child: isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            AppStrings.loginButton,
-                            style: TextStyle(
-                              fontFamily: 'Cairo',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                        ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('دخول', style: TextStyle(fontFamily: 'Cairo')),
                   );
                 },
               ),
-              4,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStandardLoginForm() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildStaggeredItem(
+            const Text(
+              AppStrings.loginSubtitle,
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ],
-        ),
+            1,
+          ),
+          const SizedBox(height: 36),
+          _buildStaggeredItem(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildLabel(AppStrings.email),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textDirection: TextDirection.ltr,
+                  textInputAction: TextInputAction.next,
+                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
+                  decoration: _inputDecoration(
+                    hint: 'اسم المستخدم',
+                    icon: Icons.alternate_email_rounded,
+                    suffixText: '@newcare.com',
+                  ),
+                  validator: Validators.required,
+                ),
+              ],
+            ),
+            2,
+          ),
+          const SizedBox(height: 20),
+          _buildStaggeredItem(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildLabel(AppStrings.password),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  textDirection: TextDirection.ltr,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _onLogin(),
+                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
+                  decoration: _inputDecoration(
+                    hint: '••••••••',
+                    icon: Icons.lock_rounded,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off_rounded
+                            : Icons.visibility_rounded,
+                        color: AppColors.textHint,
+                        size: 20,
+                      ),
+                      onPressed: () => setState(
+                        () => _obscurePassword = !_obscurePassword,
+                      ),
+                    ),
+                  ),
+                  validator: Validators.password,
+                ),
+              ],
+            ),
+            3,
+          ),
+          const SizedBox(height: 32),
+          _buildStaggeredItem(
+            BlocBuilder<AuthCubit, AuthState>(
+              builder: (context, state) {
+                final isLoading = state is AuthLoading;
+                return ElevatedButton(
+                  onPressed: isLoading ? null : _onLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          AppStrings.loginButton,
+                          style: TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                );
+              },
+            ),
+            4,
+          ),
+        ],
       ),
     );
   }
@@ -706,6 +916,113 @@ class _LoginScreenState extends State<LoginScreen>
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: opacity),
           borderRadius: BorderRadius.circular(size * 0.2),
+        ),
+      ),
+    );
+  }
+}
+
+class _HoverUserCard extends StatefulWidget {
+  final UserModel user;
+  final VoidCallback onTap;
+
+  const _HoverUserCard({required this.user, required this.onTap});
+
+  @override
+  State<_HoverUserCard> createState() => _HoverUserCardState();
+}
+
+class _HoverUserCardState extends State<_HoverUserCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.user.role.isAdmin ? AppColors.primary : AppColors.secondary;
+    
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: AnimatedScale(
+        scale: _isHovered ? 1.05 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutBack,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              color: _isHovered 
+                ? AppColors.surface 
+                : AppColors.surfaceVariant.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: _isHovered ? color : AppColors.border.withValues(alpha: 0.5),
+                width: _isHovered ? 2 : 1,
+              ),
+              boxShadow: _isHovered ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                )
+              ] : [],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Hero(
+                  tag: 'avatar_${widget.user.id}',
+                  child: CircleAvatar(
+                    radius: 35,
+                    backgroundColor: color,
+                    child: Text(
+                      widget.user.name.isNotEmpty ? widget.user.name[0].toUpperCase() : '?',
+                      style: const TextStyle(
+                        color: Colors.white, 
+                        fontSize: 28, 
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Cairo'
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: Text(
+                    widget.user.name,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Cairo', 
+                      fontSize: 14, 
+                      fontWeight: _isHovered ? FontWeight.w800 : FontWeight.w700,
+                      color: _isHovered ? AppColors.textPrimary : AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    widget.user.role.label,
+                    style: TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 10,
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

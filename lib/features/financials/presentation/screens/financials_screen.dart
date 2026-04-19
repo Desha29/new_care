@@ -3,7 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/constants/app_typography.dart';
 import '../../../../core/widgets/stat_card.dart';
+import '../../../../core/widgets/empty_state_widget.dart';
+import '../../../../core/widgets/buttons/primary_button.dart';
+import '../../../../core/widgets/buttons/icon_action_button.dart';
 import '../../../../core/services/report_service.dart';
 import '../../../../core/services/firebase_service.dart';
 import '../../logic/cubit/financials_cubit.dart';
@@ -95,11 +99,13 @@ class _FinancialsView extends StatelessWidget {
           children: [
             Text(
               'التقارير المالية',
-              style: TextStyle(fontFamily: 'Cairo', fontSize: titleSize, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: AppTypography.pageTitle.copyWith(fontSize: titleSize),
             ),
             Text(
               'إدارة الدخل والمصروفات والأرباح - ${DateFormat('MMMM yyyy', 'ar').format(DateTime.now())}',
-              style: TextStyle(fontFamily: 'Cairo', fontSize: ResponsiveHelper.getSubtitleFontSize(context), color: AppColors.textSecondary),
+              style: AppTypography.pageSubtitle.copyWith(
+                fontSize: ResponsiveHelper.getSubtitleFontSize(context),
+              ),
             ),
           ],
         ),
@@ -118,16 +124,10 @@ class _FinancialsView extends StatelessWidget {
               label: Text(isMobile ? 'PDF' : 'تقرير PDF مجمع', style: const TextStyle(fontFamily: 'Cairo')),
               style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
             ),
-            ElevatedButton.icon(
+            PrimaryButton(
+              label: isMobile ? 'إضافة' : 'إضافة مصروف',
+              icon: Icons.add_rounded,
               onPressed: () => _showAddExpenseDialog(context),
-              icon: const Icon(Icons.add_rounded, size: 20),
-              label: Text(isMobile ? 'إضافة' : 'إضافة مصروف', style: const TextStyle(fontFamily: 'Cairo')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
             ),
           ],
         ),
@@ -184,7 +184,13 @@ class _FinancialsView extends StatelessWidget {
           const Text('سجل المصروفات', style: TextStyle(fontFamily: 'Cairo', fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           if (state.expenses.isEmpty)
-            const Center(child: Padding(padding: EdgeInsets.all(30), child: Text('لا توجد مصروفات مسجلة حالياً', style: TextStyle(fontFamily: 'Cairo'))))
+            EmptyStateWidget(
+              icon: Icons.receipt_long_rounded,
+              title: 'لا توجد مصروفات سجلت',
+              subtitle: 'يمكنك إضافة مصروفات جديدة لتتبع التكاليف',
+              actionLabel: 'إضافة مصروف',
+              onAction: () => _showAddExpenseDialog(context),
+            )
           else
             ListView.separated(
               shrinkWrap: true,
@@ -220,9 +226,8 @@ class _FinancialsView extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(width: 8),
-                      IconButton(
+                      IconActionButton.delete(
                         onPressed: () => _confirmDelete(context, e),
-                        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.textHint, size: 20),
                       ),
                     ],
                   ),

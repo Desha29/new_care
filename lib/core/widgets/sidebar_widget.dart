@@ -51,6 +51,8 @@ class _SidebarWidgetState extends State<SidebarWidget> {
     _SidebarItem(icon: Icons.event_note_rounded, label: 'إدارة الورديات', roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.medical_services_rounded, label: 'الخدمات والإجراءات', roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.account_balance_rounded, label: 'المالية', roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.payments_rounded, label: 'الرواتب', roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.assessment_rounded, label: 'التقارير', roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.person_rounded, label: AppStrings.users, roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.inventory_2_rounded, label: AppStrings.inventory, roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.history_rounded, label: AppStrings.activityLogs, roles: ['admin', 'super_admin']),

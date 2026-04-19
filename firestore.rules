@@ -1,99 +1,24 @@
-// قواعد أمان Firestore لنظام New Care
-// يتم لصق هذه القواعد في Firebase Console > Firestore > Rules
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // === دوال مساعدة - Helper Functions ===
-
-    // التحقق من تسجيل الدخول
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // جلب بيانات المستخدم الموثوقة - تحسين للمرونة
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    // هل الحساب نشط؟ - التحقق من وجود الحقل أولاً
-    function isActiveUser() {
-      let data = getUserData();
-      return isAuthenticated() && (data.isActive == true || !('isActive' in data));
-    }
-
-    // التحقق من الأدوار - تحسين للتعامل مع القيم الفارغة
-    function isSuperAdmin() {
-      return isAuthenticated() && getUserData().role == 'super_admin';
-    }
-
-    function isAdmin() {
-      let role = getUserData().role;
-      return isAuthenticated() && (role == 'admin' || role == 'super_admin');
-    }
-
-    function isNurse() {
-      return isAuthenticated() && getUserData().role == 'nurse';
-    }
-
-    // === المستخدمون - Users ===
+    // Public access for Quick Login
     match /users/{userId} {
       allow read: if true;
-      
-      // الإنشاء: للمديرين أو المستخدم لنفسه (هام للتهيئة الأولية)
-      allow create: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
-      
-      // التعديل: المدير العام لكل شيء، المدير لغير المديرين العامين، المستخدم لنفسه (حقول محدودة)
-      allow update: if isSuperAdmin() 
-        || (isAdmin() && resource.data.role != 'super_admin')
-        || (request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone']));
-      
-      // الحذف: متاح للمدير العام والمدير (لحل مشكلة الحذف التي واجهها المستخدم)
-      allow delete: if isAdmin();
+      allow write: if request.auth != null;
     }
 
-    // المرضى - Patients ===
-    match /patients/{patientId} {
-      allow read, create, update, delete: if isAuthenticated();
-    }
+    // Temporarily public read access for debugging Windows Sync
+    match /cases/{docId} { allow read: if true; allow write: if request.auth != null; }
+    match /attendance/{docId} { allow read: if true; allow write: if request.auth != null; }
+    match /shifts/{docId} { allow read: if true; allow write: if request.auth != null; }
+    match /inventory/{docId} { allow read: if true; allow write: if request.auth != null; }
+    match /procedures/{docId} { allow read: if true; allow write: if request.auth != null; }
+    match /activity_logs/{docId} { allow read: if true; allow write: if request.auth != null; }
 
-    // الحالات - Cases ===
-    match /cases/{caseId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated();
-    }
-
-    // المستلزمات - Inventory ===
-    match /inventory/{itemId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
-      allow delete: if isAuthenticated();
-    }
-
-    // الإجراءات والخدمات - Procedures ===
-    match /procedures/{procedureId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
-      allow delete: if isAuthenticated();
-    }
-
-    // المصاريف والماليات - Expenses ===
-    match /expenses/{expenseId} {
-      allow read, create, update, delete: if isAuthenticated();
-    }
-
-    // سجلات النشاط - Activity Logs ===
-    match /logs/{logId} {
-      allow read, create, update, delete: if isAuthenticated();
-    }
-
-    // === الإعدادات - Settings ===
-    match /settings/{settingId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+    // Backup catch-all
+    match /{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
     }
   }
 }

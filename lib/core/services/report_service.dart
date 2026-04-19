@@ -605,6 +605,123 @@ class ReportService {
     );
   }
 
+  /// إنشاء بايتات تقرير لممرض واحد - Generate PDF bytes for a single nurse report
+  Future<Uint8List> generateSingleNurseReportBytes({
+    required int year,
+    required int month,
+    required String nurseName,
+    required List<AttendanceModel> attendanceRecords,
+    required String generatedBy,
+  }) async {
+    final pdf = pw.Document();
+    final ttf = await _getFont();
+    final boldTtf = await _getBoldFont();
+    final logo = await _getLogo();
+
+    final monthName = intl.DateFormat('MMMM yyyy', 'ar').format(DateTime(year, month));
+    
+    int totalMinutes = 0;
+    for (var r in attendanceRecords) {
+      if (r.checkOutTime != null) {
+        totalMinutes += r.checkOutTime!.difference(r.checkInTime).inMinutes;
+      }
+    }
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf),
+        header: (pw.Context context) => pw.Column(
+          children: [
+            _buildHeader(boldTtf, logo, 'تقرير أداء ممرض'),
+            pw.SizedBox(height: 10),
+            pw.Divider(thickness: 2, color: PdfColors.blue900),
+            pw.SizedBox(height: 10),
+          ],
+        ),
+        build: (pw.Context context) => [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('اسم الموظف: $nurseName', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                  pw.Text('الشهر: $monthName', style: const pw.TextStyle(fontSize: 12)),
+                ],
+              ),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text('إجمالي الساعات: ${(totalMinutes / 60).toStringAsFixed(1)} ساعة', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                  pw.Text('تاريخ الاستخراج: ${intl.DateFormat('yyyy-MM-dd').format(DateTime.now())}', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+                ],
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 30),
+
+          pw.Table.fromTextArray(
+            headers: ['التاريخ', 'وقت الحضور', 'وقت الانصراف', 'المدة', 'الحالة'],
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 10),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey800),
+            cellPadding: const pw.EdgeInsets.all(8),
+            cellAlignments: {0: pw.Alignment.center, 1: pw.Alignment.center, 2: pw.Alignment.center, 3: pw.Alignment.center, 4: pw.Alignment.center},
+            data: attendanceRecords.map((a) {
+              final checkIn = intl.DateFormat('hh:mm a').format(a.checkInTime);
+              final checkOut = a.checkOutTime != null ? intl.DateFormat('hh:mm a').format(a.checkOutTime!) : '---';
+              final duration = a.shiftDuration != null ? '${a.shiftDuration!.inHours}h ${a.shiftDuration!.inMinutes % 60}m' : '---';
+              return [a.date, checkIn, checkOut, duration, a.status.label];
+            }).toList(),
+          ),
+
+          pw.SizedBox(height: 50),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Column(
+                children: [
+                  pw.Text('أَعد التقرير', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(generatedBy, style: const pw.TextStyle(fontSize: 10)),
+                  pw.SizedBox(height: 30),
+                  pw.Container(width: 120, height: 1, color: PdfColors.black),
+                ],
+              ),
+              pw.Column(
+                children: [
+                  pw.Text('توقيع الموظف', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(height: 35),
+                  pw.Container(width: 120, height: 1, color: PdfColors.black),
+                ],
+              ),
+              pw.Column(
+                children: [
+                  pw.Text('توقيع المدير المسؤول', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(height: 35),
+                  pw.Container(width: 120, height: 1, color: PdfColors.black),
+                ],
+              ),
+            ],
+          ),
+        ],
+        footer: (pw.Context context) => pw.Column(
+          children: [
+            pw.Divider(),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('تقرير أداء فردي - مركز نيو كير', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+                pw.Text('صفحة ${context.pageNumber} من ${context.pagesCount}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return pdf.save();
+  }
+
   // ============================================
   // === تقرير المخزون - Inventory Report ===
   // ============================================

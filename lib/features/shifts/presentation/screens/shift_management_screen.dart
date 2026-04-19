@@ -3,9 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/enums/shift_role.dart';
 import '../../../../core/services/firebase_service.dart';
+import '../../../../core/widgets/empty_state_widget.dart';
+import '../../../../core/widgets/buttons/primary_button.dart';
+import '../../../../core/widgets/buttons/icon_action_button.dart';
 import '../../../auth/logic/cubit/auth_cubit.dart';
 import '../../../auth/logic/cubit/auth_state.dart';
 import '../../logic/cubit/shift_cubit.dart';
@@ -70,19 +74,12 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           children: [
             Text(
               'إدارة الورديات',
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: titleSize,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+              style: AppTypography.pageTitle.copyWith(fontSize: titleSize),
             ),
             Text(
               'تعيين ومتابعة ورديات الموظفين يومياً',
-              style: TextStyle(
-                fontFamily: 'Cairo',
+              style: AppTypography.pageSubtitle.copyWith(
                 fontSize: ResponsiveHelper.getSubtitleFontSize(context),
-                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -95,16 +92,10 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
               icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
             ),
             const SizedBox(width: 8),
-            ElevatedButton.icon(
+            PrimaryButton(
+              label: 'تعيين وردية',
+              icon: Icons.add_rounded,
               onPressed: () => _showCreateShiftDialog(context),
-              icon: const Icon(Icons.add_rounded, size: 20),
-              label: const Text('تعيين وردية', style: TextStyle(fontFamily: 'Cairo')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
             ),
           ],
         ),
@@ -226,28 +217,12 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           const Divider(height: 1, color: AppColors.border),
           Expanded(
             child: shifts.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.event_busy_rounded, size: 48, color: AppColors.textHint.withValues(alpha: 0.5)),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'لا توجد ورديات لهذا اليوم',
-                          style: TextStyle(fontFamily: 'Cairo', color: AppColors.textHint),
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          onPressed: () => _showCreateShiftDialog(context),
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('تعيين وردية الآن', style: TextStyle(fontFamily: 'Cairo')),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
+                ? EmptyStateWidget(
+                    icon: Icons.event_busy_rounded,
+                    title: 'لا توجد ورديات لهذا اليوم',
+                    subtitle: 'قم بتعيين ورديات جديدة للموظفين اليوم',
+                    actionLabel: 'تعيين وردية الآن',
+                    onAction: () => _showCreateShiftDialog(context),
                   )
                 : ListView.separated(
                     itemCount: shifts.length,
@@ -262,15 +237,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
 
   Widget _hc(String t, int f) => Expanded(
     flex: f,
-    child: Text(
-      t,
-      style: const TextStyle(
-        fontFamily: 'Cairo',
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textSecondary,
-      ),
-    ),
+    child: Text(t, style: AppTypography.tableHeader.copyWith(fontSize: 12)),
   );
 
   Widget _shiftRow(BuildContext context, ShiftModel shift, int i) {
@@ -333,8 +300,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           ),
           Expanded(
             flex: 1,
-            child: IconButton(
-              icon: const Icon(Icons.delete_rounded, size: 18, color: AppColors.error),
+            child: IconActionButton.delete(
               onPressed: () => context.read<ShiftCubit>().deleteShift(shift.id),
             ),
           ),

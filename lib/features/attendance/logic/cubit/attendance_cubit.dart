@@ -47,23 +47,67 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     }
   }
 
-  /// تسجيل الحضور - Check in
+  /// تسجيل الحضور للموظف (من قبل المدير عبر QR) - Check in nurse (by ID)
+  Future<void> checkInByUserId({
+    required String targetUserId,
+    required String targetUserName,
+    required String adminUserId,
+    required String adminUserName,
+  }) async {
+    emit(AttendanceLoading());
+    try {
+      final existing = await _firebaseService.getTodayAttendance(targetUserId);
+      if (existing != null) {
+        emit(const AttendanceError('الموظف قام بتسجيل الحضور مسبقاً اليوم'));
+        await loadTodayAttendance();
+        return;
+      }
+
+      final now = DateTime.now();
+      final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      final attendance = AttendanceModel(
+        id: const Uuid().v4(),
+        userId: targetUserId,
+        userName: targetUserName,
+        date: today,
+        checkInTime: now,
+        deviceId: 'qr_scanner', // سجل عبر ماسح الاستقبال
+        location: 'center',
+        status: AttendanceStatus.checkedIn,
+      );
+
+      await _syncManager.saveAttendanceWithSync(attendance);
+
+      await LocalLogService.instance.logActivity(
+        userId: adminUserId,
+        userName: adminUserName,
+        action: 'qr_check_in',
+        actionLabel: 'تسجيل حضور QR',
+        details: 'قام $adminUserName بتسجيل حضور الممرض $targetUserName عبر QR',
+      );
+
+      emit(AttendanceCheckedIn(attendance));
+      await loadTodayAttendance();
+    } catch (e) {
+      emit(AttendanceError('خطأ في تسجيل حضور QR: ${e.toString()}'));
+    }
+  }
+
+  /// تسجيل الحضور الذاتي - Self Check in
   Future<void> checkIn({
     required String userId,
     required String userName,
   }) async {
     emit(AttendanceLoading());
     try {
-      // التحقق من عدم وجود تسجيل حضور سابق
       final existing = await _firebaseService.getTodayAttendance(userId);
       if (existing != null) {
         emit(const AttendanceError('تم تسجيل الحضور مسبقاً اليوم'));
         return;
       }
 
-      // الحصول على معرف الجهاز
       final deviceId = await _deviceService.getDeviceId();
-
       final now = DateTime.now();
       final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
@@ -74,19 +118,16 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         date: today,
         checkInTime: now,
         deviceId: deviceId,
-        location: '', // يمكن إضافة GPS لاحقاً
+        location: '', 
         status: AttendanceStatus.checkedIn,
       );
 
-      // حفظ مع مزامنة (offline-first)
       await _syncManager.saveAttendanceWithSync(attendance);
 
-      // تحديث معرف الجهاز في ملف المستخدم
       try {
         await _firebaseService.updateUserDeviceId(userId, deviceId);
-      } catch (_) {} // non-critical
+      } catch (_) {}
 
-      // تسجيل النشاط
       await LocalLogService.instance.logActivity(
         userId: userId,
         userName: userName,
@@ -96,8 +137,6 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       );
 
       emit(AttendanceCheckedIn(attendance));
-
-      // Reload records
       await loadTodayAttendance();
     } catch (e) {
       emit(AttendanceError('خطأ في تسجيل الحضور: ${e.toString()}'));
@@ -174,14 +213,14 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         );
       }
 
-      // المشرف يتخطى التحقق من الوردية والحضور
+      // المشرف يتخطى التحقق من الوردية والحضور والجهاز
       if (user.role.isAdmin) {
         return const AccessVerificationResult(
           hasShift: true,
           isCheckedIn: true,
           isCorrectDevice: true,
           isGranted: true,
-          message: 'مشرف - وصول كامل',
+          message: 'مشرف - وصول كامل معفى من الحضور',
         );
       }
 
