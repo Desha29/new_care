@@ -27,6 +27,7 @@ void main() async {
       title: 'نيو كير - إدارة التمريض',
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.setFullScreen(true);
       await windowManager.show();
       await windowManager.focus();
     });
