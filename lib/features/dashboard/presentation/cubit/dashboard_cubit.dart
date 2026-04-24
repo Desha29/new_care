@@ -10,7 +10,9 @@ class DashboardCubit extends Cubit<DashboardState> {
   }) : _dashboardRepository = dashboardRepository,
        super(DashboardInitial());
 
-  Future<void> loadDashboardData() async {
+  Future<void> loadDashboardData({bool force = false}) async {
+    if (!force && state is DashboardLoaded) return;
+    
     emit(DashboardLoading());
     try {
       final stats = await _dashboardRepository.getDashboardStats();
@@ -29,15 +31,16 @@ class DashboardCubit extends Cubit<DashboardState> {
     }
   }
 
-  Future<void> loadNurseDashboardData(String nurseId) async {
+  Future<void> loadNurseDashboardData(String nurseId, {bool force = false}) async {
+    if (!force && state is DashboardLoaded) return;
+    
     emit(DashboardLoading());
     try {
       final stats = await _dashboardRepository.getNurseDashboardStats(nurseId);
-      // You can add more nurse specific data here if needed
       
       emit(DashboardLoaded(
         stats: stats,
-        chartData: const {}, // Or nurse specific chart data
+        chartData: const {},
         recentCases: const [],
         activeStaff: const [],
       ));

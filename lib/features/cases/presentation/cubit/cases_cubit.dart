@@ -20,7 +20,9 @@ class CasesCubit extends Cubit<CasesState> {
         _syncManager = syncManager ?? SyncManager.instance,
         super(CasesInitial());
 
-  Future<void> loadCases({String? nurseId}) async {
+  Future<void> loadCases({String? nurseId, bool force = false}) async {
+    if (!force && state is CasesLoaded) return;
+    
     emit(CasesLoading());
     try {
       final cases = await _casesRepository.getAllCases(nurseId: nurseId);

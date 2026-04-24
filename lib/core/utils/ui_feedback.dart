@@ -88,7 +88,7 @@ class UIFeedback {
         duration: const Duration(seconds: 3), // Reduced duration
         action: SnackBarAction(
           label: 'إغلاق',
-          textColor: Colors.white.withOpacity(0.9),
+          textColor: Colors.white.withValues(alpha: 0.9),
           onPressed: () {
             messenger.hideCurrentSnackBar();
           },

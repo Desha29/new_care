@@ -84,11 +84,13 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
       }
     }
 
+    if (!mounted) return;
     final procState = context.read<ProceduresCubit>().state;
     _procedures = procState is ProceduresLoaded
         ? procState.procedures
         : await FirebaseService.instance.getAllProcedures();
 
+    if (!mounted) return;
     final invState = context.read<InventoryCubit>().state;
     _inventory = invState is InventoryLoaded
         ? invState.items
@@ -157,7 +159,9 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
         onPopInvokedWithResult: (didPop, result) async {
           if (didPop) return;
           final shouldPop = await _onWillPop();
-          if (shouldPop && mounted) Navigator.of(context).pop();
+          if (shouldPop && context.mounted) {
+            Navigator.pop(context);
+          }
         },
         child: Dialog(
           shape: RoundedRectangleBorder(
@@ -234,7 +238,8 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
         const Spacer(),
         IconButton(
           onPressed: () async {
-            if (await _onWillPop()) {
+            final shouldPop = await _onWillPop();
+            if (shouldPop && context.mounted) {
               Navigator.pop(context);
             }
           },
@@ -369,7 +374,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
 
   Widget _buildNurseDropdown() {
     return DropdownButtonFormField<String>(
-      value: _selNurseId,
+      initialValue: _selNurseId,
       hint: const Text(
         'اختر الممرض المسئول',
         style: TextStyle(fontFamily: 'Cairo'),
@@ -424,7 +429,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
               Expanded(
                 flex: 3,
                 child: DropdownButtonFormField<String>(
-                  value: _tmpServiceName,
+                  initialValue: _tmpServiceName,
                   hint: const Text(
                     'اختر الإجراء الطبي',
                     style: TextStyle(fontFamily: 'Cairo'),
@@ -554,7 +559,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
               Expanded(
                 flex: 3,
                 child: DropdownButtonFormField<String>(
-                  value: _tmpSupplyId,
+                  initialValue: _tmpSupplyId,
                   hint: const Text(
                     'اختر المستلزم',
                     style: TextStyle(fontFamily: 'Cairo'),
@@ -665,7 +670,8 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
           children: [
             TextButton(
               onPressed: () async {
-                if (await _onWillPop()) Navigator.pop(context);
+                final shouldPop = await _onWillPop();
+                if (shouldPop && context.mounted) Navigator.pop(context);
               },
               child: const Text(
                 'إلغاء',

@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/ui_feedback.dart';
-import '../../../../core/services/firebase/firebase_service.dart';
 import '../../../../core/services/network/connectivity_service.dart';
-import '../../../../core/services/local/local_log_service.dart';
+import '../../../../core/di/injection.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../cubit/users_cubit.dart';
+import '../cubit/users_state.dart';
 import '../widgets/users_header.dart';
 import '../widgets/users_stats_grid.dart';
 import '../widgets/users_table.dart';
@@ -24,16 +24,12 @@ class UsersScreen extends StatefulWidget {
 
 class _UsersScreenState extends State<UsersScreen> {
   final _searchController = TextEditingController();
-  String _searchQuery = '';
   bool _isOffline = false;
-  bool _isLoading = true;
-  List<UserModel> _users = [];
 
   @override
   void initState() {
     super.initState();
     _loadConnectionStatus();
-    _loadUsers();
   }
 
   @override
@@ -42,48 +38,20 @@ class _UsersScreenState extends State<UsersScreen> {
     super.dispose();
   }
 
-  Future<void> _loadUsers() async {
-    setState(() => _isLoading = true);
-    try {
-      final items = await FirebaseService.instance.getAllUsers();
-      if (mounted) {
-        setState(() {
-          _users = items;
-          _isLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   Future<void> _loadConnectionStatus() async {
     final isConnected = await ConnectivityService.instance.checkConnection();
     if (mounted) setState(() => _isOffline = !isConnected);
   }
 
-  List<UserModel> get _filtered {
-    if (_searchQuery.isEmpty) return _users;
-    final q = _searchQuery.toLowerCase();
-    return _users
-        .where(
-          (u) =>
-              u.name.toLowerCase().contains(q) ||
-              u.email.toLowerCase().contains(q) ||
-              u.phone.contains(q),
-        )
-        .toList();
-  }
-
-  void _showUserDialog({UserModel? user}) {
+  void _showUserDialog(BuildContext context, {UserModel? user}) {
     UserFormDialog.show(
       context,
       user: user,
-      onSaved: _loadUsers,
+      onSaved: () => context.read<UsersCubit>().loadUsers(force: true),
     );
   }
 
-  void _resetPassword(UserModel u) async {
+  void _resetPassword(BuildContext context, UserModel u) async {
     final confirm = await UIFeedback.showConfirmDialog(
       context: context,
       title: 'إعادة تعيين كلمة المرور',
@@ -91,21 +59,21 @@ class _UsersScreenState extends State<UsersScreen> {
       confirmLabel: 'إرسال',
     );
 
-    if (confirm && mounted) {
+    if (confirm && context.mounted) {
       try {
         await context.read<AuthCubit>().resetUserPassword(u.email);
-        if (mounted) {
+        if (context.mounted) {
           UIFeedback.showSuccess(context, 'تم إرسال رابط إعادة التعيين بنجاح');
         }
       } catch (e) {
-        if (mounted) {
+        if (context.mounted) {
           UIFeedback.showError(context, e.toString());
         }
       }
     }
   }
 
-  Future<void> _confirmDeleteUser(UserModel u) async {
+  Future<void> _confirmDeleteUser(BuildContext context, UserModel u) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -131,92 +99,76 @@ class _UsersScreenState extends State<UsersScreen> {
       ),
     );
 
-    if (confirmed == true) {
-      try {
-        await FirebaseService.instance.deleteUser(u.id);
-        await LocalLogService.instance.logActivity(
-          userId: context.read<AuthCubit>().currentUser?.id ?? '',
-          userName: context.read<AuthCubit>().currentUser?.name ?? '',
-          action: 'delete_user',
-          actionLabel: 'حذف مستخدم',
-          details: 'تم حذف المستخدم ${u.name}',
-        );
-        _loadUsers();
-        if (mounted) {
-          UIFeedback.showSuccess(context, 'تم حذف المستخدم بنجاح');
-        }
-      } catch (e) {
-        if (mounted) {
-          UIFeedback.showError(context, 'خطأ في الحذف: ${e.toString()}');
-        }
-      }
-    }
-  }
-
-  void _toggleUserStatus(UserModel user) async {
-    final newStatus = !user.isActive;
-    final updatedUser = user.copyWith(
-      isActive: newStatus,
-      updatedAt: DateTime.now(),
-    );
-
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-      final uName = FirebaseAuth.instance.currentUser?.displayName ?? 'مستخدم';
-      await FirebaseService.instance.updateUser(updatedUser);
-      await LocalLogService.instance.logActivity(
-        userId: uid,
-        userName: uName,
-        action: 'toggle_user_status',
-        actionLabel: newStatus ? 'تفعيل مستخدم' : 'تعطيل مستخدم',
-        targetType: 'user',
-        targetId: updatedUser.id,
-        details: 'تم ${newStatus ? "تفعيل" : "تعطيل"} حساب المستخدم: ${updatedUser.name}',
-      );
-      _loadUsers();
-      if (mounted) {
-        UIFeedback.showSuccess(context, 'تم ${newStatus ? 'تفعيل' : 'تعطيل'} الحساب');
-      }
-    } catch (e) {
-      if (mounted) {
-        UIFeedback.showError(context, 'حدث خطأ: ${e.toString()}');
-      }
+    if (confirmed == true && context.mounted) {
+      context.read<UsersCubit>().deleteUser(u.id, u.name);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: EdgeInsets.all(ResponsiveHelper.getScreenPadding(context)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_isOffline) _buildOfflineBanner(),
-                  UsersHeader(
-                    onRefresh: _loadUsers,
-                    onAddUser: () => _showUserDialog(),
-                    searchController: _searchController,
-                    onSearchChanged: (v) => setState(() => _searchQuery = v),
-                  ),
-                  const SizedBox(height: 20),
-                  UsersStatsGrid(users: _users),
-                  const SizedBox(height: 20),
-                  Expanded(
-                    child: UsersTable(
-                      users: _filtered,
-                      onEdit: (u) => _showUserDialog(user: u),
-                      onResetPassword: _resetPassword,
-                      onToggleStatus: _toggleUserStatus,
-                      onDelete: _confirmDeleteUser,
+    return BlocProvider(
+      create: (context) => sl<UsersCubit>()..loadUsers(),
+      child: BlocConsumer<UsersCubit, UsersState>(
+        listener: (context, state) {
+          if (state is UsersError) {
+            UIFeedback.showError(context, state.message);
+          } else if (state is UserOperationSuccess) {
+            UIFeedback.showSuccess(context, state.message);
+            context.read<UsersCubit>().resetState();
+          }
+        },
+        builder: (context, state) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            body: state is UsersLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Padding(
+                    padding: EdgeInsets.all(ResponsiveHelper.getScreenPadding(context)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_isOffline) _buildOfflineBanner(),
+                        UsersHeader(
+                          onRefresh: () => context.read<UsersCubit>().loadUsers(force: true),
+                          onAddUser: () => _showUserDialog(context),
+                          searchController: _searchController,
+                          onSearchChanged: (v) => context.read<UsersCubit>().searchUsers(v),
+                        ),
+                        const SizedBox(height: 20),
+                        if (state is UsersLoaded) ...[
+                          UsersStatsGrid(users: state.users),
+                          const SizedBox(height: 20),
+                          Expanded(
+                            child: UsersTable(
+                              users: state.filteredUsers,
+                              onEdit: (u) => _showUserDialog(context, user: u),
+                              onResetPassword: (u) => _resetPassword(context, u),
+                              onToggleStatus: (u) => context.read<UsersCubit>().toggleUserStatus(u),
+                              onDelete: (u) => _confirmDeleteUser(context, u),
+                            ),
+                          ),
+                        ] else if (state is UsersError)
+                          Expanded(
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(state.message, style: const TextStyle(fontFamily: 'Cairo')),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: () => context.read<UsersCubit>().loadUsers(force: true),
+                                    child: const Text('إعادة المحاولة', style: TextStyle(fontFamily: 'Cairo')),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
+          );
+        },
+      ),
     );
   }
 

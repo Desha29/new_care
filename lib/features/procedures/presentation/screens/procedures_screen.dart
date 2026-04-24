@@ -110,7 +110,7 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
       icon: Icons.delete_forever_rounded,
     );
 
-    if (res == true) {
+    if (res == true && context.mounted) {
       context.read<ProceduresCubit>().deleteProcedure(item.id);
     }
   }

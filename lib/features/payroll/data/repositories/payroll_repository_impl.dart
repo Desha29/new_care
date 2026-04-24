@@ -1,32 +1,57 @@
-import '../../../../core/services/firebase/firebase_base.dart';
+import '../../../../core/services/firebase/firebase_service.dart';
+import '../../../../core/services/local/sqlite_service.dart';
 import '../../domain/repositories/payroll_repository.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../attendance/data/models/attendance_model.dart';
-import '../../../attendance/data/repositories/attendance_repository_impl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/constants/app_constants.dart';
+import '../../../cases/data/models/case_model.dart';
+import '../../../../core/enums/user_role.dart';
 
-/// تنفيذ مستودع الرواتب - Payroll Repository Implementation
-class PayrollRepositoryImpl extends FirebaseBase implements IPayrollRepository {
-  CollectionReference get _usersRef =>
-      firestore.collection(AppConstants.usersCollection);
-
-  final AttendanceRepositoryImpl _attendanceRepo = AttendanceRepositoryImpl();
+/// تنفيذ مستودع الرواتب (الجيل الثاني) - Payroll Repository Implementation v2
+/// Optimized for performance using local data.
+class PayrollRepositoryImpl implements IPayrollRepository {
+  final _local = SqliteService.instance;
+  final _remote = FirebaseService.instance;
 
   @override
   Future<List<UserModel>> getActiveStaff() async {
-    final snapshot = await _usersRef.where('isActive', isEqualTo: true).get();
-    return snapshot.docs
-        .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+    final results = await _local.database.then((db) => db.query('users', where: 'isActive = 1'));
+    if (results.isEmpty) {
+      // Fallback to remote if local is empty
+      final remote = await _remote.getAllUsers();
+      for (var u in remote) {
+        await _local.saveUser(u.toSqliteMap());
+      }
+      return remote.where((u) => u.isActive).toList();
+    }
+    
+    return results
+        .map((m) => UserModel.fromMap(m, m['id'] as String))
         .where((u) =>
-            u.role.value == 'nurse' ||
-            u.role.value == 'admin' ||
-            u.role.value == 'super_admin')
+            u.role == UserRole.nurse ||
+            u.role == UserRole.admin ||
+            u.role == UserRole.superAdmin)
         .toList();
   }
 
   @override
   Future<List<AttendanceModel>> getMonthlyAttendanceRecords(int year, int month) async {
-    return _attendanceRepo.getMonthlyAttendanceRecords(year, month);
+    // For payroll, we prefer remote data to ensure we have the full month even if devices switched
+    return await _remote.getMonthlyAttendanceRecords(year, month);
+  }
+
+  @override
+  Future<List<CaseModel>> getMonthlyCases(int year, int month) async {
+    final start = DateTime(year, month, 1);
+    final end = DateTime(year, month + 1, 0, 23, 59, 59);
+    final results = await _local.database.then((db) => db.query(
+      'cases',
+      where: 'caseDate >= ? AND caseDate <= ?',
+      whereArgs: [start.toIso8601String(), end.toIso8601String()],
+    ));
+    
+    if (results.isNotEmpty) {
+      return results.map((m) => CaseModel.fromMap(m, m['id'] as String)).toList();
+    }
+    return [];
   }
 }

@@ -127,15 +127,20 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   void _generateDailyReport() {
     final today = DateTime.now();
-    final todayCases = _cases.where((c) => 
-      c.caseDate.year == today.year && 
-      c.caseDate.month == today.month && 
-      c.caseDate.day == today.day
-    ).toList();
+    final todayCases = _cases
+        .where(
+          (c) =>
+              c.caseDate.year == today.year &&
+              c.caseDate.month == today.month &&
+              c.caseDate.day == today.day,
+        )
+        .toList();
 
     if (todayCases.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا توجد حالات مسجلة اليوم لإصدار تقرير بها'))
+        const SnackBar(
+          content: Text('لا توجد حالات مسجلة اليوم لإصدار تقرير بها'),
+        ),
       );
       return;
     }
@@ -149,7 +154,8 @@ class _ReportsScreenState extends State<ReportsScreen>
           buildReport: () => ReportService.instance.generateCasesReportBytes(
             cases: todayCases,
             title: 'تقرير العمل اليومي',
-            subtitle: 'كشف الحالات المنفذة بتاريخ: ${DateFormat('yyyy/MM/dd').format(today)}',
+            subtitle:
+                'كشف الحالات المنفذة بتاريخ: ${DateFormat('yyyy/MM/dd').format(today)}',
           ),
         ),
       ),
@@ -277,7 +283,9 @@ class _ReportsScreenState extends State<ReportsScreen>
                           vertical: 8,
                         ),
                         leading: CircleAvatar(
-                          backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                          backgroundColor: AppColors.primary.withValues(
+                            alpha: 0.1,
+                          ),
                           child: const Icon(
                             Icons.receipt_rounded,
                             color: AppColors.primary,
@@ -292,8 +300,10 @@ class _ReportsScreenState extends State<ReportsScreen>
                         ),
                         subtitle: Text(
                           '${DateFormat('yyyy/MM/dd').format(c.caseDate)} • ${c.caseType.label} • ${c.nurseName}',
-                          style:
-                              const TextStyle(fontFamily: 'Cairo', fontSize: 12),
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 12,
+                          ),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -385,7 +395,7 @@ class _ReportsScreenState extends State<ReportsScreen>
             ),
             child: ListView.separated(
               itemCount: staffList.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              separatorBuilder: (context, index) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final entry = staffList[index];
                 final name = names[entry.key] ?? 'مجهول';
@@ -401,22 +411,25 @@ class _ReportsScreenState extends State<ReportsScreen>
 
                       final authState = context.read<AuthCubit>().state;
                       String genBy = 'مدير النظام';
-                      if (authState is AuthAuthenticated)
+                      if (authState is AuthAuthenticated) {
                         genBy = authState.user.name;
+                      }
 
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => ReportPreviewScreen(
                             title: 'تقرير الموظف - $name',
-                            fileName: 'Nurse_Report_${name}_${_selectedDate.year}_${_selectedDate.month}',
-                            buildReport: () => ReportService.instance.generateSingleNurseReportBytes(
-                              year: _selectedDate.year,
-                              month: _selectedDate.month,
-                              nurseName: name,
-                              attendanceRecords: userAttendance,
-                              generatedBy: genBy,
-                            ),
+                            fileName:
+                                'Nurse_Report_${name}_${_selectedDate.year}_${_selectedDate.month}',
+                            buildReport: () => ReportService.instance
+                                .generateSingleNurseReportBytes(
+                                  year: _selectedDate.year,
+                                  month: _selectedDate.month,
+                                  nurseName: name,
+                                  attendanceRecords: userAttendance,
+                                  generatedBy: genBy,
+                                ),
                           ),
                         ),
                       );
@@ -497,7 +510,7 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Future<void> _generateWorkReport(List<CaseModel> cases) async {
     final monthName = DateFormat('MMMM yyyy', 'ar').format(_selectedDate);
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -524,11 +537,12 @@ class _ReportsScreenState extends State<ReportsScreen>
         _selectedDate.month,
       );
 
+      if (!mounted) return;
       final authState = context.read<AuthCubit>().state;
       String generatedBy = 'مدير النظام';
       if (authState is AuthAuthenticated) generatedBy = authState.user.name;
 
-      if (mounted) LoadingDialog.hide(context);
+      LoadingDialog.hide(context);
 
       final monthName = DateFormat('MMMM yyyy', 'ar').format(_selectedDate);
 
@@ -538,14 +552,16 @@ class _ReportsScreenState extends State<ReportsScreen>
           MaterialPageRoute(
             builder: (_) => ReportPreviewScreen(
               title: 'تقرير الموظفين - $monthName',
-              fileName: 'Staff_Report_${_selectedDate.year}_${_selectedDate.month}',
-              buildReport: () => ReportService.instance.generateMonthlyStaffReportBytes(
-                year: _selectedDate.year,
-                month: _selectedDate.month,
-                attendanceRecords: _attendance,
-                shifts: shifts,
-                generatedBy: generatedBy,
-              ),
+              fileName:
+                  'Staff_Report_${_selectedDate.year}_${_selectedDate.month}',
+              buildReport: () =>
+                  ReportService.instance.generateMonthlyStaffReportBytes(
+                    year: _selectedDate.year,
+                    month: _selectedDate.month,
+                    attendanceRecords: _attendance,
+                    shifts: shifts,
+                    generatedBy: generatedBy,
+                  ),
             ),
           ),
         );
@@ -553,11 +569,10 @@ class _ReportsScreenState extends State<ReportsScreen>
     } catch (e) {
       if (mounted) {
         LoadingDialog.hide(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('حدث خطأ: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('حدث خطأ: $e')));
       }
     }
   }
 }
-

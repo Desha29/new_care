@@ -432,7 +432,7 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: cases.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final c = cases[index];
               return _buildCaseStep(c);

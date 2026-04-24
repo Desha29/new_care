@@ -1,4 +1,3 @@
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -373,7 +372,7 @@ class InvoicePreviewScreen extends StatelessWidget {
   }
 
   Widget _buildBottomCutEffect() {
-    return Container(
+    return SizedBox(
       height: 10,
       child: Row(
         children: List.generate(
@@ -416,4 +415,3 @@ class _ZigZagPainter extends CustomPainter {
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
-

@@ -10,7 +10,9 @@ class ProceduresCubit extends Cubit<ProceduresState> {
       : _proceduresRepository = proceduresRepository,
         super(ProceduresInitial());
 
-  Future<void> loadProcedures() async {
+  Future<void> loadProcedures({bool force = false}) async {
+    if (!force && state is ProceduresLoaded) return;
+
     emit(ProceduresLoading());
     try {
       final procedures = await _proceduresRepository.getAllProcedures();

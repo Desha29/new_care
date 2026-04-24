@@ -32,7 +32,7 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
-  final Map<int, Widget> _screenCache = {};
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   List<Widget> _getAvailableScreens(String role) {
@@ -160,16 +160,9 @@ class _MainLayoutState extends State<MainLayout> {
                           final role = user?.role.value ?? 'nurse';
                           final screens = _getAvailableScreens(role);
 
-                          if (!_screenCache.containsKey(_selectedIndex)) {
-                            _screenCache[_selectedIndex] =
-                                screens[_selectedIndex < screens.length
-                                    ? _selectedIndex
-                                    : 0];
-                          }
-
-                          return AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            child: _screenCache[_selectedIndex],
+                          return IndexedStack(
+                            index: _selectedIndex < screens.length ? _selectedIndex : 0,
+                            children: screens,
                           );
                         },
                       ),

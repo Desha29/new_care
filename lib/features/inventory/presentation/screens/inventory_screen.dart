@@ -123,7 +123,7 @@ class InventoryScreen extends StatelessWidget {
       title: 'حذف المستلزم',
       message: 'هل أنت متأكد من حذف ${item.name}؟ لا يمكن التراجع عن هذا الإجراء.',
     );
-    if (result == true) {
+    if (result == true && context.mounted) {
       context.read<InventoryCubit>().deleteItem(item.id);
     }
   }

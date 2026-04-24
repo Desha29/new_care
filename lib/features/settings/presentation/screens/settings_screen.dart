@@ -18,7 +18,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _addressController;
   bool _isSavingInfo = false;
   bool _autoBackup = true;
-  bool _systemActive = true;
+  final bool _systemActive = true;
 
   final Map<String, bool> _flags = {
     'enable_printing': true,
@@ -150,7 +150,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -164,7 +164,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: color, size: 22),
@@ -200,7 +200,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Switch(
             value: _autoBackup,
             onChanged: (v) => setState(() => _autoBackup = v),
-            activeColor: AppColors.primary,
+            activeThumbColor: AppColors.primary,
           ),
         ),
         const SizedBox(height: 12),
@@ -336,7 +336,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Switch(
                 value: e.value,
                 onChanged: (v) => setState(() => _flags[e.key] = v),
-                activeColor: e.key.contains('kill') || e.key.contains('force')
+                activeThumbColor: e.key.contains('kill') || e.key.contains('force')
                     ? AppColors.error
                     : AppColors.primary,
               ),

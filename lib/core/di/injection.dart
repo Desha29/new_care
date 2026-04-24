@@ -11,9 +11,8 @@ import 'package:new_care/core/services/local/local_log_service.dart';
 import 'package:new_care/core/services/sync/backup_service.dart';
 import 'package:new_care/core/services/pdf/export_service.dart';
 
-// === Legacy Firebase Repositories (core/services/firebase/) ===
-import 'package:new_care/core/services/firebase/users_repository.dart';
-import 'package:new_care/core/services/firebase/logs_repository.dart';
+import 'package:new_care/features/activity_logs/domain/repositories/logs_repository.dart';
+import 'package:new_care/features/activity_logs/data/repositories/logs_repository_impl.dart';
 
 // === Domain Layer - Abstract Interfaces ===
 import 'package:new_care/features/cases/domain/repositories/cases_repository.dart';
@@ -26,6 +25,7 @@ import 'package:new_care/features/payroll/domain/repositories/payroll_repository
 import 'package:new_care/features/invoice/domain/repositories/invoice_repository.dart';
 import 'package:new_care/features/auth/domain/repositories/auth_repository.dart';
 import 'package:new_care/features/dashboard/domain/repositories/dashboard_repository.dart';
+import 'package:new_care/features/users/domain/repositories/users_repository.dart';
 
 // === Data Layer - Concrete Implementations ===
 import 'package:new_care/features/cases/data/repositories/cases_repository_impl.dart';
@@ -38,6 +38,7 @@ import 'package:new_care/features/payroll/data/repositories/payroll_repository_i
 import 'package:new_care/features/invoice/data/repositories/invoice_repository_impl.dart';
 import 'package:new_care/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:new_care/features/dashboard/data/repositories/dashboard_repository_impl.dart';
+import 'package:new_care/features/users/data/repositories/users_repository_impl.dart';
 
 // === Cubits ===
 import 'package:new_care/features/auth/presentation/cubit/auth_cubit.dart';
@@ -51,6 +52,7 @@ import 'package:new_care/features/shifts/presentation/cubit/shift_cubit.dart';
 import 'package:new_care/features/attendance/presentation/cubit/attendance_cubit.dart';
 import 'package:new_care/features/payroll/presentation/cubit/payroll_cubit.dart';
 import 'package:new_care/features/dashboard/presentation/cubit/dashboard_cubit.dart';
+import 'package:new_care/features/users/presentation/cubit/users_cubit.dart';
 
 final sl = GetIt.instance; // sl: short for Service Locator
 
@@ -75,13 +77,7 @@ Future<void> initDI() async {
   sl.registerLazySingleton<BackupService>(() => BackupService.instance);
   sl.registerLazySingleton<ExportService>(() => ExportService.instance);
 
-  // ============================================
-  // === المستودعات القديمة - Legacy Firebase Repositories ===
-  // === (تستخدمها بعض الشاشات مؤقتاً حتى الترحيل الكامل) ===
-  // ============================================
-  
-  sl.registerLazySingleton<UsersRepository>(() => UsersRepository());
-  sl.registerLazySingleton<LogsRepository>(() => LogsRepository());
+  sl.registerLazySingleton<ILogsRepository>(() => LogsRepositoryImpl());
 
   // ============================================
   // === مستودعات الدومين - Domain Repositories ===
@@ -97,6 +93,7 @@ Future<void> initDI() async {
   sl.registerLazySingleton<IPayrollRepository>(() => PayrollRepositoryImpl());
   sl.registerLazySingleton<IInvoiceRepository>(() => InvoiceRepositoryImpl());
   sl.registerLazySingleton<IAuthRepository>(() => AuthRepositoryImpl());
+  sl.registerLazySingleton<IUsersRepository>(() => UsersRepositoryImpl());
   sl.registerLazySingleton<IDashboardRepository>(
       () => DashboardRepositoryImpl(casesRepository: sl()));
 
@@ -118,4 +115,5 @@ Future<void> initDI() async {
       ));
   sl.registerFactory(() => PayrollCubit(payrollRepository: sl()));
   sl.registerFactory(() => DashboardCubit(dashboardRepository: sl()));
+  sl.registerFactory(() => UsersCubit(repository: sl()));
 }

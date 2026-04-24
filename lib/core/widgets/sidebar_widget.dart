@@ -157,7 +157,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                   child: Image.asset(
                     'assets/images/logo.png',
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Icon(
+                    errorBuilder: (context, error, stackTrace) => const Icon(
                       Icons.local_hospital_rounded,
                       color: AppColors.secondary,
                       size: 24,

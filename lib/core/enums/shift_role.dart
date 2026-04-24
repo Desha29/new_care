@@ -2,7 +2,7 @@
 enum ShiftRole {
   cases('cases', 'حالات'),
   inventory('inventory', 'مخزون'),
-  external_visits('external', 'زيارات خارجية'),
+  externalVisits('external', 'زيارات خارجية'),
   all('all', 'جميع المهام');
 
   final String value;

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../cubit/financials_cubit.dart';
 
 class AddExpenseDialog extends StatefulWidget {
@@ -48,7 +47,7 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
-              value: _category,
+              initialValue: _category,
               items: [
                 'مرتبات',
                 'إيجار',

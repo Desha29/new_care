@@ -13,7 +13,9 @@ class ConnectivityService {
   /// Stream controller for connectivity changes
   final _controller = StreamController<bool>.broadcast();
   Stream<bool> get onConnectivityChanged => _controller.stream;
+  Stream<bool> get connectivityStream => _controller.stream; // Alias
   bool get isConnected => _isConnected;
+  bool get isOnline => _isConnected; // Alias
 
   ConnectivityService._();
 

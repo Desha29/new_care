@@ -10,6 +10,7 @@ class UserModel extends Equatable {
   final bool isActive;
   final String deviceId; // معرف الجهاز الحالي
   final List<String> allowedDeviceIds; // الأجهزة المسموح بها
+  final double salary;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -22,6 +23,7 @@ class UserModel extends Equatable {
     this.isActive = true,
     this.deviceId = '',
     this.allowedDeviceIds = const [],
+    this.salary = 3000.0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -37,6 +39,7 @@ class UserModel extends Equatable {
       isActive: map['isActive'] ?? true,
       deviceId: map['deviceId'] ?? '',
       allowedDeviceIds: List<String>.from(map['allowedDeviceIds'] ?? []),
+      salary: (map['salary'] ?? 3000.0).toDouble(),
       createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
     );
@@ -52,6 +55,7 @@ class UserModel extends Equatable {
       'isActive': isActive,
       'deviceId': deviceId,
       'allowedDeviceIds': allowedDeviceIds,
+      'salary': salary,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -67,6 +71,7 @@ class UserModel extends Equatable {
       'role': role.value,
       'isActive': isActive ? 1 : 0,
       'deviceId': deviceId,
+      'salary': salary,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -82,6 +87,7 @@ class UserModel extends Equatable {
       role: UserRole.fromString(map['role'] ?? 'nurse'),
       isActive: (map['isActive'] ?? 1) == 1,
       deviceId: map['deviceId'] ?? '',
+      salary: (map['salary'] ?? 3000.0).toDouble(),
       createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
     );
@@ -96,6 +102,7 @@ class UserModel extends Equatable {
     bool? isActive,
     String? deviceId,
     List<String>? allowedDeviceIds,
+    double? salary,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -108,6 +115,7 @@ class UserModel extends Equatable {
       isActive: isActive ?? this.isActive,
       deviceId: deviceId ?? this.deviceId,
       allowedDeviceIds: allowedDeviceIds ?? this.allowedDeviceIds,
+      salary: salary ?? this.salary,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -123,6 +131,7 @@ class UserModel extends Equatable {
     isActive,
     deviceId,
     allowedDeviceIds,
+    salary,
     createdAt,
     updatedAt,
   ];

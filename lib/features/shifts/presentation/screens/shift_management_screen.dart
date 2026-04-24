@@ -226,8 +226,8 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                   )
                 : ListView.separated(
                     itemCount: shifts.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.borderLight),
-                    itemBuilder: (_, i) => _shiftRow(context, shifts[i], i),
+                    separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.borderLight),
+                    itemBuilder: (context, i) => _shiftRow(context, shifts[i], i),
                   ),
           ),
         ],
@@ -405,7 +405,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                       const Text('الموظف', style: TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
-                        value: selectedUserId,
+                        initialValue: selectedUserId,
                         hint: const Text('اختر الموظف', style: TextStyle(fontFamily: 'Cairo')),
                         items: staffList.map((u) => DropdownMenuItem(
                           value: u.id,

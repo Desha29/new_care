@@ -1,5 +1,7 @@
+import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
 import 'dart:developer';
+import 'dart:async';
 import 'package:new_care/core/services/firebase/firebase_service.dart';
 import 'package:new_care/core/services/local/sqlite_service.dart';
 import 'package:new_care/core/services/network/connectivity_service.dart';
@@ -7,9 +9,11 @@ import 'package:new_care/features/shifts/data/models/shift_model.dart';
 import 'package:new_care/features/attendance/data/models/attendance_model.dart';
 import 'package:new_care/features/cases/data/models/case_model.dart';
 import 'package:new_care/features/inventory/data/models/inventory_model.dart';
+import 'package:new_care/features/procedures/data/models/procedure_model.dart';
+import 'package:new_care/features/auth/data/models/user_model.dart';
 
-/// خدمة المزامنة الشاملة - Comprehensive Sync Service
-/// مسؤولة عن المزامنة بين SQLite المحلي و Firebase عند وجود مشاكل في الشبكة
+/// خدمة المزامنة الشاملة (الجيل الثاني) - SyncManager v2
+/// Robust, queue-based, offline-first sync orchestrator.
 class SyncManager {
   static SyncManager? _instance;
   final FirebaseService _firebaseService;
@@ -17,379 +21,305 @@ class SyncManager {
   final ConnectivityService _connectivityService;
 
   bool _isSyncing = false;
+  Timer? _autoSyncTimer;
+  StreamSubscription? _connectivitySub;
 
   SyncManager._()
       : _firebaseService = FirebaseService.instance,
         _sqliteService = SqliteService.instance,
-        _connectivityService = ConnectivityService.instance;
+        _connectivityService = ConnectivityService.instance {
+    _initAutoSync();
+  }
 
   static SyncManager get instance {
     _instance ??= SyncManager._();
     return _instance!;
   }
 
+  void _initAutoSync() {
+    // Attempt sync every 5 minutes automatically
+    _autoSyncTimer = Timer.periodic(const Duration(minutes: 5), (_) => syncAll());
+    
+    // Attempt sync when connectivity is restored
+    _connectivitySub = _connectivityService.connectivityStream.listen((isConnected) {
+      if (isConnected) {
+        log('[SyncManager] Connection restored, triggering sync');
+        syncAll();
+      }
+    });
+  }
+
+  void dispose() {
+    _autoSyncTimer?.cancel();
+    _connectivitySub?.cancel();
+  }
+
   // ============================================
-  // === العمليات المعلقة - Pending Operations ===
+  // === إدارة الطابور - Queue Management ===
   // ============================================
 
-  /// إضافة عملية معلقة للمزامنة لاحقاً
-  /// Add a pending operation to sync later when online
-  Future<void> addPendingOperation({
+  /// إضافة عملية إلى طابور المزامنة
+  /// Enqueue an operation for background sync
+  Future<void> enqueue({
     required String tableName,
     required String operation, // 'create', 'update', 'delete'
     required String docId,
     required Map<String, dynamic> data,
   }) async {
-    final db = await _sqliteService.database;
-    await db.insert('pending_sync', {
-      'id': '${tableName}_${operation}_${docId}_${DateTime.now().millisecondsSinceEpoch}',
-      'tableName': tableName,
-      'operation': operation,
-      'docId': docId,
-      'data': jsonEncode(data),
-      'createdAt': DateTime.now().toIso8601String(),
-      'retryCount': 0,
-    });
-    log('[SyncManager] Pending operation added: $operation on $tableName/$docId');
+    try {
+      final db = await _sqliteService.database;
+      final syncId = '${tableName}_$docId'; // Use a predictable ID to prevent duplicate pending ops for same record
+      
+      await db.insert('pending_sync', {
+        'id': syncId,
+        'tableName': tableName,
+        'operation': operation,
+        'docId': docId,
+        'data': jsonEncode(data),
+        'createdAt': DateTime.now().toIso8601String(),
+        'retryCount': 0,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+      log('[SyncManager] Enqueued: $operation on $tableName/$docId');
+      
+      // Trigger sync in background without blocking
+      unawaited(syncAll());
+    } catch (e) {
+      log('[SyncManager] Failed to enqueue operation: $e');
+    }
   }
 
-  /// جلب العمليات المعلقة - Get pending operations
-  Future<List<Map<String, dynamic>>> getPendingOperations() async {
-    final db = await _sqliteService.database;
-    return await db.query('pending_sync', orderBy: 'createdAt ASC');
-  }
-
-  /// حذف عملية معلقة بعد نجاح المزامنة - Remove pending op after sync
-  Future<void> removePendingOperation(String id) async {
-    final db = await _sqliteService.database;
-    await db.delete('pending_sync', where: 'id = ?', whereArgs: [id]);
+  /// Alias for compatibility
+  Future<void> addPendingOperation({
+    required String tableName,
+    required String operation,
+    required String docId,
+    required Map<String, dynamic> data,
+  }) async {
+    return enqueue(tableName: tableName, operation: operation, docId: docId, data: data);
   }
 
   // ============================================
-  // === المزامنة الشاملة - Full Sync ===
+  // === المزامنة - Synchronization ===
   // ============================================
 
-  /// مزامنة كل البيانات عند عودة الاتصال
-  /// Sync all data when connectivity is restored
+  /// مزامنة كاملة - Full Sync Orchestration
   Future<void> syncAll() async {
     if (_isSyncing) return;
+
+    final isConnected = await _connectivityService.checkConnection();
+    if (!isConnected) return;
+
     _isSyncing = true;
+    log('[SyncManager] Starting sync cycle...');
 
     try {
-      final isConnected = await _connectivityService.checkConnection();
-      if (!isConnected) {
-        log('[SyncManager] Offline, skipping sync');
-        return;
-      }
+      // 1. Process local changes -> Firebase (Upload)
+      await _uploadPendingChanges();
 
-      log('[SyncManager] Starting full sync...');
-
-      // 1. أولاً: رفع العمليات المعلقة المحلية إلى Firebase
-      await _processPendingOperations();
-
-      // 2. ثانياً: تنزيل أحدث البيانات من Firebase إلى SQLite
-      await _syncDownFromFirebase();
-
-      log('[SyncManager] Full sync completed');
+      // 2. Process remote changes -> Local (Download)
+      await _downloadDeltaChanges();
+      
+      log('[SyncManager] Sync cycle completed successfully');
     } catch (e) {
-      log('[SyncManager] Sync error: $e');
+      log('[SyncManager] Sync cycle failed: $e');
     } finally {
       _isSyncing = false;
     }
   }
 
-  /// معالجة العمليات المعلقة - Process pending operations
-  Future<void> _processPendingOperations() async {
-    final pending = await getPendingOperations();
-    log('[SyncManager] Processing ${pending.length} pending operations...');
+  /// Alias for high-level services
+  Future<void> processQueue() async {
+    await _uploadPendingChanges();
+  }
+
+  /// رفع التغييرات المحلية - Upload pending changes to Firebase
+  Future<void> _uploadPendingChanges() async {
+    final db = await _sqliteService.database;
+    final pending = await db.query('pending_sync', orderBy: 'createdAt ASC');
+
+    if (pending.isEmpty) return;
+    log('[SyncManager] Processing ${pending.length} pending uploads...');
 
     for (var op in pending) {
+      final id = op['id'] as String;
+      final tableName = op['tableName'] as String;
+      final operation = op['operation'] as String;
+      final docId = op['docId'] as String;
+      final data = jsonDecode(op['data'] as String) as Map<String, dynamic>;
+      final retryCount = op['retryCount'] as int;
+
       try {
-        final tableName = op['tableName'] as String;
-        final operation = op['operation'] as String;
-        final docId = op['docId'] as String;
-        final data = jsonDecode(op['data'] as String) as Map<String, dynamic>;
-
-        switch (tableName) {
-          case 'cases':
-            await _syncCaseOperation(operation, docId, data);
-            break;
-          case 'inventory':
-            await _syncInventoryOperation(operation, docId, data);
-            break;
-          case 'shifts':
-            await _syncShiftOperation(operation, docId, data);
-            break;
-          case 'attendance':
-            await _syncAttendanceOperation(operation, docId, data);
-            break;
-        }
-
-        await removePendingOperation(op['id'] as String);
-        log('[SyncManager] Synced: $operation on $tableName/$docId');
+        await _dispatchOperation(tableName, operation, docId, data);
+        
+        // Success: Remove from queue
+        await db.delete('pending_sync', where: 'id = ?', whereArgs: [id]);
+        log('[SyncManager] Successfully synced $tableName/$docId');
       } catch (e) {
-        // Increment retry count, keep for next attempt
-        final db = await _sqliteService.database;
-        final retryCount = (op['retryCount'] as int? ?? 0) + 1;
-        if (retryCount > 5) {
-          // Give up after 5 retries
-          await removePendingOperation(op['id'] as String);
-          log('[SyncManager] Gave up on: ${op['id']} after $retryCount retries');
-        } else {
-          await db.update(
-            'pending_sync',
-            {'retryCount': retryCount},
-            where: 'id = ?',
-            whereArgs: [op['id']],
-          );
+        log('[SyncManager] Failed to sync $tableName/$docId (Attempt ${retryCount + 1}): $e');
+        
+        // Error: Update retry count and last error
+        await db.update('pending_sync', {
+          'retryCount': retryCount + 1,
+          'lastError': e.toString(),
+          'lastAttempt': DateTime.now().toIso8601String(),
+        }, where: 'id = ?', whereArgs: [id]);
+
+        if (retryCount >= 10) {
+          log('[SyncManager] Max retries reached for $tableName/$docId. Discarding.');
+          await db.delete('pending_sync', where: 'id = ?', whereArgs: [id]);
         }
-        log('[SyncManager] Error syncing ${op['id']}: $e');
+        
+        // Break the loop if it's a network error to avoid multiple quick failures
+        if (e.toString().contains('network') || e.toString().contains('connection')) {
+          break;
+        }
       }
     }
   }
 
-  /// مزامنة عملية حالة - Sync case operation
-  Future<void> _syncCaseOperation(String op, String docId, Map<String, dynamic> data) async {
-    switch (op) {
-      case 'create':
-      case 'update':
-        final caseModel = CaseModel.fromMap(data, docId);
-        if (op == 'create') {
-          await _firebaseService.createCase(caseModel);
+  /// توزيع العملية على الخدمة المناسبة - Dispatch operation to Firebase
+  Future<void> _dispatchOperation(String table, String op, String id, Map<String, dynamic> data) async {
+    switch (table) {
+      case 'cases':
+        final model = CaseModel.fromMap(data, id);
+        if (op == 'delete') {
+          await _firebaseService.deleteCase(id);
         } else {
-          await _firebaseService.updateCase(caseModel);
-        }
-        break;
-      case 'delete':
-        await _firebaseService.deleteCase(docId);
-        break;
-    }
-  }
-
-  /// مزامنة عملية مخزون - Sync inventory operation
-  Future<void> _syncInventoryOperation(String op, String docId, Map<String, dynamic> data) async {
-    switch (op) {
-      case 'create':
-      case 'update':
-        final item = InventoryModel.fromMap(data, docId);
-        if (op == 'create') {
-          await _firebaseService.createInventoryItem(item);
-        } else {
-          await _firebaseService.updateInventoryItem(item);
+          // Idempotent: set/update will work regardless of 'create' vs 'update'
+          await _firebaseService.updateCase(model);
         }
         break;
-      case 'delete':
-        await _firebaseService.deleteInventoryItem(docId);
-        break;
-    }
-  }
-
-  /// مزامنة عملية وردية - Sync shift operation
-  Future<void> _syncShiftOperation(String op, String docId, Map<String, dynamic> data) async {
-    switch (op) {
-      case 'create':
-      case 'update':
-        final shift = ShiftModel.fromMap(data, docId);
-        if (op == 'create') {
-          await _firebaseService.createShift(shift);
+      case 'inventory':
+        final model = InventoryModel.fromMap(data, id);
+        if (op == 'delete') {
+          await _firebaseService.deleteInventoryItem(id);
         } else {
-          await _firebaseService.updateShift(shift);
+          await _firebaseService.updateInventoryItem(model);
         }
         break;
-      case 'delete':
-        await _firebaseService.deleteShift(docId);
+      case 'attendance':
+        final model = AttendanceModel.fromMap(data, id);
+        if (op == 'update') {
+          await _firebaseService.checkOut(id);
+        } else {
+          await _firebaseService.checkIn(model);
+        }
+        break;
+      case 'shifts':
+        final model = ShiftModel.fromMap(data, id);
+        if (op == 'delete') {
+          await _firebaseService.deleteShift(id);
+        } else {
+          await _firebaseService.updateShift(model);
+        }
+        break;
+      case 'procedures':
+        final model = ProcedureModel.fromMap(data, id);
+        if (op == 'delete') {
+          await _firebaseService.deleteProcedure(id);
+        } else {
+          await _firebaseService.updateProcedure(model);
+        }
+        break;
+      case 'users':
+        final model = UserModel.fromMap(data, id);
+        if (op == 'delete') {
+          await _firebaseService.deleteUser(id);
+        } else {
+          await _firebaseService.updateUser(model);
+        }
         break;
     }
   }
 
-  /// مزامنة عملية حضور - Sync attendance operation
-  Future<void> _syncAttendanceOperation(String op, String docId, Map<String, dynamic> data) async {
-    switch (op) {
-      case 'create':
-        final attendance = AttendanceModel.fromMap(data, docId);
-        await _firebaseService.checkIn(attendance);
-        break;
-      case 'update':
-        await _firebaseService.checkOut(docId);
-        break;
-    }
-  }
+  /// تنزيل التغييرات الجديدة - Download only what changed since last sync
+  Future<void> _downloadDeltaChanges() async {
+    final lastSync = await _sqliteService.getLastSync();
+    log('[SyncManager] Fetching delta since $lastSync');
 
-  // ============================================
-  // === تنزيل من Firebase - Download from Firebase ===
-  // ============================================
+    // Optimization: Run downloads in parallel where possible
+    final results = await Future.wait([
+      _firebaseService.getUpdatedCases(lastSync),
+      _firebaseService.getUpdatedUsers(lastSync),
+      _firebaseService.getUpdatedInventory(lastSync),
+      _firebaseService.getUpdatedProcedures(lastSync),
+    ]);
 
-  /// تنزيل أحدث البيانات من Firebase إلى SQLite (مُحسّن - Delta Sync)
-  Future<void> _syncDownFromFirebase() async {
-    try {
-      final lastSync = await _sqliteService.getLastSync();
-      log('[SyncManager] Syncing changes since: ${lastSync.toIso8601String()}');
-
-      // 1. مزامنة الحالات المحدثة فقط
-      final updatedCases = await _firebaseService.getUpdatedCases(lastSync);
-      for (var c in updatedCases) {
-        await _sqliteService.saveCase(c.toSqliteMap());
-      }
-      log('[SyncManager] Downloaded ${updatedCases.length} updated cases');
-
-      // 2. مزامنة المستخدمين المحدثين
-      final updatedUsers = await _firebaseService.getUpdatedUsers(lastSync);
-      for (var u in updatedUsers) {
-        await _sqliteService.saveUser(u.toSqliteMap());
-      }
-      log('[SyncManager] Downloaded ${updatedUsers.length} updated users');
-
-      // 3. مزامنة المخزون المحدث
-      final updatedInventory = await _firebaseService.getUpdatedInventory(lastSync);
-      for (var item in updatedInventory) {
-        await _sqliteService.insert('inventory', item.toSqliteMap());
-      }
-      log('[SyncManager] Downloaded ${updatedInventory.length} updated inventory items');
-
-      // 4. مزامنة الإجراءات المحدثة
-      final updatedProcedures = await _firebaseService.getUpdatedProcedures(lastSync);
-      for (var p in updatedProcedures) {
-        await _sqliteService.insert('procedures', p.toSqliteMap());
-      }
-      log('[SyncManager] Downloaded ${updatedProcedures.length} updated procedures');
-
-      // تحديث وقت المزامنة الأخير بعد النجاح
-      await _sqliteService.updateLastSync();
-      log('[SyncManager] Last sync timestamp updated');
+    await _sqliteService.runTransaction((txn) async {
+      final batch = txn.batch();
       
-    } catch (e) {
-      log('[SyncManager] Error downloading from Firebase: $e');
-    }
-  }
-
-  // ============================================
-  // === حفظ محلي مع مزامنة - Save locally with sync ===
-  // ============================================
-
-  /// حفظ حالة محلياً ومزامنتها - Save case locally and sync
-  Future<void> saveCaseWithSync(CaseModel caseModel, {bool isNew = true}) async {
-    // حفظ محلياً أولاً
-    await _sqliteService.saveCase(caseModel.toSqliteMap());
-
-    final isConnected = await _connectivityService.checkConnection();
-    if (isConnected) {
-      // متصل: ارسل مباشرة إلى Firebase
-      try {
-        if (isNew) {
-          await _firebaseService.createCase(caseModel);
-        } else {
-          await _firebaseService.updateCase(caseModel);
-        }
-      } catch (e) {
-        // فشل الإرسال: أضف للعمليات المعلقة
-        await addPendingOperation(
-          tableName: 'cases',
-          operation: isNew ? 'create' : 'update',
-          docId: caseModel.id,
-          data: caseModel.toMap(),
-        );
+      // 1. Cases
+      for (var c in results[0] as List<CaseModel>) {
+        batch.insert('cases', c.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
-    } else {
-      // غير متصل: أضف للعمليات المعلقة
-      await addPendingOperation(
-        tableName: 'cases',
-        operation: isNew ? 'create' : 'update',
-        docId: caseModel.id,
-        data: caseModel.toMap(),
-      );
-    }
+      
+      // 2. Users
+      for (var u in results[1] as List<UserModel>) {
+        batch.insert('users', u.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      
+      // 3. Inventory
+      for (var i in results[2] as List<InventoryModel>) {
+        batch.insert('inventory', i.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      
+      // 4. Procedures
+      for (var p in results[3] as List<ProcedureModel>) {
+        batch.insert('procedures', p.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      
+      await batch.commit(noResult: true);
+    });
+
+    await _sqliteService.updateLastSync();
+    log('[SyncManager] Delta sync applied');
   }
 
-  /// حفظ عنصر مخزون مع مزامنة - Save inventory item with sync
+  // ============================================
+  // === Legacy Wrappers (For Compatibility) ===
+  // ============================================
+
+  /// Simplified wrapper for existing code
+  Future<void> saveCaseWithSync(CaseModel model, {bool isNew = true}) async {
+    await _sqliteService.saveCase(model.toSqliteMap());
+    await enqueue(
+      tableName: 'cases',
+      operation: isNew ? 'create' : 'update',
+      docId: model.id,
+      data: model.toMap(),
+    );
+  }
+
   Future<void> saveInventoryWithSync(InventoryModel item, {bool isNew = true}) async {
     await _sqliteService.insert('inventory', item.toSqliteMap());
-
-    final isConnected = await _connectivityService.checkConnection();
-    if (isConnected) {
-      try {
-        if (isNew) {
-          await _firebaseService.createInventoryItem(item);
-        } else {
-          await _firebaseService.updateInventoryItem(item);
-        }
-      } catch (e) {
-        await addPendingOperation(
-          tableName: 'inventory',
-          operation: isNew ? 'create' : 'update',
-          docId: item.id,
-          data: item.toMap(),
-        );
-      }
-    } else {
-      await addPendingOperation(
-        tableName: 'inventory',
-        operation: isNew ? 'create' : 'update',
-        docId: item.id,
-        data: item.toMap(),
-      );
-    }
+    await enqueue(
+      tableName: 'inventory',
+      operation: isNew ? 'create' : 'update',
+      docId: item.id,
+      data: item.toMap(),
+    );
   }
 
-  /// حفظ حضور مع مزامنة - Save attendance with sync
   Future<void> saveAttendanceWithSync(AttendanceModel attendance) async {
     await _sqliteService.insert('attendance', attendance.toSqliteMap());
-
-    final isConnected = await _connectivityService.checkConnection();
-    if (isConnected) {
-      try {
-        await _firebaseService.checkIn(attendance);
-      } catch (e) {
-        await addPendingOperation(
-          tableName: 'attendance',
-          operation: 'create',
-          docId: attendance.id,
-          data: attendance.toMap(),
-        );
-      }
-    } else {
-      await addPendingOperation(
-        tableName: 'attendance',
-        operation: 'create',
-        docId: attendance.id,
-        data: attendance.toMap(),
-      );
-    }
+    await enqueue(
+      tableName: 'attendance',
+      operation: 'create',
+      docId: attendance.id,
+      data: attendance.toMap(),
+    );
   }
 
-  /// حفظ وردية مع مزامنة - Save shift with sync
   Future<void> saveShiftWithSync(ShiftModel shift, {bool isNew = true}) async {
     await _sqliteService.insert('shifts', shift.toSqliteMap());
-
-    final isConnected = await _connectivityService.checkConnection();
-    if (isConnected) {
-      try {
-        if (isNew) {
-          await _firebaseService.createShift(shift);
-        } else {
-          await _firebaseService.updateShift(shift);
-        }
-      } catch (e) {
-        await addPendingOperation(
-          tableName: 'shifts',
-          operation: isNew ? 'create' : 'update',
-          docId: shift.id,
-          data: shift.toMap(),
-        );
-      }
-    } else {
-      await addPendingOperation(
-        tableName: 'shifts',
-        operation: isNew ? 'create' : 'update',
-        docId: shift.id,
-        data: shift.toMap(),
-      );
-    }
+    await enqueue(
+      tableName: 'shifts',
+      operation: isNew ? 'create' : 'update',
+      docId: shift.id,
+      data: shift.toMap(),
+    );
   }
 
-  /// عدد العمليات المعلقة - Pending operations count
-  Future<int> getPendingCount() async {
-    final db = await _sqliteService.database;
-    final result = await db.rawQuery('SELECT COUNT(*) as count FROM pending_sync');
-    return result.first['count'] as int? ?? 0;
-  }
+  Future<int> getPendingCount() => _sqliteService.getPendingCount();
 }

@@ -10,7 +10,9 @@ class InventoryCubit extends Cubit<InventoryState> {
       : _inventoryRepository = inventoryRepository,
         super(InventoryInitial());
 
-  Future<void> loadInventory() async {
+  Future<void> loadInventory({bool force = false}) async {
+    if (!force && state is InventoryLoaded) return;
+
     emit(InventoryLoading());
     try {
       final items = await _inventoryRepository.getAllInventory();

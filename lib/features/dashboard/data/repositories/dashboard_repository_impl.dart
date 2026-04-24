@@ -1,49 +1,41 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/services/firebase/firebase_base.dart';
 import '../../../cases/data/models/case_model.dart';
 import '../../../attendance/data/models/attendance_model.dart';
 import '../../../cases/domain/repositories/cases_repository.dart';
 import '../../domain/repositories/dashboard_repository.dart';
+import '../../../../core/services/local/sqlite_service.dart';
 
-/// تنفيذ مستودع لوحة التحكم - Dashboard Repository Implementation
-class DashboardRepositoryImpl extends FirebaseBase implements IDashboardRepository {
+/// تنفيذ مستودع لوحة التحكم (الجيل الثاني) - Dashboard Repository Implementation v2
+/// Optimized for speed using local data and reliable remote fallbacks.
+class DashboardRepositoryImpl implements IDashboardRepository {
   final ICasesRepository _casesRepository;
+  final _local = SqliteService.instance;
 
   DashboardRepositoryImpl({required ICasesRepository casesRepository})
     : _casesRepository = casesRepository;
 
   @override
   Future<Map<String, dynamic>> getDashboardStats() async {
-    final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
-
-    final results = await Future.wait([
-      firestore.collection('cases').count().get(),
-      firestore
-          .collection('cases')
-          .where('caseDate', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
-          .where('caseDate', isLessThan: endOfDay.toIso8601String())
-          .count()
-          .get(),
-      firestore
-          .collection('users')
-          .where('role', isEqualTo: 'nurse')
-          .where('isActive', isEqualTo: true)
-          .count()
-          .get(),
-    ]);
-
     final todayCases = await _casesRepository.getTodayCases();
+    final totalPatients = await _local.getPatientsCount();
+
+    // Get active nurses from local users cache
+    final nurses = await _local.database.then(
+      (db) => db.query(
+        'users',
+        where: 'role = ? AND isActive = 1',
+        whereArgs: ['nurse'],
+      ),
+    );
+
     double todayRevenue = 0;
     for (final c in todayCases) {
       todayRevenue += (c.totalPrice - c.discount);
     }
 
     return {
-      'totalPatients': results[0].count ?? 0,
+      'totalPatients': totalPatients,
       'todayCases': todayCases.length,
-      'availableNurses': results[2].count ?? 0,
+      'availableNurses': nurses.length,
       'todayRevenue': todayRevenue,
     };
   }
@@ -51,43 +43,52 @@ class DashboardRepositoryImpl extends FirebaseBase implements IDashboardReposito
   @override
   Future<Map<String, dynamic>> getNurseDashboardStats(String nurseId) async {
     final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
     final startOfMonth = DateTime(now.year, now.month, 1);
 
-    final results = await Future.wait([
-      firestore
-          .collection('cases')
-          .where('nurseId', isEqualTo: nurseId)
-          .where('caseDate', isGreaterThanOrEqualTo: startOfMonth.toIso8601String())
-          .get(),
-      firestore
-          .collection('cases')
-          .where('nurseId', isEqualTo: nurseId)
-          .where('caseDate', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
-          .get(),
-      firestore
-          .collection('attendance')
-          .where('userId', isEqualTo: nurseId)
-          .where('checkInTime', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
-          .get(),
-    ]);
+    // Read from local for speed
+    final allNurseCases = await _casesRepository.getNurseCases(nurseId);
 
-    final monthlyCases = results[0].docs
-        .map((doc) => CaseModel.fromMap(doc.data()!, doc.id))
+    final monthlyCases = allNurseCases
+        .where(
+          (c) =>
+              c.caseDate.isAfter(startOfMonth) ||
+              c.caseDate.isAtSameMomentAs(startOfMonth),
+        )
+        .toList();
+    final todayCases = allNurseCases
+        .where(
+          (c) =>
+              c.caseDate.year == now.year &&
+              c.caseDate.month == now.month &&
+              c.caseDate.day == now.day,
+        )
         .toList();
 
-    final todayCases = results[1].docs
-        .map((doc) => CaseModel.fromMap(doc.data()!, doc.id))
-        .toList();
+    // Attendance status from local
+    final db = await _local.database;
+    final todayStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final attendanceResults = await db.query(
+      'attendance',
+      where: 'userId = ? AND date = ?',
+      whereArgs: [nurseId, todayStr],
+      orderBy: 'checkInTime DESC',
+      limit: 1,
+    );
 
-    final attendanceDocs = results[2].docs;
-    final attendance = attendanceDocs.isNotEmpty 
-        ? AttendanceModel.fromMap(attendanceDocs.first.data()!, attendanceDocs.first.id)
+    final attendance = attendanceResults.isNotEmpty
+        ? AttendanceModel.fromMap(
+            attendanceResults.first,
+            attendanceResults.first['id'] as String,
+          )
         : null;
 
     return {
       'monthlyCases': monthlyCases.length,
-      'totalIncome': monthlyCases.fold(0.0, (total, c) => total + (c.totalPrice - c.discount)),
+      'totalIncome': monthlyCases.fold(
+        0.0,
+        (total, c) => total + (c.totalPrice - c.discount),
+      ),
       'todayCases': todayCases,
       'todayCasesCount': todayCases.length,
       'attendance': attendance,
@@ -97,15 +98,16 @@ class DashboardRepositoryImpl extends FirebaseBase implements IDashboardReposito
   @override
   Future<Map<String, List<double>>> getDashboardChartData() async {
     final now = DateTime.now();
-    final sevenDaysAgo = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
+    final sevenDaysAgo = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(const Duration(days: 6));
 
-    final snapshot = await firestore
-        .collection('cases')
-        .where('caseDate', isGreaterThanOrEqualTo: sevenDaysAgo.toIso8601String())
-        .get();
-
-    final allCases = snapshot.docs
-        .map((doc) => CaseModel.fromMap(doc.data()!, doc.id))
+    // For charts, we use local data if available
+    final results = await _local.getAllCases();
+    final allCases = results
+        .map((m) => CaseModel.fromMap(m, m['id'] as String))
         .toList();
 
     List<double> counts = List.filled(7, 0.0);
@@ -120,7 +122,10 @@ class DashboardRepositoryImpl extends FirebaseBase implements IDashboardReposito
       }).toList();
 
       counts[i] = dayCases.length.toDouble();
-      revenues[i] = dayCases.fold(0.0, (total, c) => total + (c.totalPrice - c.discount));
+      revenues[i] = dayCases.fold(
+        0.0,
+        (total, c) => total + (c.totalPrice - c.discount),
+      );
     }
 
     return {'counts': counts, 'revenues': revenues};
@@ -128,30 +133,26 @@ class DashboardRepositoryImpl extends FirebaseBase implements IDashboardReposito
 
   @override
   Future<List<CaseModel>> getRecentCases(int limit) async {
-    final snapshot = await firestore
-        .collection('cases')
-        .orderBy('caseDate', descending: true)
-        .limit(limit)
-        .get();
-
-    return snapshot.docs
-        .map((doc) => CaseModel.fromMap(doc.data()!, doc.id))
-        .toList();
+    final results = await _local.database.then(
+      (db) => db.query('cases', orderBy: 'caseDate DESC', limit: limit),
+    );
+    return results.map((m) => CaseModel.fromMap(m, m['id'] as String)).toList();
   }
 
   @override
   Future<List<AttendanceModel>> getActiveStaff() async {
-    final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
+    final db = await _local.database;
+    final todayStr =
+        '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
 
-    final snapshot = await firestore
-        .collection('attendance')
-        .where('checkInTime', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
-        .where('status', isEqualTo: 'checked_in')
-        .get();
+    final results = await db.query(
+      'attendance',
+      where: 'date = ? AND status = ?',
+      whereArgs: [todayStr, 'checked_in'],
+    );
 
-    return snapshot.docs
-        .map((doc) => AttendanceModel.fromMap(doc.data()!, doc.id))
+    return results
+        .map((m) => AttendanceModel.fromMap(m, m['id'] as String))
         .toList();
   }
 }

@@ -1,51 +1,72 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/services/firebase/firebase_base.dart';
-import '../../../../core/constants/app_constants.dart';
+import '../../../../core/services/firebase/firebase_service.dart';
+import '../../../../core/services/local/sqlite_service.dart';
+import '../../../../core/services/sync/sync_manager.dart';
 import '../../domain/repositories/inventory_repository.dart';
 import '../models/inventory_model.dart';
 
-/// تنفيذ مستودع المخزون - Inventory Repository Implementation
-class InventoryRepositoryImpl extends FirebaseBase implements IInventoryRepository {
-  CollectionReference get _inventoryRef =>
-      firestore.collection(AppConstants.inventoryCollection);
+/// تنفيذ مستودع المخزون (الجيل الثاني) - Inventory Repository Implementation v2
+/// Professional, offline-first inventory management.
+class InventoryRepositoryImpl implements IInventoryRepository {
+  final _local = SqliteService.instance;
+  final _remote = FirebaseService.instance;
+  final _sync = SyncManager.instance;
 
   @override
   Future<void> createInventoryItem(InventoryModel item) async {
-    await _inventoryRef.doc(item.id).set(item.toMap());
+    await _local.insert('inventory', item.toSqliteMap());
+    await _sync.enqueue(
+      tableName: 'inventory',
+      operation: 'create',
+      docId: item.id,
+      data: item.toMap(),
+    );
   }
 
   @override
   Future<void> updateInventoryItem(InventoryModel item) async {
-    await _inventoryRef.doc(item.id).update(item.toMap());
+    await _local.insert('inventory', item.toSqliteMap());
+    await _sync.enqueue(
+      tableName: 'inventory',
+      operation: 'update',
+      docId: item.id,
+      data: item.toMap(),
+    );
   }
 
   @override
   Future<void> deleteInventoryItem(String itemId) async {
-    await _inventoryRef.doc(itemId).delete();
+    await _local.delete('inventory', where: 'id = ?', whereArgs: [itemId]);
+    await _sync.enqueue(
+      tableName: 'inventory',
+      operation: 'delete',
+      docId: itemId,
+      data: {},
+    );
   }
 
   @override
   Future<List<InventoryModel>> getAllInventory() async {
-    final snapshot = await _inventoryRef.get();
-    return snapshot.docs
-        .map((doc) => InventoryModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-        .toList();
+    final results = await _local.database.then((db) => db.query('inventory'));
+    if (results.isNotEmpty) {
+      return results.map((m) => InventoryModel.fromMap(m, m['id'] as String)).toList();
+    }
+    
+    // Fallback to remote
+    final remoteItems = await _remote.getAllInventory();
+    for (var item in remoteItems) {
+      await _local.insert('inventory', item.toSqliteMap());
+    }
+    return remoteItems;
   }
 
   @override
   Future<int> getInventoryCount() async {
-    final snapshot = await _inventoryRef.count().get();
-    return snapshot.count ?? 0;
+    return await _local.getInventoryCount();
   }
 
   @override
   Future<List<InventoryModel>> getUpdatedInventory(DateTime lastSync) async {
-    final snapshot = await _inventoryRef
-        .where('updatedAt', isGreaterThan: lastSync.toIso8601String())
-        .get();
-    return snapshot.docs
-        .map((doc) => InventoryModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-        .toList();
+    return await _remote.getUpdatedInventory(lastSync);
   }
 
   @override
@@ -56,9 +77,14 @@ class InventoryRepositoryImpl extends FirebaseBase implements IInventoryReposito
 
   @override
   Future<void> updateInventoryQuantity(String itemId, int newQuantity) async {
-    await _inventoryRef.doc(itemId).update({
-      'quantity': newQuantity,
-      'updatedAt': DateTime.now().toIso8601String(),
-    });
+    final itemMap = await _local.getById('inventory', itemId);
+    if (itemMap != null) {
+      final updated = Map<String, dynamic>.from(itemMap);
+      updated['quantity'] = newQuantity;
+      updated['updatedAt'] = DateTime.now().toIso8601String();
+      
+      final model = InventoryModel.fromMap(updated, itemId);
+      await updateInventoryItem(model);
+    }
   }
 }

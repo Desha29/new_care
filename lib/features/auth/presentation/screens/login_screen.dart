@@ -60,13 +60,6 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  void _filterUsers(String query) {
-    setState(() {
-      _filteredUsers = _allUsers
-          .where((u) => u.name.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    });
-  }
 
   @override
   void dispose() {
@@ -518,18 +511,6 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildEmptySearch() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.person_search_rounded, size: 48, color: AppColors.textHint.withValues(alpha: 0.5)),
-          const SizedBox(height: 12),
-          const Text('لم يتم العثور على مستخدم', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textHint)),
-        ],
-      ),
-    );
-  }
 
   Widget _buildUserCard(UserModel user) {
     return _HoverUserCard(

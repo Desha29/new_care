@@ -46,7 +46,7 @@ class ShiftPermissions extends Equatable {
         return const ShiftPermissions(canAccessCases: true);
       case ShiftRole.inventory:
         return const ShiftPermissions(canAccessInventory: true);
-      case ShiftRole.external_visits:
+      case ShiftRole.externalVisits:
         return const ShiftPermissions(canAccessCases: true, canGoExternal: true);
       case ShiftRole.all:
         return ShiftPermissions.full();

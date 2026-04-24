@@ -61,9 +61,9 @@ class InventoryTable extends StatelessWidget {
                 ? EmptyStateWidget.inventory(onAction: onEmptyAction)
                 : ListView.separated(
                     itemCount: items.length,
-                    separatorBuilder: (_, __) =>
+                    separatorBuilder: (context, index) =>
                         const Divider(height: 1, color: AppColors.borderLight),
-                    itemBuilder: (_, i) => _row(context, items[i], i),
+                    itemBuilder: (context, i) => _row(context, items[i], i),
                   ),
           ),
         ],

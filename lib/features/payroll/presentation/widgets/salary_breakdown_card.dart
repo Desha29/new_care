@@ -57,6 +57,8 @@ class SalaryBreakdownCard extends StatelessWidget {
                   _buildSectionTitle('التفاصيل المالية', Icons.payments_rounded),
                   const SizedBox(height: 12),
                   _buildFinancialRow('الراتب الأساسي', payroll.baseSalary, isPositive: true),
+                  if (payroll.outsideCasesFees > 0)
+                    _buildFinancialRow('عمليات خارجية', payroll.outsideCasesFees, isPositive: true),
                   if (payroll.bonus > 0)
                     _buildFinancialRow('المكافآت', payroll.bonus, isPositive: true),
                   if (payroll.deductions > 0)

@@ -42,6 +42,22 @@ class ExpenseModel extends Equatable {
       'date': date.toIso8601String(),
       'createdBy': createdBy,
       'notes': notes,
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+  }
+
+  /// إلى SQLite Map
+  Map<String, dynamic> toSqliteMap() {
+    return {
+      'id': id,
+      'category': category,
+      'label': label, // Aligned with SqliteService schema
+      'amount': amount,
+      'date': date.toIso8601String(),
+      'createdBy': createdBy,
+      'notes': notes,
+      'createdAt': date.toIso8601String(),
+      'updatedAt': DateTime.now().toIso8601String(),
     };
   }
 

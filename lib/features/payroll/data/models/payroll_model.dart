@@ -10,6 +10,7 @@ class PayrollModel {
   final double hourlyRate;
   final double baseSalary;
   final double bonus;
+  final double outsideCasesFees;
   final double deductions;
   final double netSalary;
   final int totalDays;
@@ -30,6 +31,7 @@ class PayrollModel {
     this.hourlyRate = 0,
     this.baseSalary = 0,
     this.bonus = 0,
+    this.outsideCasesFees = 0,
     this.deductions = 0,
     this.netSalary = 0,
     this.totalDays = 0,
@@ -42,7 +44,7 @@ class PayrollModel {
   });
 
   /// حساب صافي الراتب - Calculate net salary
-  double get calculatedNetSalary => baseSalary + bonus - deductions;
+  double get calculatedNetSalary => baseSalary + bonus + outsideCasesFees - deductions;
 
   /// حساب الراتب الأساسي من الساعات - Calculate base from hours
   double get calculatedBaseSalary => totalHours * hourlyRate;
@@ -76,6 +78,7 @@ class PayrollModel {
       'hourlyRate': hourlyRate,
       'baseSalary': baseSalary,
       'bonus': bonus,
+      'outsideCasesFees': outsideCasesFees,
       'deductions': deductions,
       'netSalary': netSalary,
       'totalDays': totalDays,
@@ -100,6 +103,7 @@ class PayrollModel {
       hourlyRate: (map['hourlyRate'] ?? 0).toDouble(),
       baseSalary: (map['baseSalary'] ?? 0).toDouble(),
       bonus: (map['bonus'] ?? 0).toDouble(),
+      outsideCasesFees: (map['outsideCasesFees'] ?? 0).toDouble(),
       deductions: (map['deductions'] ?? 0).toDouble(),
       netSalary: (map['netSalary'] ?? 0).toDouble(),
       totalDays: map['totalDays'] ?? 0,
@@ -130,6 +134,7 @@ class PayrollModel {
     double? hourlyRate,
     double? baseSalary,
     double? bonus,
+    double? outsideCasesFees,
     double? deductions,
     double? netSalary,
     int? totalDays,
@@ -149,6 +154,7 @@ class PayrollModel {
       hourlyRate: hourlyRate ?? this.hourlyRate,
       baseSalary: baseSalary ?? this.baseSalary,
       bonus: bonus ?? this.bonus,
+      outsideCasesFees: outsideCasesFees ?? this.outsideCasesFees,
       deductions: deductions ?? this.deductions,
       netSalary: netSalary ?? this.netSalary,
       totalDays: totalDays ?? this.totalDays,

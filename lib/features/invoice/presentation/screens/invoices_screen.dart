@@ -8,7 +8,7 @@ import '../../../cases/presentation/cubit/cases_cubit.dart';
 import '../../../cases/presentation/cubit/cases_state.dart';
 
 class InvoicesScreen extends StatefulWidget {
-  const InvoicesScreen({Key? key}) : super(key: key);
+  const InvoicesScreen({super.key});
 
   @override
   State<InvoicesScreen> createState() => _InvoicesScreenState();
@@ -110,4 +110,3 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     );
   }
 }
-

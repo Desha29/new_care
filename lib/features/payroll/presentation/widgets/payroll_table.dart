@@ -47,9 +47,10 @@ class PayrollTable extends StatelessWidget {
               children: [
                 _hc('الموظف', 3),
                 _hc('الساعات', 2),
-                _hc('الراتب الأساسي', 2),
-                _hc('المكافآت', 1),
-                _hc('الخصومات', 1),
+                _hc('الراتب', 2),
+                _hc('خارجية', 1),
+                _hc('مكافآت', 1),
+                _hc('خصم', 1),
                 _hc('الصافي', 2),
                 _hc('الحالة', 2),
                 _hc('إجراءات', 2),
@@ -61,8 +62,8 @@ class PayrollTable extends StatelessWidget {
           Expanded(
             child: ListView.separated(
               itemCount: payrolls.length,
-              separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.borderLight),
-              itemBuilder: (_, i) => _buildRow(context, payrolls[i], i),
+              separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.borderLight),
+              itemBuilder: (context, i) => _buildRow(context, payrolls[i], i),
             ),
           ),
         ],
@@ -137,6 +138,16 @@ class PayrollTable extends StatelessWidget {
               child: Text(
                 NumberFormatter.currency(payroll.baseSalary),
                 style: AppTypography.tableCell,
+              ),
+            ),
+            // عمليات خارجية
+            Expanded(
+              flex: 1,
+              child: Text(
+                payroll.outsideCasesFees > 0 ? '+${NumberFormatter.compact(payroll.outsideCasesFees)}' : '-',
+                style: AppTypography.tableCell.copyWith(
+                  color: payroll.outsideCasesFees > 0 ? AppColors.primary : AppColors.textHint,
+                ),
               ),
             ),
             // المكافآت

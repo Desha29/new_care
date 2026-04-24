@@ -14,7 +14,9 @@ class FinancialsCubit extends Cubit<FinancialsState> {
       : _financialsRepository = financialsRepository,
         super(FinancialsInitial());
 
-  Future<void> loadFinancials() async {
+  Future<void> loadFinancials({bool force = false}) async {
+    if (!force && state is FinancialsLoaded) return;
+
     emit(FinancialsLoading());
     try {
       final isConnected = await ConnectivityService.instance.checkConnection();

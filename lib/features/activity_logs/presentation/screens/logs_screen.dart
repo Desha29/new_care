@@ -150,10 +150,10 @@ class _LogsScreenState extends State<LogsScreen> {
                                             color: AppColors.textHint)))
                                 : ListView.separated(
                                     itemCount: _filtered.length,
-                                    separatorBuilder: (_, __) => const Divider(
+                                    separatorBuilder: (context, index) => const Divider(
                                         height: 1,
                                         color: AppColors.borderLight),
-                                    itemBuilder: (_, i) {
+                                    itemBuilder: (context, i) {
                                       final l = _filtered[i];
                                       return Container(
                                         padding: const EdgeInsets.symmetric(

@@ -140,9 +140,9 @@ class _AttendanceRecordsListState extends State<AttendanceRecordsList> {
                       )
                     : ListView.separated(
                         itemCount: filteredRecords.length,
-                        separatorBuilder: (_, __) =>
+                        separatorBuilder: (context, index) =>
                             const Divider(height: 1, color: AppColors.borderLight),
-                        itemBuilder: (_, i) => _recordRow(filteredRecords[i], i),
+                        itemBuilder: (context, i) => _recordRow(filteredRecords[i], i),
                       ),
           ),
         ],

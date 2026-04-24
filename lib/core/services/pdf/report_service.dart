@@ -561,7 +561,7 @@ class ReportService {
                 ),
                 pw.SizedBox(height: 10),
 
-                pw.Table.fromTextArray(
+                pw.TableHelper.fromTextArray(
                   headers: [
                     '#',
                     'التاريخ',
@@ -591,7 +591,7 @@ class ReportService {
                       c.patientName,
                       c.caseType.label,
                       c.nurseName,
-                      '${(c.totalPrice - c.discount).toStringAsFixed(0)}',
+                      (c.totalPrice - c.discount).toStringAsFixed(0),
                     ];
                   }),
                 ),
@@ -607,7 +607,7 @@ class ReportService {
                 ),
                 pw.SizedBox(height: 10),
 
-                pw.Table.fromTextArray(
+                pw.TableHelper.fromTextArray(
                   headers: ['التاريخ', 'التصنيف', 'البيان', 'القيمة'],
                   headerStyle: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
@@ -748,7 +748,7 @@ class ReportService {
                 ),
                 pw.SizedBox(height: 20),
 
-                pw.Table.fromTextArray(
+                pw.TableHelper.fromTextArray(
                   headers: [
                     '#',
                     'التاريخ',
@@ -774,7 +774,7 @@ class ReportService {
                       c.patientName,
                       c.caseType.label,
                       c.nurseName,
-                      '${(c.totalPrice - c.discount).toStringAsFixed(1)}',
+                      (c.totalPrice - c.discount).toStringAsFixed(1),
                     ];
                   }),
                 ),
@@ -987,7 +987,7 @@ class ReportService {
                 ),
                 pw.SizedBox(height: 10),
 
-                pw.Table.fromTextArray(
+                pw.TableHelper.fromTextArray(
                   headers: [
                     '#',
                     'اسم الموظف',
@@ -1055,7 +1055,7 @@ class ReportService {
                         ),
                       ),
                       pw.SizedBox(height: 8),
-                      pw.Table.fromTextArray(
+                      pw.TableHelper.fromTextArray(
                         headers: [
                           'التاريخ',
                           'وقت الحضور',
@@ -1281,7 +1281,7 @@ class ReportService {
           ),
           pw.SizedBox(height: 30),
 
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             headers: [
               'التاريخ',
               'وقت الحضور',
@@ -1435,7 +1435,7 @@ class ReportService {
           ),
           pw.SizedBox(height: 15),
 
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             headers: [
               '#',
               'اسم المستلزم',

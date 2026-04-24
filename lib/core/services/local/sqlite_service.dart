@@ -27,7 +27,7 @@ class SqliteService {
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 7, // ترقية لإضافة جدول الإجراءات وحل المشكلة
+        version: 10, // Added salary to users
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -57,6 +57,7 @@ class SqliteService {
         role TEXT DEFAULT 'nurse',
         isActive INTEGER DEFAULT 1,
         deviceId TEXT DEFAULT '',
+        salary REAL DEFAULT 3000.0,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
       )
@@ -163,6 +164,21 @@ class SqliteService {
       )
     ''');
 
+    // جدول المصاريف - Expenses table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS expenses (
+        id TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        amount REAL DEFAULT 0,
+        category TEXT DEFAULT '',
+        date TEXT NOT NULL,
+        notes TEXT DEFAULT '',
+        createdBy TEXT DEFAULT '',
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    ''');
+
     // جدول العمليات المعلقة (للمزامنة عند عودة الاتصال)
     // Pending sync operations table
     await db.execute('''
@@ -173,7 +189,9 @@ class SqliteService {
         docId TEXT NOT NULL,
         data TEXT NOT NULL,
         createdAt TEXT NOT NULL,
-        retryCount INTEGER DEFAULT 0
+        retryCount INTEGER DEFAULT 0,
+        lastError TEXT,
+        lastAttempt TEXT
       )
     ''');
 
@@ -194,34 +212,67 @@ class SqliteService {
 
   /// ترقية قاعدة البيانات - Upgrade database
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 7) {
-      await db.execute('DROP TABLE IF EXISTS users');
-      await db.execute('DROP TABLE IF EXISTS patients');
-      await db.execute('DROP TABLE IF EXISTS cases');
-      await db.execute('DROP TABLE IF EXISTS inventory');
-      await db.execute('DROP TABLE IF EXISTS logs');
-      await db.execute('DROP TABLE IF EXISTS settings');
-      await db.execute('DROP TABLE IF EXISTS shifts');
-      await db.execute('DROP TABLE IF EXISTS attendance');
-      await db.execute('DROP TABLE IF EXISTS pending_sync');
-      await db.execute('DROP TABLE IF EXISTS procedures');
-      await _onCreate(db, newVersion);
+    if (oldVersion < 9) {
+      // Create expenses table if it doesn't exist during upgrade
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS expenses (
+          id TEXT PRIMARY KEY,
+          label TEXT NOT NULL,
+          amount REAL DEFAULT 0,
+          category TEXT DEFAULT '',
+          date TEXT NOT NULL,
+          notes TEXT DEFAULT '',
+          createdBy TEXT DEFAULT '',
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL
+        )
+      ''');
     }
+    if (oldVersion < 10) {
+      // Add salary column to users table
+      try {
+        await db.execute('ALTER TABLE users ADD COLUMN salary REAL DEFAULT 3000.0');
+      } catch (e) {
+        // Ignore if column already exists
+      }
+    }
+  }
+
+  /// تنفيذ عملية في معاملة - Run operation in a transaction
+  Future<T> runTransaction<T>(Future<T> Function(Transaction txn) action) async {
+    final db = await database;
+    return await db.transaction(action);
   }
 
   // --- عمليات عامة - Generic Operations ---
 
-  Future<void> insert(String table, Map<String, dynamic> data) async {
+  Future<void> insert(String table, Map<String, dynamic> data, {bool overwrite = true}) async {
     final db = await database;
-    await db.insert(table, data, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      table, 
+      data, 
+      conflictAlgorithm: overwrite ? ConflictAlgorithm.replace : ConflictAlgorithm.ignore,
+    );
+  }
+
+  Future<void> update(String table, Map<String, dynamic> data, {String? where, List<Object?>? whereArgs}) async {
+    final db = await database;
+    await db.update(table, data, where: where, whereArgs: whereArgs);
+  }
+
+  Future<void> delete(String table, {String? where, List<Object?>? whereArgs}) async {
+    final db = await database;
+    await db.delete(table, where: where, whereArgs: whereArgs);
   }
 
   Future<void> insertBatch(String table, List<Map<String, dynamic>> dataList) async {
     final db = await database;
     await db.transaction((txn) async {
+      final batch = txn.batch();
       for (final data in dataList) {
-        await txn.insert(table, data, conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(table, data, conflictAlgorithm: ConflictAlgorithm.replace);
       }
+      await batch.commit(noResult: true);
     });
   }
 
@@ -252,12 +303,11 @@ class SqliteService {
 
   Future<List<Map<String, dynamic>>> getAllCases() async {
     final db = await database;
-    return await db.query('cases', orderBy: 'createdAt DESC');
+    return await db.query('cases', orderBy: 'caseDate DESC');
   }
 
   Future<void> deleteCase(String id) async {
-    final db = await database;
-    await db.delete('cases', where: 'id = ?', whereArgs: [id]);
+    await delete('cases', where: 'id = ?', whereArgs: [id]);
   }
 
   // --- الإعدادات - Settings Helpers ---
@@ -321,28 +371,34 @@ class SqliteService {
   Future<int> getPatientsCount() async {
     final db = await database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM cases');
-    return result.first['count'] as int? ?? 0;
+    return Sqflite.firstIntValue(result) ?? 0;
   }
 
   Future<int> getShiftsCount() async {
     final db = await database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM shifts');
-    return result.first['count'] as int? ?? 0;
+    return Sqflite.firstIntValue(result) ?? 0;
   }
 
   Future<int> getInventoryCount() async {
     final db = await database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM inventory');
-    return result.first['count'] as int? ?? 0;
+    return Sqflite.firstIntValue(result) ?? 0;
   }
 
   Future<int> getProceduresCount() async {
     final db = await database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM procedures');
-    return result.first['count'] as int? ?? 0;
+    return Sqflite.firstIntValue(result) ?? 0;
   }
 
-  /// إنشاء نسخة احتياطية - Create backup (stub)
+  Future<int> getPendingCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM pending_sync');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// إنشاء نسخة احتياطية - Create backup
   Future<String> createBackup() async {
     final dbPath = await _getDatabasePath();
     final appDir = await getApplicationSupportDirectory();

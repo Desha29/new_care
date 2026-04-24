@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/enums/user_role.dart';
-import '../../../../core/services/firebase/firebase_service.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../auth/data/models/user_model.dart';
+import '../../domain/repositories/users_repository.dart';
 
 class UserFormDialog extends StatefulWidget {
   final UserModel? user;
@@ -65,6 +65,8 @@ class _UserFormDialogState extends State<UserFormDialog> {
             ? _emailCtrl.text.trim()
             : '${_emailCtrl.text.trim()}@newcare.com';
 
+        final repo = sl<IUsersRepository>();
+
         if (_isEdit) {
           final updatedUser = widget.user!.copyWith(
             name: _nameCtrl.text.trim(),
@@ -73,9 +75,9 @@ class _UserFormDialogState extends State<UserFormDialog> {
             role: _role,
             updatedAt: DateTime.now(),
           );
-          await FirebaseService.instance.updateUser(updatedUser);
+          await repo.updateUser(updatedUser);
         } else {
-          final uid = await FirebaseService.instance.registerUserAuth(
+          final uid = await repo.registerUserAuth(
             email,
             _passCtrl.text.trim(),
           );
@@ -90,7 +92,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
           );
-          await FirebaseService.instance.createUser(newUser);
+          await repo.createUser(newUser);
         }
 
         if (mounted) {
@@ -102,8 +104,10 @@ class _UserFormDialogState extends State<UserFormDialog> {
           );
         }
       } catch (e) {
-        setState(() => _isSaving = false);
-        UIFeedback.showError(context, 'خطأ: ${e.toString()}');
+        if (mounted) {
+          setState(() => _isSaving = false);
+          UIFeedback.showError(context, 'خطأ: ${e.toString()}');
+        }
       }
     }
   }
