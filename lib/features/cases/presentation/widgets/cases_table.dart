@@ -6,7 +6,7 @@ import '../../../../core/widgets/buttons/icon_action_button.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../../../../core/widgets/dialogs/confirm_dialog.dart';
 import '../../data/models/case_model.dart';
-import '../../logic/cubit/cases_cubit.dart';
+import '../cubit/cases_cubit.dart';
 import '../../../invoice/presentation/screens/invoice_preview_screen.dart';
 import 'case_form_dialog.dart';
 

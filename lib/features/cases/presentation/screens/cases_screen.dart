@@ -3,10 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
-import '../../../auth/logic/cubit/auth_cubit.dart';
-import '../../../auth/logic/cubit/auth_state.dart';
-import '../../logic/cubit/cases_cubit.dart';
-import '../../logic/cubit/cases_state.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../auth/presentation/cubit/auth_state.dart';
+import '../cubit/cases_cubit.dart';
+import '../cubit/cases_state.dart';
 import '../widgets/cases_header.dart';
 import '../widgets/cases_table.dart';
 

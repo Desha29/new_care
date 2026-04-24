@@ -5,10 +5,10 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/responsive_helper.dart';
-import '../../../../core/services/firebase_service.dart';
+import '../../../../core/services/firebase/firebase_service.dart';
 import '../../data/models/user_model.dart';
-import '../../logic/cubit/auth_cubit.dart';
-import '../../logic/cubit/auth_state.dart';
+import '../cubit/auth_cubit.dart';
+import '../cubit/auth_state.dart';
 import '../../../dashboard/presentation/screens/main_layout.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -1028,3 +1028,4 @@ class _HoverUserCardState extends State<_HoverUserCard> {
     );
   }
 }
+

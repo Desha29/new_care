@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_typography.dart';
-import '../../../../core/utils/responsive_helper.dart';
-import '../../../../core/widgets/empty_state_widget.dart';
-import '../../../../core/widgets/dialogs/loading_dialog.dart';
-import '../../../auth/logic/cubit/auth_cubit.dart';
-import '../../../cases/data/models/case_model.dart';
-// For _buildStatusChip if needed or similar
-import '../../../invoice/presentation/screens/invoice_preview_screen.dart';
-import '../../../../core/services/firebase_service.dart';
-import '../../../../core/services/report_service.dart';
-import '../../../auth/logic/cubit/auth_state.dart';
-import '../../../attendance/data/models/attendance_model.dart';
+import 'package:new_care/core/constants/app_colors.dart';
+import 'package:new_care/core/constants/app_typography.dart';
+import 'package:new_care/core/utils/responsive_helper.dart';
+import 'package:new_care/core/widgets/empty_state_widget.dart';
+import 'package:new_care/core/widgets/dialogs/loading_dialog.dart';
+import 'package:new_care/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:new_care/features/auth/presentation/cubit/auth_state.dart';
+import 'package:new_care/features/cases/data/models/case_model.dart';
+import 'package:new_care/features/invoice/presentation/screens/invoice_preview_screen.dart';
+import 'package:new_care/core/services/firebase/firebase_service.dart';
+import 'package:new_care/core/services/pdf/report_service.dart';
+import 'package:new_care/features/attendance/data/models/attendance_model.dart';
 import 'report_preview_screen.dart';
 import 'package:intl/intl.dart';
 
@@ -561,3 +560,4 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
   }
 }
+

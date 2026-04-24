@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../../core/services/firebase_service.dart';
-import '../../../../core/services/sqlite_service.dart';
-import '../../../../core/services/sync_manager.dart';
+import '../../../../core/services/firebase/firebase_service.dart';
+import '../../../../core/services/local/sqlite_service.dart';
+import '../../../../core/services/sync/sync_manager.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/buttons/primary_button.dart';
 
@@ -340,3 +340,4 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
     );
   }
 }
+

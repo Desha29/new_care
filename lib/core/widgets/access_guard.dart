@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../features/auth/logic/cubit/auth_cubit.dart';
-import '../../features/auth/logic/cubit/auth_state.dart';
-import '../../features/attendance/logic/cubit/attendance_cubit.dart';
-import '../../features/attendance/logic/cubit/attendance_state.dart';
+import '../../features/auth/presentation/cubit/auth_cubit.dart';
+import '../../features/auth/presentation/cubit/auth_state.dart';
+import '../../features/attendance/presentation/cubit/attendance_cubit.dart';
+import '../../features/attendance/presentation/cubit/attendance_state.dart';
 import '../constants/app_colors.dart';
 
 /// حارس الوصول - Access Guard Widget

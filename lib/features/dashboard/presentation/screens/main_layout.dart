@@ -1,25 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/utils/responsive_helper.dart';
-import '../../../../core/widgets/sidebar_widget.dart';
-import '../../../auth/logic/cubit/auth_cubit.dart';
-import '../../../auth/logic/cubit/auth_state.dart';
-import '../../../auth/presentation/screens/login_screen.dart';
-import 'dashboard_screen.dart';
-import '../../../cases/presentation/screens/cases_screen.dart';
-import '../../../procedures/presentation/screens/procedures_screen.dart';
-import '../../../users/presentation/screens/users_screen.dart';
-import '../../../inventory/presentation/screens/inventory_screen.dart';
-import '../../../financials/presentation/screens/financials_screen.dart';
-import '../../../activity_logs/presentation/screens/logs_screen.dart';
-
-import '../../../settings/presentation/screens/settings_screen.dart';
-import '../../../settings/presentation/screens/data_status_screen.dart';
-import '../../../attendance/presentation/screens/attendance_screen.dart';
-import '../../../shifts/presentation/screens/shift_management_screen.dart';
-import '../../../payroll/presentation/screens/payroll_screen.dart';
-import '../../../reports/presentation/screens/reports_screen.dart';
+import 'package:new_care/core/constants/app_colors.dart';
+import 'package:new_care/core/utils/responsive_helper.dart';
+import 'package:new_care/core/widgets/sidebar_widget.dart';
+import 'package:new_care/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:new_care/features/auth/presentation/cubit/auth_state.dart';
+import 'package:new_care/features/auth/presentation/screens/login_screen.dart';
+import 'package:new_care/features/dashboard/presentation/screens/dashboard_screen.dart';
+import 'package:new_care/features/cases/presentation/screens/cases_screen.dart';
+import 'package:new_care/features/procedures/presentation/screens/procedures_screen.dart';
+import 'package:new_care/features/users/presentation/screens/users_screen.dart';
+import 'package:new_care/features/inventory/presentation/screens/inventory_screen.dart';
+import 'package:new_care/features/financials/presentation/screens/financials_screen.dart';
+import 'package:new_care/features/activity_logs/presentation/screens/logs_screen.dart';
+import 'package:new_care/features/settings/presentation/screens/settings_screen.dart';
+import 'package:new_care/features/settings/presentation/screens/data_status_screen.dart';
+import 'package:new_care/features/attendance/presentation/screens/attendance_screen.dart';
+import 'package:new_care/features/shifts/presentation/screens/shift_management_screen.dart';
+import 'package:new_care/features/payroll/presentation/screens/payroll_screen.dart';
+import 'package:new_care/features/reports/presentation/screens/reports_screen.dart';
 
 /// التخطيط الرئيسي - Main Layout
 /// يحتوي على الشريط الجانبي والمحتوى الرئيسي

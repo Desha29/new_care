@@ -3,7 +3,7 @@ import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/widgets/search_bar_widget.dart';
-import '../../../../core/services/local_log_service.dart';
+import '../../../../core/services/local/local_log_service.dart';
 import '../../data/models/log_model.dart';
 
 /// شاشة سجل الأنشطة - Activity Logs Screen
@@ -231,3 +231,4 @@ class _LogsScreenState extends State<LogsScreen> {
               fontWeight: FontWeight.w700,
               color: AppColors.textSecondary)));
 }
+

@@ -4,7 +4,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/ui_feedback.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../features/auth/logic/cubit/auth_cubit.dart';
+import '../../features/auth/presentation/cubit/auth_cubit.dart';
 import '../logic/connectivity_cubit.dart';
 
 /// نموذج عنصر الشريط الجانبي

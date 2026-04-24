@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../cases/data/models/case_model.dart';
-import '../../../../core/services/report_service.dart';
+import '../../../../core/services/pdf/report_service.dart';
 
 class InvoicePreviewScreen extends StatelessWidget {
   final CaseModel caseData;
@@ -416,3 +416,4 @@ class _ZigZagPainter extends CustomPainter {
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
+

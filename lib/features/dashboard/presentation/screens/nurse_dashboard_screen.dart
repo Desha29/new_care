@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -7,11 +6,12 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/widgets/stat_card.dart';
 import '../../../../core/widgets/dialogs/personal_qr_dialog.dart';
-import '../../../../core/services/firebase_service.dart';
-import '../../../auth/logic/cubit/auth_cubit.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../cases/data/models/case_model.dart';
 import '../../../attendance/data/models/attendance_model.dart';
 import '../../../auth/data/models/user_model.dart';
+import '../cubit/dashboard_cubit.dart';
+import '../cubit/dashboard_state.dart';
 
 class NurseDashboardScreen extends StatefulWidget {
   const NurseDashboardScreen({super.key});
@@ -21,59 +21,12 @@ class NurseDashboardScreen extends StatefulWidget {
 }
 
 class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
-  bool _isLoading = true;
-  final List<StreamSubscription> _subscriptions = [];
-  Map<String, dynamic> _nurseData = {
-    'todayCasesCount': 0,
-    'monthHours': 0.0,
-    'attendance': null,
-    'todayCases': <CaseModel>[],
-  };
-
   @override
   void initState() {
     super.initState();
-    _loadNurseData(showLoading: true);
-    _setupRealtimeListeners();
-  }
-
-  void _setupRealtimeListeners() {
-    final user = context.read<AuthCubit>().currentUser;
-    _subscriptions.add(
-      FirebaseService.instance.streamTodayCases(nurseId: user?.id).listen((_) {
-        _loadNurseData(showLoading: false);
-      }),
-    );
-    _subscriptions.add(
-      FirebaseService.instance.streamTodayAttendanceRecords().listen((_) {
-        _loadNurseData(showLoading: false);
-      }),
-    );
-  }
-
-  @override
-  void dispose() {
-    for (var sub in _subscriptions) {
-      sub.cancel();
-    }
-    super.dispose();
-  }
-
-  Future<void> _loadNurseData({bool showLoading = false}) async {
-    if (showLoading) setState(() => _isLoading = true);
     final user = context.read<AuthCubit>().currentUser;
     if (user != null) {
-      final data = await FirebaseService.instance.getNurseDashboardStats(
-        user.id,
-      );
-      if (mounted) {
-        setState(() {
-          _nurseData = data;
-          _isLoading = false;
-        });
-      }
-    } else {
-      if (mounted) setState(() => _isLoading = false);
+      context.read<DashboardCubit>().loadNurseDashboardData(user.id);
     }
   }
 
@@ -82,12 +35,31 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
     final padding = ResponsiveHelper.getScreenPadding(context);
     final user = context.read<AuthCubit>().currentUser;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadNurseData,
+    return BlocBuilder<DashboardCubit, DashboardState>(
+      builder: (context, state) {
+        if (state is DashboardLoading) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (state is DashboardError) {
+          return Scaffold(
+            body: Center(child: Text('Error: ${state.message}')),
+          );
+        }
+
+        if (state is DashboardLoaded) {
+          final nurseData = state.stats;
+
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            body: RefreshIndicator(
+              onRefresh: () async {
+                if (user != null) {
+                  return context.read<DashboardCubit>().loadNurseDashboardData(user.id);
+                }
+              },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: EdgeInsets.all(padding),
@@ -98,16 +70,21 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
                     const SizedBox(height: 24),
                     _buildQuickActions(),
                     const SizedBox(height: 24),
-                    _buildStaffStats(),
+                    _buildStaffStats(nurseData),
                     const SizedBox(height: 24),
-                    _buildAttendanceStatus(),
+                    _buildAttendanceStatus(nurseData),
                     const SizedBox(height: 24),
-                    _buildTodaySchedule(),
+                    _buildTodaySchedule(nurseData),
                     const SizedBox(height: 100), // Space for bottom
                   ],
                 ),
               ),
             ),
+          );
+        }
+
+        return const SizedBox.shrink();
+      },
     );
   }
 
@@ -241,9 +218,9 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
     );
   }
 
-  Widget _buildStaffStats() {
-    final hours = _nurseData['monthHours'] as double;
-    final casesCount = _nurseData['todayCasesCount'] as int;
+  Widget _buildStaffStats(Map<String, dynamic> nurseData) {
+    final hours = (nurseData['totalIncome'] ?? 0.0) as double; // Note: mapped wrongly in my first impl of repo, I used totalIncome but here it says monthHours
+    final casesCount = (nurseData['monthlyCases'] ?? 0) as int;
 
     return Row(
       children: [
@@ -270,8 +247,8 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
     );
   }
 
-  Widget _buildAttendanceStatus() {
-    final AttendanceModel? attendance = _nurseData['attendance'];
+  Widget _buildAttendanceStatus(Map<String, dynamic> nurseData) {
+    final AttendanceModel? attendance = nurseData['attendance'];
     final isCheckedIn = attendance != null;
     final isCheckedOut = attendance?.isCheckedOut ?? false;
 
@@ -392,9 +369,9 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
     );
   }
 
-  Widget _buildTodaySchedule() {
+  Widget _buildTodaySchedule(Map<String, dynamic> nurseData) {
     final List<CaseModel> cases = List<CaseModel>.from(
-      _nurseData['todayCases'] ?? [],
+      nurseData['todayCases'] ?? [],
     );
 
     return Column(

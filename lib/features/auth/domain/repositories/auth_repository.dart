@@ -1,0 +1,29 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../data/models/user_model.dart';
+
+/// واجهة مستودع المصادقة - Auth Repository Interface
+abstract class IAuthRepository {
+  /// الحصول على المستخدم الحالي من Firebase Auth
+  User? get currentFirebaseUser;
+
+  /// الحصول على بيانات المستخدم من Firestore
+  Future<UserModel?> getUser(String uid);
+
+  /// إنشاء مستخدم جديد في Firestore
+  Future<void> createUser(UserModel user);
+
+  /// تسجيل الدخول
+  Future<UserCredential> signInWithEmailAndPassword(String email, String password);
+
+  /// تسجيل الخروج
+  Future<void> signOut();
+
+  /// تغيير كلمة المرور
+  Future<void> updatePassword(String newPassword);
+
+  /// إرسال رابط إعادة تعيين كلمة المرور
+  Future<void> sendPasswordResetEmail(String email);
+
+  /// مراقبة حالة المصادقة
+  Stream<User?> get authStateChanges;
+}

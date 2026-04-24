@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../services/connectivity_service.dart';
+import 'package:new_care/core/services/network/connectivity_service.dart';
 
 enum ConnectivityStatus { online, offline }
 

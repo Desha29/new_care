@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'app.dart';
-import 'core/services/sqlite_service.dart';
-import 'core/services/connectivity_service.dart';
-import 'core/services/notification_service.dart';
+import 'core/services/local/sqlite_service.dart';
+import 'core/services/network/connectivity_service.dart';
+import 'core/services/notifications/notification_service.dart';
 import 'core/app_bloc_observer.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'firebase_options.dart';
@@ -34,3 +34,4 @@ void main() async {
 
   runApp(const NewCareApp());
 }
+

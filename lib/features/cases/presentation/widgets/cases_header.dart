@@ -7,8 +7,8 @@ import '../../../../core/widgets/search_bar_widget.dart';
 import '../../../../core/widgets/buttons/primary_button.dart';
 import 'case_form_dialog.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../logic/cubit/cases_cubit.dart';
-import '../../logic/cubit/cases_state.dart';
+import '../cubit/cases_cubit.dart';
+import '../cubit/cases_state.dart';
 
 class CasesHeader extends StatelessWidget {
   final CasesLoaded state;

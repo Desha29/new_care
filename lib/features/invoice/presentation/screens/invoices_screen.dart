@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 
-import '../../../../core/services/report_service.dart';
+import '../../../../core/services/pdf/report_service.dart';
 import '../../../../core/widgets/search_bar_widget.dart';
-import '../../../cases/logic/cubit/cases_cubit.dart';
-import '../../../cases/logic/cubit/cases_state.dart';
+import '../../../cases/presentation/cubit/cases_cubit.dart';
+import '../../../cases/presentation/cubit/cases_state.dart';
 
 class InvoicesScreen extends StatefulWidget {
   const InvoicesScreen({Key? key}) : super(key: key);
@@ -110,3 +110,4 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     );
   }
 }
+

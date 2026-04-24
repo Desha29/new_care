@@ -6,14 +6,14 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/enums/shift_role.dart';
-import '../../../../core/services/firebase_service.dart';
+import '../../../../core/services/firebase/firebase_service.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../../../../core/widgets/buttons/primary_button.dart';
 import '../../../../core/widgets/buttons/icon_action_button.dart';
-import '../../../auth/logic/cubit/auth_cubit.dart';
-import '../../../auth/logic/cubit/auth_state.dart';
-import '../../logic/cubit/shift_cubit.dart';
-import '../../logic/cubit/shift_state.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../auth/presentation/cubit/auth_state.dart';
+import '../cubit/shift_cubit.dart';
+import '../cubit/shift_state.dart';
 import '../../data/models/shift_model.dart';
 
 /// شاشة إدارة الورديات - Shift Management Screen
@@ -571,3 +571,4 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     );
   }
 }
+

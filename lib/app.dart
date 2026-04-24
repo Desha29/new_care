@@ -6,18 +6,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/logic/connectivity_cubit.dart';
 import 'core/logic/error_cubit.dart';
 import 'core/di/injection.dart';
-import 'features/auth/logic/cubit/auth_cubit.dart';
-import 'features/auth/logic/cubit/auth_state.dart';
+import 'features/auth/presentation/cubit/auth_cubit.dart';
+import 'features/auth/presentation/cubit/auth_state.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/dashboard/presentation/screens/main_layout.dart';
 
-import 'features/cases/logic/cubit/cases_cubit.dart';
-import 'features/procedures/logic/cubit/procedures_cubit.dart';
-import 'features/inventory/logic/cubit/inventory_cubit.dart';
-import 'features/financials/logic/cubit/financials_cubit.dart';
-import 'features/shifts/logic/cubit/shift_cubit.dart';
-import 'features/attendance/logic/cubit/attendance_cubit.dart';
-import 'features/payroll/logic/cubit/payroll_cubit.dart';
+import 'features/cases/presentation/cubit/cases_cubit.dart';
+import 'features/procedures/presentation/cubit/procedures_cubit.dart';
+import 'features/inventory/presentation/cubit/inventory_cubit.dart';
+import 'features/financials/presentation/cubit/financials_cubit.dart';
+import 'features/shifts/presentation/cubit/shift_cubit.dart';
+import 'features/attendance/presentation/cubit/attendance_cubit.dart';
+import 'features/payroll/presentation/cubit/payroll_cubit.dart';
+import 'features/dashboard/presentation/cubit/dashboard_cubit.dart';
 
 class NewCareApp extends StatelessWidget {
   const NewCareApp({super.key});
@@ -36,6 +37,7 @@ class NewCareApp extends StatelessWidget {
         BlocProvider(create: (_) => sl<ShiftCubit>()),
         BlocProvider(create: (_) => sl<AttendanceCubit>()),
         BlocProvider(create: (_) => sl<PayrollCubit>()),
+        BlocProvider(create: (_) => sl<DashboardCubit>()),
       ],
       child: MaterialApp(
         title: AppStrings.appName,

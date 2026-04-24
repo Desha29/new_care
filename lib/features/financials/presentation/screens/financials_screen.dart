@@ -2,19 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_strings.dart';
-import '../../../../core/constants/app_typography.dart';
-import '../../../../core/widgets/stat_card.dart';
-import '../../../../core/widgets/empty_state_widget.dart';
-import '../../../../core/widgets/buttons/primary_button.dart';
-import '../../../../core/widgets/buttons/icon_action_button.dart';
-import '../../../../core/services/report_service.dart';
-import '../../../../core/services/firebase_service.dart';
-import '../../../reports/presentation/screens/report_preview_screen.dart';
-import '../../logic/cubit/financials_cubit.dart';
+import '../../../../core/di/injection.dart';
+import '../../domain/repositories/financials_repository.dart';
 import '../../data/models/expense_model.dart';
-import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../cubit/financials_cubit.dart';
+import '../widgets/financials_header.dart';
+import '../widgets/financials_stats.dart';
+import '../widgets/expenses_table.dart';
+import '../widgets/income_summary.dart';
+import '../widgets/add_expense_dialog.dart';
 
 class FinancialsScreen extends StatelessWidget {
   const FinancialsScreen({super.key});
@@ -22,7 +18,8 @@ class FinancialsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => FinancialsCubit()..loadFinancials(),
+      create: (context) =>
+          FinancialsCubit(financialsRepository: sl<IFinancialsRepository>())..loadFinancials(),
       child: const _FinancialsView(),
     );
   }
@@ -60,24 +57,38 @@ class _FinancialsView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(context, state),
+                  FinancialsHeader(
+                    state: state,
+                    onAddExpense: () => AddExpenseDialog.show(context, context.read<FinancialsCubit>()),
+                  ),
                   const SizedBox(height: 24),
-                  _buildStats(context, state),
+                  FinancialsStats(state: state),
                   const SizedBox(height: 24),
                   if (isSmall) ...[
-                    _buildExpensesTable(context, state),
+                    ExpensesTable(
+                      state: state,
+                      onDelete: (e) => _confirmDelete(context, e),
+                      onAdd: () => AddExpenseDialog.show(context, context.read<FinancialsCubit>()),
+                    ),
                     const SizedBox(height: 20),
-                    _buildIncomeSummary(state),
+                    IncomeSummary(state: state),
                   ] else
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           flex: 3,
-                          child: _buildExpensesTable(context, state),
+                          child: ExpensesTable(
+                            state: state,
+                            onDelete: (e) => _confirmDelete(context, e),
+                            onAdd: () => AddExpenseDialog.show(context, context.read<FinancialsCubit>()),
+                          ),
                         ),
                         const SizedBox(width: 20),
-                        Expanded(flex: 2, child: _buildIncomeSummary(state)),
+                        Expanded(
+                          flex: 2,
+                          child: IncomeSummary(state: state),
+                        ),
                       ],
                     ),
                 ],
@@ -87,451 +98,6 @@ class _FinancialsView extends StatelessWidget {
 
           return const Center(child: Text('حدث خطأ في عرض البيانات المادية'));
         },
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, FinancialsLoaded state) {
-    final isMobile = ResponsiveHelper.isMobile(context);
-    final titleSize = ResponsiveHelper.getTitleFontSize(context);
-
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'التقارير المالية',
-              style: AppTypography.pageTitle.copyWith(fontSize: titleSize),
-            ),
-            Text(
-              'إدارة الدخل والمصروفات والأرباح - ${DateFormat('MMMM yyyy', 'ar').format(DateTime.now())}',
-              style: AppTypography.pageSubtitle.copyWith(
-                fontSize: ResponsiveHelper.getSubtitleFontSize(context),
-              ),
-            ),
-          ],
-        ),
-        Wrap(
-          spacing: 12,
-          runSpacing: 8,
-          children: [
-            OutlinedButton.icon(
-              onPressed: () {
-                final now = DateTime.now();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ReportPreviewScreen(
-                      title:
-                          'التقرير المالي - ${DateFormat('MMMM yyyy', 'ar').format(now)}',
-                      fileName:
-                          'Financial_Report_${DateFormat('yyyy_MM').format(now)}',
-                      buildReport: () =>
-                          ReportService.instance.generateFinancialReportBytes(
-                            cases: state.cases,
-                            expenses: state.expenses,
-                            start: DateTime(now.year, now.month, 1),
-                            end: now,
-                          ),
-                    ),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-              label: Text(
-                isMobile ? 'PDF' : 'تقرير PDF مجمع',
-                style: const TextStyle(fontFamily: 'Cairo'),
-              ),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-            ),
-            PrimaryButton(
-              label: isMobile ? 'إضافة' : 'إضافة مصروف',
-              icon: Icons.add_rounded,
-              onPressed: () => _showAddExpenseDialog(context),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStats(BuildContext context, FinancialsLoaded state) {
-    final columns = ResponsiveHelper.isMobile(context) ? 1 : 3;
-    return GridView.count(
-      crossAxisCount: columns,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: ResponsiveHelper.isMobile(context) ? 2.8 : 2.0,
-      children: [
-        StatCard(
-          title: 'إجمالي الدخل',
-          value:
-              '${state.totalIncome.toStringAsFixed(0)} ${AppStrings.currency}',
-          icon: Icons.trending_up_rounded,
-          color: AppColors.success,
-          subtitle: 'من الحالات المؤكدة',
-        ),
-        StatCard(
-          title: 'إجمالي المصروفات',
-          value:
-              '${state.totalExpenses.toStringAsFixed(0)} ${AppStrings.currency}',
-          icon: Icons.trending_down_rounded,
-          color: AppColors.error,
-          subtitle: 'تكاليف وشراء مستلزمات',
-        ),
-        StatCard(
-          title: 'صافي الربح',
-          value: '${state.netProfit.toStringAsFixed(0)} ${AppStrings.currency}',
-          icon: Icons.account_balance_wallet_rounded,
-          color: AppColors.primary,
-          subtitle: 'الأرباح القابلة للتوزيع',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildExpensesTable(BuildContext context, FinancialsLoaded state) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'سجل المصروفات',
-            style: TextStyle(
-              fontFamily: 'Cairo',
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 20),
-          if (state.expenses.isEmpty)
-            EmptyStateWidget(
-              icon: Icons.receipt_long_rounded,
-              title: 'لا توجد مصروفات سجلت',
-              subtitle: 'يمكنك إضافة مصروفات جديدة لتتبع التكاليف',
-              actionLabel: 'إضافة مصروف',
-              onAction: () => _showAddExpenseDialog(context),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: state.expenses.length,
-              separatorBuilder: (context, index) => const Divider(),
-              itemBuilder: (context, i) {
-                final e = state.expenses[i];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.payment_rounded,
-                          color: AppColors.error,
-                          size: 18,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              e.label,
-                              style: const TextStyle(
-                                fontFamily: 'Cairo',
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                            Text(
-                              e.category,
-                              style: const TextStyle(
-                                fontFamily: 'Cairo',
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${e.amount} ${AppStrings.currency}',
-                            style: const TextStyle(
-                              fontFamily: 'Cairo',
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.error,
-                            ),
-                          ),
-                          Text(
-                            DateFormat('dd/MM/yyyy').format(e.date),
-                            style: const TextStyle(
-                              fontFamily: 'Cairo',
-                              fontSize: 10,
-                              color: AppColors.textHint,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 8),
-                      IconActionButton.delete(
-                        onPressed: () => _confirmDelete(context, e),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIncomeSummary(FinancialsLoaded state) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'نظرة على الدخل',
-            style: TextStyle(
-              fontFamily: 'Cairo',
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 20),
-          _incomeRow(
-            'حالات اليوم',
-            state.cases
-                .where((c) => c.caseDate.day == DateTime.now().day)
-                .length
-                .toString(),
-            AppColors.primary,
-          ),
-          const SizedBox(height: 12),
-          _incomeRow(
-            'إجمالي الحالات',
-            state.cases.length.toString(),
-            AppColors.success,
-          ),
-          const SizedBox(height: 30),
-          const Divider(),
-          const SizedBox(height: 20),
-          const Text(
-            'توزيع الدخل حسب نوع الحالة',
-            style: TextStyle(
-              fontFamily: 'Cairo',
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 15),
-          // توزيع مبسط كنسبة
-          _progressRow(
-            'داخل المركز',
-            state.cases.where((c) => c.caseType.name == 'inCenter').length,
-            state.cases.length,
-            AppColors.info,
-          ),
-          const SizedBox(height: 10),
-          _progressRow(
-            'زيارات منزلية',
-            state.cases.where((c) => c.caseType.name == 'homeVisit').length,
-            state.cases.length,
-            AppColors.warning,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _incomeRow(String label, String value, Color color) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontFamily: 'Cairo',
-            color: AppColors.textSecondary,
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontFamily: 'Cairo',
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _progressRow(String label, int count, int total, Color color) {
-    double pr = total == 0 ? 0 : count / total;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontFamily: 'Cairo', fontSize: 12),
-            ),
-            Text(
-              '$count',
-              style: const TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        LinearProgressIndicator(
-          value: pr,
-          color: color,
-          backgroundColor: color.withValues(alpha: 0.1),
-          minHeight: 6,
-          borderRadius: BorderRadius.circular(4),
-        ),
-      ],
-    );
-  }
-
-  void _showAddExpenseDialog(BuildContext context) {
-    final cubit = context.read<FinancialsCubit>();
-    final formKey = GlobalKey<FormState>();
-    final labelCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
-    final noteCtrl = TextEditingController();
-    String category = 'مرتبات';
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'إضافة مصروف جديد',
-          style: TextStyle(fontFamily: 'Cairo'),
-        ),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                value: category,
-                items:
-                    [
-                          'مرتبات',
-                          'إيجار',
-                          'مستلزمات طبية',
-                          'كهرباء ومياه',
-                          'صيانة',
-                          'أخرى',
-                        ]
-                        .map(
-                          (c) => DropdownMenuItem(
-                            value: c,
-                            child: Text(
-                              c,
-                              style: const TextStyle(fontFamily: 'Cairo'),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (v) => category = v!,
-                decoration: const InputDecoration(labelText: 'التصنيف'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: labelCtrl,
-                decoration: const InputDecoration(labelText: 'الوصف أو البند'),
-                validator: (v) => v!.isEmpty ? 'مطلوب' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: amountCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'المبلغ'),
-                validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0
-                    ? 'مبلغ غير صحيح'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: noteCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'ملاحظات (اختياري)',
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                final user = FirebaseAuth.instance.currentUser;
-                final expense = ExpenseModel(
-                  id: FirebaseService.instance.generateId(),
-                  category: category,
-                  label: labelCtrl.text.trim(),
-                  amount: double.parse(amountCtrl.text),
-                  date: DateTime.now(),
-                  createdBy: user?.uid ?? 'system',
-                  notes: noteCtrl.text.trim(),
-                );
-                cubit.addExpense(expense);
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('حفظ', style: TextStyle(fontFamily: 'Cairo')),
-          ),
-        ],
       ),
     );
   }

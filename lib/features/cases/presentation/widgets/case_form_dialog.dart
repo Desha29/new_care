@@ -2,18 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/enums/case_status.dart'; // Desktop stores CaseType here
-import '../../../../core/services/firebase_service.dart';
+import '../../../../core/services/firebase/firebase_service.dart';
 import '../../../../core/widgets/buttons/primary_button.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../inventory/data/models/inventory_model.dart';
-import '../../../inventory/logic/cubit/inventory_cubit.dart';
-import '../../../inventory/logic/cubit/inventory_state.dart';
-import '../../../invoice/logic/cubit/invoice_cubit.dart';
+import '../../../inventory/presentation/cubit/inventory_cubit.dart';
+import '../../../inventory/presentation/cubit/inventory_state.dart';
+import '../../../invoice/presentation/cubit/invoice_cubit.dart';
+import '../../../../core/di/injection.dart';
+import '../../../invoice/domain/repositories/invoice_repository.dart';
 import '../../../procedures/data/models/procedure_model.dart';
-import '../../../procedures/logic/cubit/procedures_cubit.dart';
-import '../../../procedures/logic/cubit/procedures_state.dart';
+import '../../../procedures/presentation/cubit/procedures_cubit.dart';
+import '../../../procedures/presentation/cubit/procedures_state.dart';
 import '../../data/models/case_model.dart';
-import '../../logic/cubit/cases_cubit.dart';
+import '../cubit/cases_cubit.dart';
 import 'package:uuid/uuid.dart' as uuid;
 
 class CaseFormDialog extends StatefulWidget {
@@ -149,7 +151,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => InvoiceCubit(initialCase: widget.caseData),
+      create: (context) => InvoiceCubit(invoiceRepository: sl<IInvoiceRepository>(), initialCase: widget.caseData),
       child: PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, result) async {
@@ -771,3 +773,4 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
     );
   }
 }
+

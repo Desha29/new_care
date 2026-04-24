@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/services/sqlite_service.dart';
+import '../../../../core/services/local/sqlite_service.dart';
 
 /// شاشة الإعدادات - Settings Screen
 class SettingsScreen extends StatefulWidget {
@@ -579,3 +579,4 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
+
