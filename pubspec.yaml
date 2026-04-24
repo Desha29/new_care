@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # Firebase
   firebase_core: ^3.12.1
@@ -35,6 +37,8 @@ dependencies:
   # Printing & PDF
   pdf: ^3.11.3
   printing: ^5.14.2
+  arabic_reshaper: ^0.0.1
+  bidi: ^2.0.13
 
   # Utilities
   intl: ^0.20.2
@@ -50,6 +54,7 @@ dependencies:
   flutter_local_notifications: ^21.0.0
   local_notifier: ^0.1.6
   qr_flutter: ^4.1.0
+  mobile_scanner: ^7.2.0
   window_manager: ^0.5.1
 
 dev_dependencies:

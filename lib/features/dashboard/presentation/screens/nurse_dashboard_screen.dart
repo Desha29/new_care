@@ -5,15 +5,17 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/widgets/stat_card.dart';
-import '../../../../core/widgets/dialogs/personal_qr_dialog.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../cases/data/models/case_model.dart';
-import '../../../attendance/data/models/attendance_model.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../cubit/dashboard_cubit.dart';
 import '../cubit/dashboard_state.dart';
 import '../../../cases/presentation/widgets/case_form_dialog.dart';
 import '../../../cases/presentation/cubit/cases_cubit.dart';
+import '../../../cases/presentation/cubit/cases_state.dart';
+import 'package:new_care/features/attendance/presentation/widgets/attendance_scanner_dialog.dart';
+import 'package:new_care/features/attendance/presentation/cubit/attendance_cubit.dart';
+import 'package:new_care/features/attendance/presentation/cubit/attendance_state.dart';
 
 class NurseDashboardScreen extends StatefulWidget {
   const NurseDashboardScreen({super.key});
@@ -46,9 +48,7 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
         }
 
         if (state is DashboardError) {
-          return Scaffold(
-            body: Center(child: Text('Error: ${state.message}')),
-          );
+          return Scaffold(body: Center(child: Text('Error: ${state.message}')));
         }
 
         if (state is DashboardLoaded) {
@@ -59,7 +59,10 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
             body: RefreshIndicator(
               onRefresh: () async {
                 if (user != null) {
-                  return context.read<DashboardCubit>().loadNurseDashboardData(user.id);
+                  return context.read<DashboardCubit>().loadNurseDashboardData(
+                    user.id,
+                    force: true,
+                  );
                 }
               },
               child: SingleChildScrollView(
@@ -76,11 +79,37 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
                           const SizedBox(height: 24),
                           _buildQuickActions(),
                           const SizedBox(height: 24),
-                          _buildStaffStats(nurseData),
+                          // Reactive Stats
+                          BlocBuilder<CasesCubit, CasesState>(
+                            builder: (context, casesState) {
+                              return BlocBuilder<
+                                AttendanceCubit,
+                                AttendanceState
+                              >(
+                                builder: (context, attState) {
+                                  return _buildStaffStats(
+                                    nurseData,
+                                    casesState,
+                                    attState,
+                                  );
+                                },
+                              );
+                            },
+                          ),
                           const SizedBox(height: 24),
-                          _buildAttendanceStatus(nurseData),
+                          // Reactive Attendance Status
+                          BlocBuilder<AttendanceCubit, AttendanceState>(
+                            builder: (context, state) {
+                              return _buildAttendanceStatus(state);
+                            },
+                          ),
                           const SizedBox(height: 24),
-                          _buildTodaySchedule(nurseData),
+                          // Reactive Today's Schedule
+                          BlocBuilder<CasesCubit, CasesState>(
+                            builder: (context, state) {
+                              return _buildTodaySchedule(state);
+                            },
+                          ),
                           const SizedBox(height: 100), // Space for bottom
                         ],
                       ),
@@ -100,7 +129,7 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
   Widget _buildQuickActions() {
     final isDesktop = ResponsiveHelper.isDesktop(context);
     final isTablet = ResponsiveHelper.isTablet(context);
-    
+
     return GridView.count(
       crossAxisCount: isDesktop ? 4 : (isTablet ? 2 : 2),
       shrinkWrap: true,
@@ -125,33 +154,6 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
                 child: const CaseFormDialog(),
               ),
             );
-          },
-        ),
-        _actionButton(
-          label: 'تسجيل حضور',
-          icon: Icons.qr_code_scanner_rounded,
-          color: AppColors.info,
-          onTap: () {
-            final user = context.read<AuthCubit>().currentUser;
-            if (user != null) {
-              PersonalQrDialog.show(context, user);
-            }
-          },
-        ),
-        _actionButton(
-          label: 'المخزون',
-          icon: Icons.inventory_2_rounded,
-          color: Colors.orange,
-          onTap: () {
-            // Logic to switch to inventory tab if needed
-          },
-        ),
-        _actionButton(
-          label: 'التقارير',
-          icon: Icons.analytics_rounded,
-          color: Colors.purple,
-          onTap: () {
-            // Logic to switch to reports tab if needed
           },
         ),
       ],
@@ -237,8 +239,66 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
             ),
           ],
         ),
-        _buildDateChip(),
+        Row(
+          children: [
+            _buildDateChip(),
+            const SizedBox(width: 12),
+            if (user != null)
+              IconButton.filledTonal(
+                onPressed: () => _showPersonalQr(user),
+                icon: const Icon(Icons.qr_code_rounded, size: 20),
+                tooltip: 'كودي الشخصي',
+              ),
+          ],
+        ),
       ],
+    );
+  }
+
+  void _showPersonalQr(UserModel user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'كودي الشخصي',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Image.network(
+                'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${user.id}',
+                width: 200,
+                height: 200,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              user.name,
+              style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+            ),
+            const Text(
+              'امسح الكود لتسجيل الحضور/الانصراف',
+              style: TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق', style: TextStyle(fontFamily: 'Cairo')),
+          ),
+        ],
+      ),
     );
   }
 
@@ -273,98 +333,118 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
     );
   }
 
-  Widget _buildStaffStats(Map<String, dynamic> nurseData) {
-    final hours = (nurseData['totalIncome'] ?? 0.0) as double;
-    final casesCount = (nurseData['todayCases'] ?? 0) as int;
-    
-    final isDesktop = ResponsiveHelper.isDesktop(context);
-    final isTablet = ResponsiveHelper.isTablet(context);
+  Widget _buildStaffStats(
+    Map<String, dynamic> nurseData,
+    CasesState casesState,
+    AttendanceState attState,
+  ) {
+    int casesCount = 0;
+    if (casesState is CasesLoaded) {
+      final now = DateTime.now();
+      final user = context.read<AuthCubit>().currentUser;
+      casesCount = casesState.cases.where((c) {
+        return c.nurseId == user?.id &&
+            c.caseDate.year == now.year &&
+            c.caseDate.month == now.month &&
+            c.caseDate.day == now.day;
+      }).length;
+    } else {
+      casesCount = (nurseData['todayCases'] ?? 0) as int;
+    }
 
-    return GridView.count(
-      crossAxisCount: isDesktop ? 4 : (isTablet ? 2 : 1),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 16,
-      crossAxisSpacing: 16,
-      childAspectRatio: isDesktop ? 1.4 : 2.5,
-      children: [
-        StatCard(
-          title: 'حالات اليوم',
-          value: '$casesCount',
-          icon: Icons.assignment_ind_rounded,
-          color: AppColors.primary,
-          subtitle: 'حالة مكلف بها',
-          onTap: () {
-            // Navigate to detailed list or cases tab
-          },
-        ),
-        StatCard(
-          title: 'ساعات العمل',
-          value: '${hours.toStringAsFixed(1)} h',
-          icon: Icons.timer_rounded,
-          color: AppColors.success,
-          subtitle: 'هذا الشهر',
-          onTap: () {
-            // Navigate to payroll/hours detail
-          },
-        ),
-        if (isDesktop || isTablet) ...[
-          StatCard(
-            title: 'الراتب التقديري',
-            value: '---',
-            icon: Icons.payments_rounded,
-            color: Colors.amber,
-            subtitle: 'شامل المكافآت',
-          ),
-          StatCard(
-            title: 'التقييم',
-            value: '5.0',
-            icon: Icons.star_rounded,
-            color: Colors.orange,
-            subtitle: 'أداء متميز',
-          ),
-        ],
-      ],
+    double hours = (nurseData['monthlyHours'] ?? 0.0) as double;
+    if (attState is AttendanceLoaded &&
+        attState.todayRecord != null &&
+        !attState.todayRecord!.isCheckedOut) {
+      final diff = DateTime.now().difference(attState.todayRecord!.checkInTime);
+      hours += diff.inMinutes / 60.0;
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth > 800;
+        final isTablet =
+            constraints.maxWidth > 500 && constraints.maxWidth <= 800;
+
+        return GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: isDesktop ? 4 : (isTablet ? 2 : 2),
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+          childAspectRatio: isDesktop ? 1.5 : 1.2,
+          children: [
+            StatCard(
+              title: 'حالات اليوم',
+              value: '$casesCount',
+              icon: Icons.assignment_ind_rounded,
+              color: AppColors.primary,
+              subtitle: 'حالة مكلف بها',
+              onTap: () {},
+            ),
+            StatCard(
+              title: 'ساعات العمل',
+              value: '${hours.toStringAsFixed(1)} h',
+              icon: Icons.timer_rounded,
+              color: AppColors.success,
+              subtitle: 'هذا الشهر',
+              onTap: () {},
+            ),
+            StatCard(
+              title: 'الراتب التقديري',
+              value:
+                  '${(nurseData['estimatedSalary'] ?? 0.0).toStringAsFixed(0)} EGP',
+              icon: Icons.account_balance_wallet_rounded,
+              color: AppColors.secondary,
+              subtitle: 'حتى الآن',
+              onTap: () {},
+            ),
+            StatCard(
+              title: 'تقييم الأداء',
+              value: '4.8',
+              icon: Icons.star_rounded,
+              color: Colors.amber,
+              subtitle: 'بناءً على 12 تقييم',
+              onTap: () {},
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildAttendanceStatus(Map<String, dynamic> nurseData) {
-    final AttendanceModel? attendance = nurseData['attendance'];
-    final isCheckedIn = attendance != null;
-    final isCheckedOut = attendance?.isCheckedOut ?? false;
+  Widget _buildAttendanceStatus(AttendanceState state) {
+    bool isCheckedIn = false;
+    DateTime? checkInTime;
+    DateTime? checkOutTime;
+
+    if (state is AttendanceLoaded) {
+      isCheckedIn = state.isCheckedIn;
+      checkInTime = state.todayRecord?.checkInTime;
+      checkOutTime = state.todayRecord?.checkOutTime;
+    }
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppColors.cardShadow,
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isCheckedOut
-                  ? Colors.grey.withValues(alpha: 0.1)
-                  : (isCheckedIn ? AppColors.success : AppColors.primary).withValues(alpha: 0.1),
+              color: (isCheckedIn ? AppColors.success : AppColors.error)
+                  .withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
-              isCheckedOut
-                  ? Icons.done_all_rounded
-                  : (isCheckedIn ? Icons.timer_rounded : Icons.timer_outlined),
-              color: isCheckedOut
-                  ? Colors.grey
-                  : (isCheckedIn ? AppColors.success : AppColors.primary),
-              size: 28,
+              isCheckedIn ? Icons.check_circle_rounded : Icons.cancel_rounded,
+              color: isCheckedIn ? AppColors.success : AppColors.error,
+              size: 32,
             ),
           ),
           const SizedBox(width: 20),
@@ -373,9 +453,9 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isCheckedOut
-                      ? 'انتهت فترة العمل'
-                      : (isCheckedIn ? 'أنت قيد العمل حالياً' : 'لم يتم تسجيل الحضور بعد'),
+                  isCheckedIn
+                      ? 'أنت في نوبة عمل الآن'
+                      : 'لم يتم تسجيل الحضور بعد',
                   style: const TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 18,
@@ -384,55 +464,67 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  isCheckedOut
-                      ? 'تم تسجيل الانصراف بنجاح'
-                      : (isCheckedIn ? 'نأمل لك يوماً سعيداً في العمل' : 'يرجى مسح الـ QR عند الوصول'),
-                  style: const TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
+                if (isCheckedIn && checkInTime != null)
+                  Text(
+                    'تم تسجيل الدخول الساعة ${DateFormat('hh:mm a', 'ar').format(checkInTime)}',
+                    style: const TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  )
+                else
+                  const Text(
+                    'برجاء مسح كود المركز لبدء الوردية',
+                    style: TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
+              ],
+            ),
+          ),
+          if (isCheckedIn && checkOutTime == null)
+            ElevatedButton.icon(
+              onPressed: () {
+                final user = context.read<AuthCubit>().currentUser;
+                if (user != null) {
+                  AttendanceScannerDialog.show(context, user);
+                }
+              },
+              icon: const Icon(Icons.logout_rounded, size: 18),
+              label: const Text('تسجيل انصراف'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error.withValues(alpha: 0.1),
+                foregroundColor: AppColors.error,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
-              ],
-            ),
-          ),
-          if (isCheckedIn)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _attendanceInfoSmall('حضر في', attendance.checkInTime),
-                if (isCheckedOut)
-                  _attendanceInfoSmall('انصرف في', attendance.checkOutTime!),
-              ],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
         ],
       ),
     );
   }
 
-  Widget _attendanceInfoSmall(String label, DateTime time) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        children: [
-          Text(
-            '$label: ',
-            style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary),
-          ),
-          Text(
-            DateFormat('hh:mm a', 'ar').format(time),
-            style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTodaySchedule(Map<String, dynamic> nurseData) {
-    final List<CaseModel> cases = List<CaseModel>.from(
-      nurseData['todayCasesList'] ?? [],
-    );
+  Widget _buildTodaySchedule(CasesState state) {
+    List<CaseModel> todayCases = [];
+    if (state is CasesLoaded) {
+      final now = DateTime.now();
+      final user = context.read<AuthCubit>().currentUser;
+      todayCases = state.cases.where((c) {
+        return c.nurseId == user?.id &&
+            c.caseDate.year == now.year &&
+            c.caseDate.month == now.month &&
+            c.caseDate.day == now.day;
+      }).toList();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -444,14 +536,13 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
               'جدول حالات اليوم',
               style: TextStyle(
                 fontFamily: 'Cairo',
-                fontWeight: FontWeight.bold,
                 fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
               ),
             ),
             TextButton(
-              onPressed: () {
-                // Navigate to Cases screen with personal filter?
-              },
+              onPressed: () {},
               child: const Text(
                 'عرض الكل',
                 style: TextStyle(fontFamily: 'Cairo'),
@@ -460,25 +551,25 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        if (cases.isEmpty)
+        if (todayCases.isEmpty)
           Container(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.all(40),
             width: double.infinity,
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(color: AppColors.border),
             ),
-            child: Column(
+            child: const Column(
               children: [
                 Icon(
-                  Icons.event_available_rounded,
+                  Icons.event_note_rounded,
+                  color: AppColors.textHint,
                   size: 48,
-                  color: AppColors.textHint.withValues(alpha: 0.5),
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'لا يوجد حالات مسجلة لك اليوم',
+                SizedBox(height: 12),
+                Text(
+                  'لا توجد حالات مجدولة لليوم',
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     color: AppColors.textSecondary,
@@ -491,18 +582,18 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: cases.length,
+            itemCount: todayCases.length,
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
-              final c = cases[index];
-              return _buildCaseStep(c);
+              final c = todayCases[index];
+              return _buildScheduleItem(c);
             },
           ),
       ],
     );
   }
 
-  Widget _buildCaseStep(CaseModel c) {
+  Widget _buildScheduleItem(CaseModel c) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

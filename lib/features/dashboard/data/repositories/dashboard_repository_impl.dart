@@ -14,8 +14,16 @@ class DashboardRepositoryImpl implements IDashboardRepository {
     : _casesRepository = casesRepository;
 
   @override
-  Future<Map<String, dynamic>> getDashboardStats() async {
-    final todayCases = await _casesRepository.getTodayCases();
+  Future<Map<String, dynamic>> getDashboardStats({DateTime? date}) async {
+    final targetDate = date ?? DateTime.now();
+    final allCases = await _casesRepository.getAllCases();
+    
+    final todayCases = allCases.where((c) => 
+      c.caseDate.year == targetDate.year && 
+      c.caseDate.month == targetDate.month && 
+      c.caseDate.day == targetDate.day
+    ).toList();
+    
     final totalPatients = await _local.getPatientsCount();
 
     // Get active nurses from local users cache
@@ -41,9 +49,9 @@ class DashboardRepositoryImpl implements IDashboardRepository {
   }
 
   @override
-  Future<Map<String, dynamic>> getNurseDashboardStats(String nurseId) async {
-    final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1);
+  Future<Map<String, dynamic>> getNurseDashboardStats(String nurseId, {DateTime? date}) async {
+    final targetDate = date ?? DateTime.now();
+    final startOfMonth = DateTime(targetDate.year, targetDate.month, 1);
 
     // Read from local for speed
     final allNurseCases = await _casesRepository.getNurseCases(nurseId);
@@ -58,20 +66,20 @@ class DashboardRepositoryImpl implements IDashboardRepository {
     final todayCases = allNurseCases
         .where(
           (c) =>
-              c.caseDate.year == now.year &&
-              c.caseDate.month == now.month &&
-              c.caseDate.day == now.day,
+              c.caseDate.year == targetDate.year &&
+              c.caseDate.month == targetDate.month &&
+              c.caseDate.day == targetDate.day,
         )
         .toList();
 
     // Attendance status from local
     final db = await _local.database;
-    final todayStr =
-        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final dateStr =
+        '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
     final attendanceResults = await db.query(
       'attendance',
       where: 'userId = ? AND date = ?',
-      whereArgs: [nurseId, todayStr],
+      whereArgs: [nurseId, dateStr],
       orderBy: 'checkInTime DESC',
       limit: 1,
     );

@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/local/local_log_service.dart';
@@ -20,17 +21,35 @@ class CasesCubit extends Cubit<CasesState> {
         _syncManager = syncManager ?? SyncManager.instance,
         super(CasesInitial());
 
+  StreamSubscription? _casesSub;
+
+  @override
+  Future<void> close() {
+    _casesSub?.cancel();
+    return super.close();
+  }
+
   Future<void> loadCases({String? nurseId, bool force = false}) async {
     if (!force && state is CasesLoaded) return;
     
     emit(CasesLoading());
-    try {
-      final cases = await _casesRepository.getAllCases(nurseId: nurseId);
-      cases.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      emit(CasesLoaded(cases: cases));
-    } catch (e) {
-      emit(CasesError('خطأ في تحميل الحالات: ${e.toString()}'));
-    }
+    _casesSub?.cancel();
+    _casesSub = _casesRepository.streamAllCases(nurseId: nurseId).listen(
+      (cases) {
+        final sortedCases = List<CaseModel>.from(cases)
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        
+        if (state is CasesLoaded) {
+          final s = state as CasesLoaded;
+          emit(s.copyWith(cases: sortedCases));
+        } else {
+          emit(CasesLoaded(cases: sortedCases));
+        }
+      },
+      onError: (e) {
+        emit(CasesError('خطأ في تحميل الحالات: ${e.toString()}'));
+      },
+    );
   }
 
   void searchCases(String query) {

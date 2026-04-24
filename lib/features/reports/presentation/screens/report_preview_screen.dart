@@ -21,33 +21,14 @@ class ReportPreviewScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(title, style: const TextStyle(fontFamily: 'Cairo')),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share_rounded),
-            onPressed: () async {
-              final bytes = await buildReport();
-              await Printing.sharePdf(bytes: bytes, filename: '$fileName.pdf');
-            },
-            tooltip: 'مشاركة',
-          ),
-          IconButton(
-            icon: const Icon(Icons.print_rounded),
-            onPressed: () async {
-              final bytes = await buildReport();
-              await Printing.layoutPdf(
-                onLayout: (format) async => bytes,
-                name: fileName,
-              );
-            },
-            tooltip: 'طباعة',
-          ),
-          const SizedBox(width: 8),
+        actions: const [
+          SizedBox(width: 8),
         ],
       ),
       body: PdfPreview(
         build: (format) => buildReport(),
-        allowSharing: true,
-        allowPrinting: true,
+        allowSharing: false,
+        allowPrinting: false,
         canChangePageFormat: false,
         canChangeOrientation: false,
         canDebug: false,
@@ -55,20 +36,40 @@ class ReportPreviewScreen extends StatelessWidget {
         pdfFileName: fileName,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final bytes = await buildReport();
-          await Printing.layoutPdf(
-            onLayout: (format) async => bytes,
-            name: fileName,
-          );
-        },
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.print_rounded, color: Colors.white),
-        label: const Text(
-          'طباعة التقرير',
-          style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'print',
+            onPressed: () async {
+              final bytes = await buildReport();
+              await Printing.layoutPdf(
+                onLayout: (format) async => bytes,
+                name: fileName,
+              );
+            },
+            backgroundColor: AppColors.primary,
+            icon: const Icon(Icons.print_rounded, color: Colors.white),
+            label: const Text(
+              'طباعة التقرير',
+              style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(width: 16),
+          FloatingActionButton.extended(
+            heroTag: 'share',
+            onPressed: () async {
+              final bytes = await buildReport();
+              await Printing.sharePdf(bytes: bytes, filename: '$fileName.pdf');
+            },
+            backgroundColor: AppColors.secondary,
+            icon: const Icon(Icons.share_rounded, color: Colors.white),
+            label: const Text(
+              'مشاركة التقرير',
+              style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
   }

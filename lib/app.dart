@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/constants/app_theme.dart';
 import 'core/constants/app_strings.dart';
 import 'core/constants/app_colors.dart';
@@ -19,8 +20,11 @@ import 'features/shifts/presentation/cubit/shift_cubit.dart';
 import 'features/attendance/presentation/cubit/attendance_cubit.dart';
 import 'features/payroll/presentation/cubit/payroll_cubit.dart';
 import 'features/dashboard/presentation/cubit/dashboard_cubit.dart';
+import 'features/attendance/presentation/cubit/attendance_state.dart';
 
 class NewCareApp extends StatelessWidget {
+  static final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
+  
   const NewCareApp({super.key});
 
   @override
@@ -43,6 +47,17 @@ class NewCareApp extends StatelessWidget {
         title: AppStrings.appName,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
+        scaffoldMessengerKey: messengerKey,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('ar', ''),
+          Locale('en', ''),
+        ],
+        locale: const Locale('ar'),
         builder: (context, child) {
           return Directionality(
             textDirection: TextDirection.rtl,
@@ -52,7 +67,7 @@ class NewCareApp extends StatelessWidget {
                 BlocListener<ErrorCubit, GlobalErrorState>(
                   listener: (context, state) {
                     if (state.isError && state.message != null) {
-                      _showSnackBar(context, state.message!, isError: true);
+                      _showSnackBar(state.message!, isError: true);
                       context.read<ErrorCubit>().clearError();
                     }
                   },
@@ -61,9 +76,33 @@ class NewCareApp extends StatelessWidget {
                 BlocListener<ConnectivityCubit, ConnectivityStatus>(
                   listener: (context, status) {
                     if (status == ConnectivityStatus.offline) {
-                      _showSnackBar(context, AppStrings.offlineMode, isError: true);
+                      _showSnackBar(AppStrings.offlineMode, isError: true);
                     } else {
-                      _showSnackBar(context, 'أنت متصل الآن', isError: false);
+                      _showSnackBar('أنت متصل الآن', isError: false);
+                    }
+                  },
+                ),
+                // الاستماع لتسجيل الحضور والانصراف - Attendance Listener
+                BlocListener<AttendanceCubit, AttendanceState>(
+                  listener: (context, state) {
+                    if (state is AttendanceCheckedIn) {
+                      _showSnackBar('تم تسجيل الحضور بنجاح ✅', isError: false);
+                    } else if (state is AttendanceCheckedOut) {
+                      final record = state.record;
+                      if (record.checkOutTime != null) {
+                        final duration = record.checkOutTime!.difference(record.checkInTime);
+                        final hours = duration.inHours;
+                        final minutes = duration.inMinutes % 60;
+                        
+                        String durationStr = '';
+                        if (hours > 0) durationStr += '$hours ساعة ';
+                        if (minutes > 0) durationStr += '$minutes دقيقة';
+                        if (durationStr.isEmpty) durationStr = 'أقل من دقيقة';
+
+                        _showSnackBar('تم تسجيل الانصراف بنجاح. مدة العمل: $durationStr ✅', isError: false);
+                      }
+                    } else if (state is AttendanceError) {
+                      _showSnackBar(state.message, isError: true);
                     }
                   },
                 ),
@@ -87,8 +126,8 @@ class NewCareApp extends StatelessWidget {
     );
   }
 
-  void _showSnackBar(BuildContext context, String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
+  void _showSnackBar(String message, {bool isError = false}) {
+    messengerKey.currentState?.showSnackBar(
       SnackBar(
         content: Text(
           message,

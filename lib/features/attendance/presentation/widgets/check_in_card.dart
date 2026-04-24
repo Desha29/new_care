@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/widgets/dialogs/personal_qr_dialog.dart';
+import 'package:new_care/features/attendance/presentation/widgets/attendance_scanner_dialog.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
 import '../cubit/attendance_cubit.dart';
@@ -219,7 +219,7 @@ class CheckInCard extends StatelessWidget {
 
   Widget _buildNurseQrTrigger(BuildContext context, UserModel user) {
     return InkWell(
-      onTap: () => PersonalQrDialog.show(context, user),
+      onTap: () => AttendanceScannerDialog.show(context, user),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -229,10 +229,10 @@ class CheckInCard extends StatelessWidget {
         ),
         child: const Column(
           children: [
-            Icon(Icons.qr_code_rounded, color: AppColors.primary, size: 40),
+            Icon(Icons.qr_code_scanner_rounded, color: AppColors.primary, size: 40),
             SizedBox(height: 8),
             Text(
-              'عرض الـ QR',
+              'مسح الـ QR',
               style: TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 13,

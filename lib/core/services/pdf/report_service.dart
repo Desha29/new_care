@@ -8,6 +8,7 @@ import 'package:new_care/features/attendance/data/models/attendance_model.dart';
 import 'package:new_care/features/shifts/data/models/shift_model.dart';
 import 'package:new_care/core/constants/app_strings.dart';
 import 'package:intl/intl.dart' as intl;
+import 'package:arabic_reshaper/arabic_reshaper.dart';
 
 /// خدمة التقارير والفواتير - Reports & Invoices Service
 class ReportService {
@@ -29,6 +30,18 @@ class ReportService {
     } catch (_) {
       return null;
     }
+  }
+
+  String _shape(String text) {
+    if (text.isEmpty) return text;
+    // Check if text contains Arabic characters
+    final hasArabic = RegExp(r'[\u0600-\u06FF]').hasMatch(text);
+    if (!hasArabic) return text;
+
+    // Step 1: Reshape to join letters (initial, medial, final forms)
+    final reshaped = ArabicReshaper().reshape(text);
+    // Step 2: Reverse the string manually for LTR rendering
+    return reshaped.split('').reversed.join();
   }
 
   pw.Widget _buildHeader(
@@ -57,7 +70,7 @@ class ReportService {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    AppStrings.appName,
+                    _shape(AppStrings.appName),
                     style: pw.TextStyle(
                       font: boldTtf,
                       fontSize: 26,
@@ -66,7 +79,7 @@ class ReportService {
                     ),
                   ),
                   pw.Text(
-                    'مركز نيو كير للرعاية الطبية والتمريض المنزلي',
+                    _shape('مركز نيو كير للرعاية الطبية والتمريض المنزلي'),
                     style: const pw.TextStyle(fontSize: 9, color: PdfColors.black),
                   ),
                 ],
@@ -80,7 +93,7 @@ class ReportService {
               borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
             ),
             child: pw.Text(
-              subtitle,
+              _shape(subtitle),
               style: pw.TextStyle(
                 color: PdfColors.white,
                 fontSize: 13,
@@ -110,7 +123,7 @@ class ReportService {
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.Text(
-              title,
+              _shape(title),
               style: const pw.TextStyle(fontSize: 11, color: PdfColors.black),
             ),
             pw.SizedBox(height: 10),
@@ -146,7 +159,7 @@ class ReportService {
         theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf),
         build: (pw.Context context) {
           return pw.Directionality(
-            textDirection: pw.TextDirection.rtl,
+            textDirection: pw.TextDirection.ltr,
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
@@ -161,14 +174,14 @@ class ReportService {
 
                 // Header
                 pw.Text(
-                  AppStrings.appName,
+                  _shape(AppStrings.appName),
                   style: pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
                   ),
                 ),
                 pw.Text(
-                  'مركز نيو كير للرعاية الطبية',
+                  _shape('مركز نيو كير للرعاية الطبية'),
                   style: const pw.TextStyle(fontSize: 8),
                 ),
                 pw.SizedBox(height: 8),
@@ -176,7 +189,7 @@ class ReportService {
                 pw.SizedBox(height: 8),
 
                 pw.Text(
-                  'فاتورة مبسطة',
+                  _shape('فاتورة مبسطة'),
                   style: pw.TextStyle(
                     fontSize: 11,
                     fontWeight: pw.FontWeight.bold,
@@ -189,7 +202,7 @@ class ReportService {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Text(
-                      'رقم الفاتورة:',
+                      _shape('رقم الفاتورة:'),
                       style: const pw.TextStyle(fontSize: 8),
                     ),
                     pw.Text(
@@ -204,7 +217,7 @@ class ReportService {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('التاريخ:', style: const pw.TextStyle(fontSize: 8)),
+                    pw.Text(_shape('التاريخ:'), style: const pw.TextStyle(fontSize: 8)),
                     pw.Text(
                       intl.DateFormat(
                         'yyyy/MM/dd HH:mm',
@@ -222,9 +235,9 @@ class ReportService {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('المريض:', style: const pw.TextStyle(fontSize: 9)),
+                    pw.Text(_shape('المريض:'), style: const pw.TextStyle(fontSize: 9)),
                     pw.Text(
-                      caseData.patientName,
+                      _shape(caseData.patientName),
                       style: pw.TextStyle(
                         fontSize: 9,
                         fontWeight: pw.FontWeight.bold,
@@ -235,9 +248,9 @@ class ReportService {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('الممرض:', style: const pw.TextStyle(fontSize: 9)),
+                    pw.Text(_shape('الممرض:'), style: const pw.TextStyle(fontSize: 9)),
                     pw.Text(
-                      caseData.nurseName,
+                      _shape(caseData.nurseName),
                       style: const pw.TextStyle(fontSize: 9),
                     ),
                   ],
@@ -261,7 +274,7 @@ class ReportService {
                         pw.Padding(
                           padding: const pw.EdgeInsets.symmetric(vertical: 4),
                           child: pw.Text(
-                            'البيان',
+                            _shape('البيان'),
                             style: pw.TextStyle(
                               fontWeight: pw.FontWeight.bold,
                               fontSize: 8,
@@ -271,7 +284,7 @@ class ReportService {
                         pw.Padding(
                           padding: const pw.EdgeInsets.symmetric(vertical: 4),
                           child: pw.Text(
-                            'الكمية',
+                            _shape('الكمية'),
                             style: pw.TextStyle(
                               fontWeight: pw.FontWeight.bold,
                               fontSize: 8,
@@ -282,7 +295,7 @@ class ReportService {
                         pw.Padding(
                           padding: const pw.EdgeInsets.symmetric(vertical: 4),
                           child: pw.Text(
-                            'المبلغ',
+                            _shape('المبلغ'),
                             style: pw.TextStyle(
                               fontWeight: pw.FontWeight.bold,
                               fontSize: 8,
@@ -298,7 +311,7 @@ class ReportService {
                           pw.Padding(
                             padding: const pw.EdgeInsets.symmetric(vertical: 2),
                             child: pw.Text(
-                              s.name,
+                              _shape(s.name),
                               style: const pw.TextStyle(fontSize: 8),
                             ),
                           ),
@@ -327,7 +340,7 @@ class ReportService {
                           pw.Padding(
                             padding: const pw.EdgeInsets.symmetric(vertical: 2),
                             child: pw.Text(
-                              '${su.name} (مستلزم)',
+                              _shape('${su.name} (مستلزم)'),
                               style: const pw.TextStyle(fontSize: 7),
                             ),
                           ),
@@ -362,11 +375,11 @@ class ReportService {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Text(
-                      'المجموع الفرعي:',
+                      _shape('المجموع الفرعي:'),
                       style: const pw.TextStyle(fontSize: 8),
                     ),
                     pw.Text(
-                      '${caseData.totalPrice} ${AppStrings.currency}',
+                      '${caseData.totalPrice} ${_shape(AppStrings.currency)}',
                       style: const pw.TextStyle(fontSize: 8),
                     ),
                   ],
@@ -375,9 +388,9 @@ class ReportService {
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text('الخصم:', style: const pw.TextStyle(fontSize: 8)),
+                      pw.Text(_shape('الخصم:'), style: const pw.TextStyle(fontSize: 8)),
                       pw.Text(
-                        '-${caseData.discount} ${AppStrings.currency}',
+                        '-${caseData.discount} ${_shape(AppStrings.currency)}',
                         style: const pw.TextStyle(fontSize: 8),
                       ),
                     ],
@@ -390,18 +403,29 @@ class ReportService {
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       pw.Text(
-                        'الإجمالي النهائي:',
+                        _shape('الإجمالي النهائي:'),
                         style: pw.TextStyle(
                           fontSize: 10,
                           fontWeight: pw.FontWeight.bold,
                         ),
                       ),
-                      pw.Text(
-                        '${caseData.totalPrice - caseData.discount} ${AppStrings.currency}',
-                        style: pw.TextStyle(
-                          fontSize: 10,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
+                      pw.Row(
+                        children: [
+                          pw.Text(
+                            '${caseData.totalPrice - caseData.discount} ',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                          pw.Text(
+                            _shape(AppStrings.currency),
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -420,7 +444,7 @@ class ReportService {
                 pw.SizedBox(height: 10),
 
                 pw.Text(
-                  'نتمنى لكم الشفاء العاجل',
+                  _shape('نتمنى لكم الشفاء العاجل'),
                   style: pw.TextStyle(
                     fontSize: 9,
                     fontWeight: pw.FontWeight.bold,
@@ -428,7 +452,7 @@ class ReportService {
                 ),
                 pw.SizedBox(height: 2),
                 pw.Text(
-                  'شكراً لاختياركم نيو كير',
+                  _shape('شكراً لاختياركم نيو كير'),
                   style: const pw.TextStyle(fontSize: 7),
                 ),
                 pw.SizedBox(height: 5),
@@ -490,10 +514,10 @@ class ReportService {
         margin: const pw.EdgeInsets.all(32),
         theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf),
         header: (pw.Context context) => pw.Directionality(
-          textDirection: pw.TextDirection.rtl,
+          textDirection: pw.TextDirection.ltr,
           child: pw.Column(
             children: [
-              _buildHeader(boldTtf, logo, 'تقرير مالي شامل'),
+              _buildHeader(boldTtf, logo, _shape('تقرير مالي شامل')),
               pw.SizedBox(height: 10),
               pw.Divider(thickness: 2, color: PdfColors.blue900),
               pw.SizedBox(height: 10),
@@ -502,27 +526,30 @@ class ReportService {
         ),
         build: (pw.Context context) => [
           pw.Directionality(
-            textDirection: pw.TextDirection.rtl,
+            textDirection: pw.TextDirection.ltr,
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text(
-                      'الفترة من: ${intl.DateFormat('yyyy-MM-dd').format(start)}',
-                      style: const pw.TextStyle(fontSize: 11),
+                    pw.Row(
+                      children: [
+                        pw.Text('${_shape('الفترة من')}: '),
+                        pw.Text(intl.DateFormat('yyyy-MM-dd').format(start)),
+                      ],
                     ),
-                    pw.Text(
-                      'إلى: ${intl.DateFormat('yyyy-MM-dd').format(end)}',
-                      style: const pw.TextStyle(fontSize: 11),
+                    pw.Row(
+                      children: [
+                        pw.Text('${_shape('إلى')}: '),
+                        pw.Text(intl.DateFormat('yyyy-MM-dd').format(end)),
+                      ],
                     ),
-                    pw.Text(
-                      'تاريخ الاستخراج: ${intl.DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
-                      style: const pw.TextStyle(
-                        fontSize: 11,
-                        color: PdfColors.grey600,
-                      ),
+                    pw.Row(
+                      children: [
+                        pw.Text('${_shape('تاريخ الاستخراج')}: '),
+                        pw.Text(intl.DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())),
+                      ],
                     ),
                   ],
                 ),
@@ -532,19 +559,19 @@ class ReportService {
                   children: [
                     _reportStatCard(
                       'إجمالي الأداء (إيراد)',
-                      '${totalIncome.toStringAsFixed(0)} ${AppStrings.currency}',
+                      '${totalIncome.toStringAsFixed(0)} ${_shape(AppStrings.currency)}',
                       PdfColors.green800,
                     ),
                     pw.SizedBox(width: 15),
                     _reportStatCard(
                       'إجمالي المصاريف',
-                      '${totalExpenses.toStringAsFixed(0)} ${AppStrings.currency}',
+                      '${totalExpenses.toStringAsFixed(0)} ${_shape(AppStrings.currency)}',
                       PdfColors.red800,
                     ),
                     pw.SizedBox(width: 15),
                     _reportStatCard(
                       'صافي الأرباح',
-                      '${netProfit.toStringAsFixed(0)} ${AppStrings.currency}',
+                      '${netProfit.toStringAsFixed(0)} ${_shape(AppStrings.currency)}',
                       PdfColors.blue900,
                     ),
                   ],
@@ -552,7 +579,7 @@ class ReportService {
 
                 pw.SizedBox(height: 35),
                 pw.Text(
-                  'تفاصيل الدخل (عمليات الحالات)',
+                  _shape('تفاصيل الدخل (عمليات الحالات)'),
                   style: pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
@@ -569,7 +596,7 @@ class ReportService {
                     'النوع',
                     'الممرض',
                     'المبلغ',
-                  ],
+                  ].map((e) => _shape(e)).toList(),
                   headerStyle: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColors.white,
@@ -588,9 +615,9 @@ class ReportService {
                     return [
                       index + 1,
                       intl.DateFormat('MM/dd').format(c.caseDate),
-                      c.patientName,
-                      c.caseType.label,
-                      c.nurseName,
+                      _shape(c.patientName),
+                      _shape(c.caseType.label),
+                      _shape(c.nurseName),
                       (c.totalPrice - c.discount).toStringAsFixed(0),
                     ];
                   }),
@@ -598,7 +625,7 @@ class ReportService {
 
                 pw.SizedBox(height: 35),
                 pw.Text(
-                  'تفصيل المصروفات',
+                  _shape('تفصيل المصروفات'),
                   style: pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
@@ -608,7 +635,7 @@ class ReportService {
                 pw.SizedBox(height: 10),
 
                 pw.TableHelper.fromTextArray(
-                  headers: ['التاريخ', 'التصنيف', 'البيان', 'القيمة'],
+                  headers: ['التاريخ', 'التصنيف', 'البيان', 'القيمة'].map((e) => _shape(e)).toList(),
                   headerStyle: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColors.white,
@@ -622,9 +649,9 @@ class ReportService {
                       .map(
                         (e) => [
                           intl.DateFormat('yyyy-MM-dd').format(e.date),
-                          e.category,
-                          e.label,
-                          '${e.amount.toStringAsFixed(0)} ${AppStrings.currency}',
+                          _shape(e.category),
+                          _shape(e.label),
+                          '${e.amount.toStringAsFixed(0)} ${_shape(AppStrings.currency)}',
                         ],
                       )
                       .toList(),
@@ -637,7 +664,7 @@ class ReportService {
                     pw.Column(
                       children: [
                         pw.Text(
-                          'توقيع المدير المسؤول',
+                          _shape('توقيع المدير المسؤول'),
                           style: pw.TextStyle(
                             fontSize: 12,
                             fontWeight: pw.FontWeight.bold,
@@ -658,7 +685,7 @@ class ReportService {
           ),
         ],
         footer: (pw.Context context) => pw.Directionality(
-          textDirection: pw.TextDirection.rtl,
+          textDirection: pw.TextDirection.ltr,
           child: pw.Column(
             children: [
               pw.Divider(),
@@ -666,14 +693,14 @@ class ReportService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(
-                    'هذا التقرير مخصص للاستخدام الداخلي بمركز نيو كير',
+                    _shape('هذا التقرير مخصص للاستخدام الداخلي بمركز نيو كير'),
                     style: const pw.TextStyle(
                       fontSize: 8,
                       color: PdfColors.grey600,
                     ),
                   ),
                   pw.Text(
-                    'صفحة ${context.pageNumber} من ${context.pagesCount}',
+                    _shape('صفحة ${context.pageNumber} من ${context.pagesCount}'),
                     style: const pw.TextStyle(
                       fontSize: 8,
                       color: PdfColors.grey600,
@@ -711,10 +738,10 @@ class ReportService {
         margin: const pw.EdgeInsets.all(32),
         theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf),
         header: (pw.Context context) => pw.Directionality(
-          textDirection: pw.TextDirection.rtl,
+          textDirection: pw.TextDirection.ltr,
           child: pw.Column(
             children: [
-              _buildHeader(boldTtf, logo, title),
+              _buildHeader(boldTtf, logo, _shape(title)),
               pw.SizedBox(height: 10),
               pw.Divider(thickness: 2, color: PdfColors.blue900),
               pw.SizedBox(height: 10),
@@ -723,26 +750,48 @@ class ReportService {
         ),
         build: (pw.Context context) => [
           pw.Directionality(
-            textDirection: pw.TextDirection.rtl,
+            textDirection: pw.TextDirection.ltr,
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text(
-                      subtitle,
-                      style: pw.TextStyle(
-                        fontSize: 12,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
+                    pw.Row(
+                      children: [
+                        pw.Text(
+                          _shape(subtitle.split(':').first + ':'),
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                        pw.Text(
+                          ' ' + subtitle.split(':').last,
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    pw.Text(
-                      'تاريخ الاستخراج: ${intl.DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
-                      style: const pw.TextStyle(
-                        fontSize: 10,
-                        color: PdfColors.grey600,
-                      ),
+                    pw.Row(
+                      children: [
+                        pw.Text(
+                          '${_shape('تاريخ الاستخراج')}: ',
+                          style: const pw.TextStyle(
+                            fontSize: 10,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                        pw.Text(
+                          intl.DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
+                          style: const pw.TextStyle(
+                            fontSize: 10,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -756,7 +805,7 @@ class ReportService {
                     'النوع',
                     'الممرض',
                     'المبلغ',
-                  ],
+                  ].map((e) => _shape(e)).toList(),
                   headerStyle: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColors.white,
@@ -771,9 +820,9 @@ class ReportService {
                     return [
                       index + 1,
                       intl.DateFormat('yyyy-MM-dd').format(c.caseDate),
-                      c.patientName,
-                      c.caseType.label,
-                      c.nurseName,
+                      _shape(c.patientName),
+                      _shape(c.caseType.label),
+                      _shape(c.nurseName),
                       (c.totalPrice - c.discount).toStringAsFixed(1),
                     ];
                   }),
@@ -790,20 +839,51 @@ class ReportService {
                       ),
                       child: pw.Column(
                         children: [
-                          pw.Text(
-                            'إجمالي عدد الحالات: ${cases.length}',
-                            style: pw.TextStyle(
-                              fontSize: 11,
-                              fontWeight: pw.FontWeight.bold,
-                            ),
+                          pw.Row(
+                            children: [
+                              pw.Text(
+                                '${_shape('إجمالي عدد الحالات')}: ',
+                                style: pw.TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                              pw.Text(
+                                '${cases.length}',
+                                style: pw.TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
-                          pw.Text(
-                            'إجمالي الإيرادات: ${cases.fold(0.0, (sum, c) => sum + (c.totalPrice - c.discount)).toStringAsFixed(1)} ${AppStrings.currency}',
-                            style: pw.TextStyle(
-                              fontSize: 11,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.blue900,
-                            ),
+                          pw.Row(
+                            children: [
+                              pw.Text(
+                                '${_shape('إجمالي الإيرادات')}: ',
+                                style: pw.TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.blue900,
+                                ),
+                              ),
+                              pw.Text(
+                                cases.fold(0.0, (sum, c) => sum + (c.totalPrice - c.discount)).toStringAsFixed(1),
+                                style: pw.TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.blue900,
+                                ),
+                              ),
+                              pw.Text(
+                                ' ${_shape(AppStrings.currency)}',
+                                style: pw.TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.blue900,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -815,7 +895,7 @@ class ReportService {
           ),
         ],
         footer: (pw.Context context) => pw.Directionality(
-          textDirection: pw.TextDirection.rtl,
+          textDirection: pw.TextDirection.ltr,
           child: pw.Column(
             children: [
               pw.Divider(),
@@ -823,7 +903,7 @@ class ReportService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(
-                    'مركز نيو كير - تقرير أداء العمل',
+                    _shape('مركز نيو كير - تقرير أداء العمل'),
                     style: const pw.TextStyle(
                       fontSize: 8,
                       color: PdfColors.grey600,
@@ -914,10 +994,10 @@ class ReportService {
         margin: const pw.EdgeInsets.all(32),
         theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf),
         header: (pw.Context context) => pw.Directionality(
-          textDirection: pw.TextDirection.rtl,
+          textDirection: pw.TextDirection.ltr,
           child: pw.Column(
             children: [
-              _buildHeader(boldTtf, logo, 'تقرير الموظفين الشهري'),
+              _buildHeader(boldTtf, logo, _shape('تقرير الموظفين الشهري')),
               pw.SizedBox(height: 10),
               pw.Divider(thickness: 2, color: PdfColors.blue900),
               pw.SizedBox(height: 10),
@@ -926,7 +1006,7 @@ class ReportService {
         ),
         build: (pw.Context context) => [
           pw.Directionality(
-            textDirection: pw.TextDirection.rtl,
+            textDirection: pw.TextDirection.ltr,
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
@@ -995,7 +1075,7 @@ class ReportService {
                     'أيام الحضور',
                     'إجمالي الساعات',
                     'متوسط يومي',
-                  ],
+                  ].map((e) => _shape(e)).toList(),
                   headerStyle: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColors.white,
@@ -1008,18 +1088,13 @@ class ReportService {
                   data: List<List<dynamic>>.generate(staffList.length, (i) {
                     final entry = staffList[i];
                     final s = entry.value;
-                    final totalHours = (s.totalMinutes / 60).toStringAsFixed(1);
-                    final avgDaily = s.totalAttendance > 0
-                        ? (s.totalMinutes / 60 / s.totalAttendance)
-                              .toStringAsFixed(1)
-                        : '0.0';
                     return [
                       i + 1,
-                      s.name,
+                      _shape(s.name),
                       '${s.totalShifts}',
                       '${s.totalAttendance}',
-                      '$totalHours ساعة',
-                      '$avgDaily ساعة',
+                      '${s.totalMinutes ~/ 60}:${(s.totalMinutes % 60).toString().padLeft(2, '0')}',
+                      (s.totalMinutes / 60 / (s.totalAttendance > 0 ? s.totalAttendance : 1)).toStringAsFixed(1),
                     ];
                   }),
                 ),
@@ -1046,7 +1121,7 @@ class ReportService {
                           ),
                         ),
                         child: pw.Text(
-                          'تفاصيل حضور: ${entry.value.name}',
+                          '${_shape('تفاصيل حضور')}: ${_shape(entry.value.name)}',
                           style: pw.TextStyle(
                             fontSize: 13,
                             fontWeight: pw.FontWeight.bold,
@@ -1062,7 +1137,7 @@ class ReportService {
                           'وقت الانصراف',
                           'المدة',
                           'الحالة',
-                        ],
+                        ].map((e) => _shape(e)).toList(),
                         headerStyle: pw.TextStyle(
                           fontWeight: pw.FontWeight.bold,
                           color: PdfColors.white,
@@ -1089,7 +1164,7 @@ class ReportService {
                             checkIn,
                             checkOut,
                             duration,
-                            a.status.label,
+                            _shape(a.status.label),
                           ];
                         }).toList(),
                       ),
@@ -1104,7 +1179,7 @@ class ReportService {
                     pw.Column(
                       children: [
                         pw.Text(
-                          'أَعد التقرير',
+                          _shape('أَعد التقرير'),
                           style: pw.TextStyle(
                             fontSize: 10,
                             fontWeight: pw.FontWeight.bold,
@@ -1112,7 +1187,7 @@ class ReportService {
                         ),
                         pw.SizedBox(height: 5),
                         pw.Text(
-                          generatedBy,
+                          _shape(generatedBy),
                           style: const pw.TextStyle(fontSize: 10),
                         ),
                         pw.SizedBox(height: 30),
@@ -1126,7 +1201,7 @@ class ReportService {
                     pw.Column(
                       children: [
                         pw.Text(
-                          'توقيع المدير المسؤول',
+                          _shape('توقيع المدير المسؤول'),
                           style: pw.TextStyle(
                             fontSize: 10,
                             fontWeight: pw.FontWeight.bold,
@@ -1147,7 +1222,7 @@ class ReportService {
           ),
         ],
         footer: (pw.Context context) => pw.Directionality(
-          textDirection: pw.TextDirection.rtl,
+          textDirection: pw.TextDirection.ltr,
           child: pw.Column(
             children: [
               pw.Divider(),
@@ -1155,14 +1230,14 @@ class ReportService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(
-                    'تقرير الموظفين الشهري - مركز نيو كير',
+                    _shape('تقرير الموظفين الشهري - مركز نيو كير'),
                     style: const pw.TextStyle(
                       fontSize: 8,
                       color: PdfColors.grey600,
                     ),
                   ),
                   pw.Text(
-                    'صفحة ${context.pageNumber} من ${context.pagesCount}',
+                    _shape('صفحة ${context.pageNumber} من ${context.pagesCount}'),
                     style: const pw.TextStyle(
                       fontSize: 8,
                       color: PdfColors.grey600,
@@ -1213,10 +1288,10 @@ class ReportService {
     final boldTtf = await _getBoldFont();
     final logo = await _getLogo();
 
-    final monthName = intl.DateFormat(
+    final monthName = _shape(intl.DateFormat(
       'MMMM yyyy',
       'ar',
-    ).format(DateTime(year, month));
+    ).format(DateTime(year, month)));
 
     int totalMinutes = 0;
     for (var r in attendanceRecords) {
@@ -1244,32 +1319,57 @@ class ReportService {
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(
-                    'اسم الموظف: $nurseName',
-                    style: pw.TextStyle(
-                      fontSize: 16,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
+                  pw.Row(
+                    children: [
+                      pw.Text(
+                        '${_shape('اسم الموظف')}: ',
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.Text(
+                        nurseName,
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                  pw.Text(
-                    'الشهر: $monthName',
-                    style: const pw.TextStyle(fontSize: 12),
+                  pw.Row(
+                    children: [
+                      pw.Text('${_shape('الشهر')}: '),
+                      pw.Text(monthName),
+                    ],
                   ),
                 ],
               ),
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
-                  pw.Text(
-                    'إجمالي الساعات: ${(totalMinutes / 60).toStringAsFixed(1)} ساعة',
-                    style: pw.TextStyle(
-                      fontSize: 14,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.blue900,
-                    ),
+                  pw.Row(
+                    children: [
+                      pw.Text(
+                        '${_shape('إجمالي الساعات')}: ',
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue900,
+                        ),
+                      ),
+                      pw.Text(
+                        (totalMinutes / 60).toStringAsFixed(1),
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue900,
+                        ),
+                      ),
+                    ],
                   ),
                   pw.Text(
-                    'تاريخ الاستخراج: ${intl.DateFormat('yyyy-MM-dd').format(DateTime.now())}',
+                    '${_shape('تاريخ الاستخراج')}: ${intl.DateFormat('yyyy-MM-dd').format(DateTime.now())}',
                     style: const pw.TextStyle(
                       fontSize: 9,
                       color: PdfColors.grey600,
@@ -1288,7 +1388,7 @@ class ReportService {
               'وقت الانصراف',
               'المدة',
               'الحالة',
-            ],
+            ].map((e) => _shape(e)).toList(),
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
@@ -1313,7 +1413,7 @@ class ReportService {
               final duration = a.shiftDuration != null
                   ? '${a.shiftDuration!.inHours}h ${a.shiftDuration!.inMinutes % 60}m'
                   : '---';
-              return [a.date, checkIn, checkOut, duration, a.status.label];
+              return [a.date, checkIn, checkOut, duration, _shape(a.status.label)];
             }).toList(),
           ),
 
@@ -1324,13 +1424,13 @@ class ReportService {
               pw.Column(
                 children: [
                   pw.Text(
-                    'أَعد التقرير',
+                    _shape('أَعد التقرير'),
                     style: pw.TextStyle(
                       fontSize: 10,
                       fontWeight: pw.FontWeight.bold,
                     ),
                   ),
-                  pw.Text(generatedBy, style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text(_shape(generatedBy), style: const pw.TextStyle(fontSize: 10)),
                   pw.SizedBox(height: 30),
                   pw.Container(width: 120, height: 1, color: PdfColors.black),
                 ],
@@ -1338,7 +1438,7 @@ class ReportService {
               pw.Column(
                 children: [
                   pw.Text(
-                    'توقيع الموظف',
+                    _shape('توقيع الموظف'),
                     style: pw.TextStyle(
                       fontSize: 10,
                       fontWeight: pw.FontWeight.bold,
@@ -1351,7 +1451,7 @@ class ReportService {
               pw.Column(
                 children: [
                   pw.Text(
-                    'توقيع المدير المسؤول',
+                    _shape('توقيع المدير المسؤول'),
                     style: pw.TextStyle(
                       fontSize: 10,
                       fontWeight: pw.FontWeight.bold,
@@ -1371,14 +1471,14 @@ class ReportService {
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
-                  'تقرير أداء فردي - مركز نيو كير',
+                  _shape('تقرير أداء فردي - مركز نيو كير'),
                   style: const pw.TextStyle(
                     fontSize: 8,
                     color: PdfColors.grey600,
                   ),
                 ),
                 pw.Text(
-                  'صفحة ${context.pageNumber} من ${context.pagesCount}',
+                  _shape('صفحة ${context.pageNumber} من ${context.pagesCount}'),
                   style: const pw.TextStyle(
                     fontSize: 8,
                     color: PdfColors.grey600,

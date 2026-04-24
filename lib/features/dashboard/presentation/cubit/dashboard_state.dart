@@ -12,12 +12,14 @@ class DashboardLoaded extends DashboardState {
   final Map<String, List<double>> chartData;
   final List<CaseModel> recentCases;
   final List<AttendanceModel> activeStaff;
+  final DateTime selectedDate;
 
   DashboardLoaded({
     required this.stats,
     required this.chartData,
     required this.recentCases,
     required this.activeStaff,
+    required this.selectedDate,
   });
 }
 

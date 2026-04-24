@@ -30,6 +30,16 @@ class CasesLoaded extends CasesState {
         .toList();
   }
 
+  CasesLoaded copyWith({
+    List<CaseModel>? cases,
+    String? searchQuery,
+  }) {
+    return CasesLoaded(
+      cases: cases ?? this.cases,
+      searchQuery: searchQuery ?? this.searchQuery,
+    );
+  }
+
   @override
   List<Object?> get props => [cases, searchQuery];
 }

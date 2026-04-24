@@ -215,23 +215,69 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildTabs() {
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border, width: 2)),
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: TabBar(
         controller: _tabController,
-        labelColor: AppColors.primary,
-        unselectedLabelColor: AppColors.textHint,
+        labelColor: Colors.white,
+        unselectedLabelColor: AppColors.textSecondary,
         labelStyle: const TextStyle(
           fontFamily: 'Cairo',
           fontWeight: FontWeight.bold,
-          fontSize: 15,
+          fontSize: 14,
         ),
-        indicatorColor: AppColors.primary,
-        indicatorSize: TabBarIndicatorSize.label,
+        unselectedLabelStyle: const TextStyle(
+          fontFamily: 'Cairo',
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+        ),
+        indicator: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
         tabs: const [
-          Tab(text: 'فواتير الحالات'),
-          Tab(text: 'ساعات عمل التمريض'),
+          Tab(
+            height: 45,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.receipt_long_rounded, size: 18),
+                SizedBox(width: 8),
+                Text('فواتير الحالات'),
+              ],
+            ),
+          ),
+          Tab(
+            height: 45,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.history_rounded, size: 18),
+                SizedBox(width: 8),
+                Text('ساعات عمل التمريض'),
+              ],
+            ),
+          ),
         ],
       ),
     );

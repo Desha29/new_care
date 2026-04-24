@@ -4,10 +4,10 @@ import '../../../attendance/data/models/attendance_model.dart';
 /// واجهة مستودع لوحة التحكم - Dashboard Repository Interface
 abstract class IDashboardRepository {
   /// إحصائيات لوحة التحكم العامة - General Dashboard stats
-  Future<Map<String, dynamic>> getDashboardStats();
+  Future<Map<String, dynamic>> getDashboardStats({DateTime? date});
 
   /// إحصائيات الممرض - Nurse dashboard stats
-  Future<Map<String, dynamic>> getNurseDashboardStats(String nurseId);
+  Future<Map<String, dynamic>> getNurseDashboardStats(String nurseId, {DateTime? date});
 
   /// بيانات الرسم البياني للأسبوع - Weekly chart data
   Future<Map<String, List<double>>> getDashboardChartData();
