@@ -13,7 +13,7 @@ import '../../../../core/services/firebase_service.dart';
 import '../../../../core/services/report_service.dart';
 import '../../../auth/logic/cubit/auth_state.dart';
 import '../../../attendance/data/models/attendance_model.dart';
-import 'nurse_report_preview_screen.dart';
+import 'report_preview_screen.dart';
 import 'package:intl/intl.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -113,10 +113,47 @@ class _ReportsScreenState extends State<ReportsScreen>
         _buildDatePicker(),
         const SizedBox(width: 12),
         IconButton(
+          onPressed: _generateDailyReport,
+          icon: const Icon(Icons.today_rounded, color: AppColors.secondary),
+          tooltip: 'تقرير اليوم',
+        ),
+        const SizedBox(width: 8),
+        IconButton(
           onPressed: _loadData,
           icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
         ),
       ],
+    );
+  }
+
+  void _generateDailyReport() {
+    final today = DateTime.now();
+    final todayCases = _cases.where((c) => 
+      c.caseDate.year == today.year && 
+      c.caseDate.month == today.month && 
+      c.caseDate.day == today.day
+    ).toList();
+
+    if (todayCases.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا توجد حالات مسجلة اليوم لإصدار تقرير بها'))
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReportPreviewScreen(
+          title: 'تقرير عمل اليوم - ${DateFormat('yyyy/MM/dd').format(today)}',
+          fileName: 'Daily_Report_${DateFormat('yyyy_MM_dd').format(today)}',
+          buildReport: () => ReportService.instance.generateCasesReportBytes(
+            cases: todayCases,
+            title: 'تقرير العمل اليومي',
+            subtitle: 'كشف الحالات المنفذة بتاريخ: ${DateFormat('yyyy/MM/dd').format(today)}',
+          ),
+        ),
+      ),
     );
   }
 
@@ -196,75 +233,102 @@ class _ReportsScreenState extends State<ReportsScreen>
         )
         .toList();
 
-    if (filteredCases.isEmpty) {
-      return const EmptyStateWidget(
-        icon: Icons.receipt_long_rounded,
-        title: 'لا توجد فواتير لهذا الشهر',
-        subtitle: 'سيتم عرض فواتير الحالات المسجلة هنا',
-      );
-    }
-
-    return ListView.builder(
-      itemCount: filteredCases.length,
-      itemBuilder: (context, index) {
-        final c = filteredCases[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 8,
-            ),
-            leading: CircleAvatar(
-              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-              child: const Icon(
-                Icons.receipt_rounded,
-                color: AppColors.primary,
-              ),
-            ),
-            title: Text(
-              c.patientName,
-              style: const TextStyle(
-                fontFamily: 'Cairo',
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: Text(
-              '${DateFormat('yyyy/MM/dd').format(c.caseDate)} • ${c.caseType.label} • ${c.nurseName}',
-              style: const TextStyle(fontFamily: 'Cairo', fontSize: 12),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
+    return Column(
+      children: [
+        if (filteredCases.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text(
-                  '${(c.totalPrice - c.discount).toStringAsFixed(0)} E.P',
-                  style: const TextStyle(
-                    fontFamily: 'Cairo',
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+                ElevatedButton.icon(
+                  onPressed: () => _generateWorkReport(filteredCases),
+                  icon: const Icon(Icons.description_rounded),
+                  label: const Text(
+                    'إنشاء تقرير عمل شهري',
+                    style: TextStyle(fontFamily: 'Cairo'),
                   ),
-                ),
-                const SizedBox(width: 16),
-                IconButton(
-                  icon: const Icon(
-                    Icons.visibility_rounded,
-                    color: AppColors.info,
-                  ),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => InvoicePreviewScreen(caseData: c),
-                    ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.info,
+                    foregroundColor: Colors.white,
                   ),
                 ),
               ],
             ),
           ),
-        );
-      },
+        Expanded(
+          child: filteredCases.isEmpty
+              ? const EmptyStateWidget(
+                  icon: Icons.receipt_long_rounded,
+                  title: 'لا توجد فواتير لهذا الشهر',
+                  subtitle: 'سيتم عرض فواتير الحالات المسجلة هنا',
+                )
+              : ListView.builder(
+                  itemCount: filteredCases.length,
+                  itemBuilder: (context, index) {
+                    final c = filteredCases[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 8,
+                        ),
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                          child: const Icon(
+                            Icons.receipt_rounded,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        title: Text(
+                          c.patientName,
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${DateFormat('yyyy/MM/dd').format(c.caseDate)} • ${c.caseType.label} • ${c.nurseName}',
+                          style:
+                              const TextStyle(fontFamily: 'Cairo', fontSize: 12),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${(c.totalPrice - c.discount).toStringAsFixed(0)} E.P',
+                              style: const TextStyle(
+                                fontFamily: 'Cairo',
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.visibility_rounded,
+                                color: AppColors.info,
+                              ),
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      InvoicePreviewScreen(caseData: c),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 
@@ -344,12 +408,16 @@ class _ReportsScreenState extends State<ReportsScreen>
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => NurseReportPreviewScreen(
-                            nurseName: name,
-                            year: _selectedDate.year,
-                            month: _selectedDate.month,
-                            attendanceRecords: userAttendance,
-                            generatedBy: genBy,
+                          builder: (_) => ReportPreviewScreen(
+                            title: 'تقرير الموظف - $name',
+                            fileName: 'Nurse_Report_${name}_${_selectedDate.year}_${_selectedDate.month}',
+                            buildReport: () => ReportService.instance.generateSingleNurseReportBytes(
+                              year: _selectedDate.year,
+                              month: _selectedDate.month,
+                              nurseName: name,
+                              attendanceRecords: userAttendance,
+                              generatedBy: genBy,
+                            ),
                           ),
                         ),
                       );
@@ -428,6 +496,25 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
+  Future<void> _generateWorkReport(List<CaseModel> cases) async {
+    final monthName = DateFormat('MMMM yyyy', 'ar').format(_selectedDate);
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReportPreviewScreen(
+          title: 'تقرير العمل - $monthName',
+          fileName: 'Work_Report_${_selectedDate.year}_${_selectedDate.month}',
+          buildReport: () => ReportService.instance.generateCasesReportBytes(
+            cases: cases,
+            title: 'تقرير أداء العمل التفصيلي',
+            subtitle: 'كشف الحالات والخدمات لشهر: $monthName',
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _generateFullStaffReport() async {
     try {
       LoadingDialog.show(context, message: 'جاري إعداد التقرير...');
@@ -444,19 +531,32 @@ class _ReportsScreenState extends State<ReportsScreen>
 
       if (mounted) LoadingDialog.hide(context);
 
-      await ReportService.instance.generateMonthlyStaffReport(
-        year: _selectedDate.year,
-        month: _selectedDate.month,
-        attendanceRecords: _attendance,
-        shifts: shifts,
-        generatedBy: generatedBy,
-      );
+      final monthName = DateFormat('MMMM yyyy', 'ar').format(_selectedDate);
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ReportPreviewScreen(
+              title: 'تقرير الموظفين - $monthName',
+              fileName: 'Staff_Report_${_selectedDate.year}_${_selectedDate.month}',
+              buildReport: () => ReportService.instance.generateMonthlyStaffReportBytes(
+                year: _selectedDate.year,
+                month: _selectedDate.month,
+                attendanceRecords: _attendance,
+                shifts: shifts,
+                generatedBy: generatedBy,
+              ),
+            ),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         LoadingDialog.hide(context);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('حدث خطأ: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ: $e')),
+        );
       }
     }
   }

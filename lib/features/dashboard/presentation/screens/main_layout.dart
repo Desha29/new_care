@@ -13,6 +13,7 @@ import '../../../users/presentation/screens/users_screen.dart';
 import '../../../inventory/presentation/screens/inventory_screen.dart';
 import '../../../financials/presentation/screens/financials_screen.dart';
 import '../../../activity_logs/presentation/screens/logs_screen.dart';
+
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../../settings/presentation/screens/data_status_screen.dart';
 import '../../../attendance/presentation/screens/attendance_screen.dart';
@@ -38,19 +39,19 @@ class _MainLayoutState extends State<MainLayout> {
   List<Widget> _getAvailableScreens(String role) {
     if (role == 'admin' || role == 'super_admin') {
       return [
-        const DashboardScreen(),       // 0
-        const CasesScreen(),           // 1
-        const AttendanceScreen(),      // 2 - الحضور والانصراف
+        const DashboardScreen(), // 0
+        const CasesScreen(), // 1
+        const AttendanceScreen(), // 2 - الحضور والانصراف
         const ShiftManagementScreen(), // 3 - إدارة الورديات
-        const ProceduresScreen(),      // 4
-        const FinancialsScreen(),      // 5
-        const PayrollScreen(),         // 6 - الرواتب
-        const ReportsScreen(),         // 7 - التقارير
-        const UsersScreen(),           // 8
-        const InventoryScreen(),       // 9
-        const LogsScreen(),            // 10
-        const SettingsScreen(),        // 11
-        const DataStatusScreen(),      // 12
+        const ProceduresScreen(), // 4
+        const FinancialsScreen(), // 5
+        const PayrollScreen(), // 6 - الرواتب
+        const ReportsScreen(), // 7 - التقارير
+        const UsersScreen(), // 8
+        const InventoryScreen(), // 9
+        const LogsScreen(), // 10
+        const SettingsScreen(), // 11
+        const DataStatusScreen(), // 12
       ];
     } else {
       return [
@@ -132,8 +133,10 @@ class _MainLayoutState extends State<MainLayout> {
                           IconButton(
                             onPressed: () =>
                                 _scaffoldKey.currentState?.openDrawer(),
-                            icon: const Icon(Icons.menu_rounded,
-                                color: Colors.white),
+                            icon: const Icon(
+                              Icons.menu_rounded,
+                              color: Colors.white,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           const Text(
@@ -154,14 +157,13 @@ class _MainLayoutState extends State<MainLayout> {
                       color: AppColors.background,
                       child: BlocBuilder<AuthCubit, AuthState>(
                         builder: (context, state) {
-                          final user =
-                              context.read<AuthCubit>().currentUser;
+                          final user = context.read<AuthCubit>().currentUser;
                           final role = user?.role.value ?? 'nurse';
                           final screens = _getAvailableScreens(role);
 
                           if (!_screenCache.containsKey(_selectedIndex)) {
-                            _screenCache[_selectedIndex] = screens[
-                                _selectedIndex < screens.length
+                            _screenCache[_selectedIndex] =
+                                screens[_selectedIndex < screens.length
                                     ? _selectedIndex
                                     : 0];
                           }

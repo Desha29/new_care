@@ -9,6 +9,8 @@ class ProcedureModel extends Equatable {
   final double priceOutside;
   final String notes;
 
+  final DateTime? updatedAt;
+
   const ProcedureModel({
     required this.id,
     required this.name,
@@ -16,6 +18,7 @@ class ProcedureModel extends Equatable {
     this.priceInside = 0.0,
     this.priceOutside = 0.0,
     this.notes = '',
+    this.updatedAt,
   });
 
   Map<String, dynamic> toMap() {
@@ -25,6 +28,19 @@ class ProcedureModel extends Equatable {
       'priceInside': priceInside,
       'priceOutside': priceOutside,
       'notes': notes,
+      'updatedAt': updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+    };
+  }
+
+  Map<String, dynamic> toSqliteMap() {
+    return {
+      'id': id,
+      'name': name,
+      'defaultPrice': defaultPrice,
+      'priceInside': priceInside,
+      'priceOutside': priceOutside,
+      'notes': notes,
+      'updatedAt': updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
   }
 
@@ -37,6 +53,7 @@ class ProcedureModel extends Equatable {
       priceInside: (map['priceInside'] ?? dPrice).toDouble(),
       priceOutside: (map['priceOutside'] ?? dPrice).toDouble(),
       notes: map['notes'] ?? '',
+      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
     );
   }
 
@@ -47,6 +64,7 @@ class ProcedureModel extends Equatable {
     double? priceInside,
     double? priceOutside,
     String? notes,
+    DateTime? updatedAt,
   }) {
     return ProcedureModel(
       id: id ?? this.id,
@@ -55,9 +73,10 @@ class ProcedureModel extends Equatable {
       priceInside: priceInside ?? this.priceInside,
       priceOutside: priceOutside ?? this.priceOutside,
       notes: notes ?? this.notes,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
   @override
-  List<Object?> get props => [id, name, defaultPrice, priceInside, priceOutside, notes];
+  List<Object?> get props => [id, name, defaultPrice, priceInside, priceOutside, notes, updatedAt];
 }

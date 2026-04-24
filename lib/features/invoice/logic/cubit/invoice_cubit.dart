@@ -107,13 +107,12 @@ class InvoiceCubit extends Cubit<InvoiceState> {
         medicalHistory: medicalHistory,
         services: state.services,
         suppliesUsed: state.supplies,
-        totalPrice: state.totalPrice, // Automatically calculated final price
+        totalPrice: state.totalPrice,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         caseDate: DateTime.now(),
         notes: notes,
         caseType: CaseType.inCenter,
-        status: CaseStatus.completed,
       );
 
       await _firebaseService.createCase(newCase);

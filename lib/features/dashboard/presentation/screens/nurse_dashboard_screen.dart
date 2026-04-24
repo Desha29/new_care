@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -21,6 +22,7 @@ class NurseDashboardScreen extends StatefulWidget {
 
 class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
   bool _isLoading = true;
+  final List<StreamSubscription> _subscriptions = [];
   Map<String, dynamic> _nurseData = {
     'todayCasesCount': 0,
     'monthHours': 0.0,
@@ -31,14 +33,39 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadNurseData();
+    _loadNurseData(showLoading: true);
+    _setupRealtimeListeners();
   }
 
-  Future<void> _loadNurseData() async {
-    setState(() => _isLoading = true);
+  void _setupRealtimeListeners() {
+    final user = context.read<AuthCubit>().currentUser;
+    _subscriptions.add(
+      FirebaseService.instance.streamTodayCases(nurseId: user?.id).listen((_) {
+        _loadNurseData(showLoading: false);
+      }),
+    );
+    _subscriptions.add(
+      FirebaseService.instance.streamTodayAttendanceRecords().listen((_) {
+        _loadNurseData(showLoading: false);
+      }),
+    );
+  }
+
+  @override
+  void dispose() {
+    for (var sub in _subscriptions) {
+      sub.cancel();
+    }
+    super.dispose();
+  }
+
+  Future<void> _loadNurseData({bool showLoading = false}) async {
+    if (showLoading) setState(() => _isLoading = true);
     final user = context.read<AuthCubit>().currentUser;
     if (user != null) {
-      final data = await FirebaseService.instance.getNurseDashboardStats(user.id);
+      final data = await FirebaseService.instance.getNurseDashboardStats(
+        user.id,
+      );
       if (mounted) {
         setState(() {
           _nurseData = data;
@@ -156,7 +183,7 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
   Widget _buildHeader(UserModel? user) {
     final now = DateTime.now();
     final greeting = now.hour < 12 ? 'صباح الخير' : 'مساء الخير';
-    
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -195,11 +222,19 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.calendar_month_rounded, size: 16, color: AppColors.textSecondary),
+          const Icon(
+            Icons.calendar_month_rounded,
+            size: 16,
+            color: AppColors.textSecondary,
+          ),
           const SizedBox(width: 8),
           Text(
             DateFormat('yyyy/MM/dd').format(now),
-            style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
@@ -253,7 +288,11 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: (isCheckedIn && !isCheckedOut ? AppColors.success : AppColors.primary).withValues(alpha: 0.3),
+            color:
+                (isCheckedIn && !isCheckedOut
+                        ? AppColors.success
+                        : AppColors.primary)
+                    .withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -270,9 +309,11 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  isCheckedOut 
-                    ? Icons.done_all_rounded 
-                    : (isCheckedIn ? Icons.timer_rounded : Icons.timer_outlined),
+                  isCheckedOut
+                      ? Icons.done_all_rounded
+                      : (isCheckedIn
+                            ? Icons.timer_rounded
+                            : Icons.timer_outlined),
                   color: Colors.white,
                 ),
               ),
@@ -283,12 +324,18 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
                   children: [
                     const Text(
                       'حالة الحضور اليوم',
-                      style: TextStyle(fontFamily: 'Cairo', color: Colors.white70, fontSize: 12),
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
                     ),
                     Text(
-                      isCheckedOut 
-                        ? 'انتهت فترة العمل' 
-                        : (isCheckedIn ? 'أنت قيد العمل حالياً' : 'لم يتم تسجيل الحضور بعد'),
+                      isCheckedOut
+                          ? 'انتهت فترة العمل'
+                          : (isCheckedIn
+                                ? 'أنت قيد العمل حالياً'
+                                : 'لم يتم تسجيل الحضور بعد'),
                       style: const TextStyle(
                         fontFamily: 'Cairo',
                         color: Colors.white,
@@ -309,7 +356,7 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _attendanceInfo('الحضور', attendance!.checkInTime),
+                _attendanceInfo('الحضور', attendance.checkInTime),
                 if (isCheckedOut)
                   _attendanceInfo('الانصراف', attendance.checkOutTime!),
               ],
@@ -324,17 +371,31 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontFamily: 'Cairo', color: Colors.white70, fontSize: 11)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Cairo',
+            color: Colors.white70,
+            fontSize: 11,
+          ),
+        ),
         Text(
           DateFormat('hh:mm a', 'ar').format(time),
-          style: const TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+          style: const TextStyle(
+            fontFamily: 'Cairo',
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
         ),
       ],
     );
   }
 
   Widget _buildTodaySchedule() {
-    final List<CaseModel> cases = List<CaseModel>.from(_nurseData['todayCases'] ?? []);
+    final List<CaseModel> cases = List<CaseModel>.from(
+      _nurseData['todayCases'] ?? [],
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,13 +405,20 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
           children: [
             const Text(
               'جدول حالات اليوم',
-              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18),
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
             ),
             TextButton(
               onPressed: () {
                 // Navigate to Cases screen with personal filter?
               },
-              child: const Text('عرض الكل', style: TextStyle(fontFamily: 'Cairo')),
+              child: const Text(
+                'عرض الكل',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
             ),
           ],
         ),
@@ -366,11 +434,18 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
             ),
             child: Column(
               children: [
-                Icon(Icons.event_available_rounded, size: 48, color: AppColors.textHint.withValues(alpha: 0.5)),
+                Icon(
+                  Icons.event_available_rounded,
+                  size: 48,
+                  color: AppColors.textHint.withValues(alpha: 0.5),
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'لا يوجد حالات مسجلة لك اليوم',
-                  style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontFamily: 'Cairo',
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -406,7 +481,11 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
               color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.person_pin_rounded, color: AppColors.primary, size: 20),
+            child: const Icon(
+              Icons.person_pin_rounded,
+              color: AppColors.primary,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -415,55 +494,26 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
               children: [
                 Text(
                   c.patientName,
-                  style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14),
+                  style: const TextStyle(
+                    fontFamily: 'Cairo',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
                 Text(
                   c.patientAddress,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          _buildStatusChip(c.status.name),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatusChip(String status) {
-    Color color;
-    String label;
-    
-    switch (status) {
-      case 'pending': 
-        color = AppColors.statusPending;
-        label = 'معلق';
-        break;
-      case 'in_progress': 
-        color = AppColors.statusInProgress;
-        label = 'جاري';
-        break;
-      case 'completed': 
-        color = AppColors.statusCompleted;
-        label = 'مكتمل';
-        break;
-      default: 
-        color = AppColors.textSecondary;
-        label = status;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(fontFamily: 'Cairo', fontSize: 11, fontWeight: FontWeight.bold, color: color),
       ),
     );
   }

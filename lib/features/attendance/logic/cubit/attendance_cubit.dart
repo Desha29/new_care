@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/services/firebase_service.dart';
@@ -21,30 +22,55 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         _syncManager = SyncManager.instance,
         super(AttendanceInitial());
 
-  /// تحميل سجلات حضور اليوم - Load today's attendance records
-  Future<void> loadTodayAttendance() async {
-    emit(AttendanceLoading());
-    try {
-      final records = await _firebaseService.getTodayAttendanceRecords();
-      emit(AttendanceLoaded(records: records));
-    } catch (e) {
-      emit(AttendanceError('خطأ في تحميل سجلات الحضور: ${e.toString()}'));
-    }
+  StreamSubscription? _todayAttendanceSub;
+  StreamSubscription? _currentStatusSub;
+
+  @override
+  Future<void> close() {
+    _todayAttendanceSub?.cancel();
+    _currentStatusSub?.cancel();
+    return super.close();
   }
 
-  /// التحقق من حضور المستخدم الحالي اليوم - Check current user's today status
-  Future<void> checkTodayStatus(String userId) async {
-    try {
-      final attendance = await _firebaseService.getTodayAttendance(userId);
-      final records = await _firebaseService.getTodayAttendanceRecords();
-      emit(AttendanceLoaded(
-        records: records,
-        todayRecord: attendance,
-        isCheckedIn: attendance != null && attendance.isCheckedIn,
-      ));
-    } catch (e) {
-      emit(AttendanceError('خطأ في التحقق من الحضور: ${e.toString()}'));
-    }
+  /// تحميل سجلات حضور اليوم بشكل تفاعلي - Reactive Load today's attendance records
+  void loadTodayAttendance() {
+    emit(AttendanceLoading());
+    _todayAttendanceSub?.cancel();
+    _todayAttendanceSub = _firebaseService.streamTodayAttendanceRecords().listen(
+      (records) {
+        if (state is AttendanceLoaded) {
+          final s = state as AttendanceLoaded;
+          emit(s.copyWith(records: records));
+        } else {
+          emit(AttendanceLoaded(records: records));
+        }
+      },
+      onError: (e) {
+        emit(AttendanceError('خطأ في تحميل سجلات الحضور: ${e.toString()}'));
+      },
+    );
+  }
+
+  void checkTodayStatus(String userId) {
+    _currentStatusSub?.cancel();
+    _currentStatusSub = _firebaseService.streamTodayAttendance(userId).listen(
+      (attendance) async {
+        if (state is AttendanceLoaded) {
+          final s = state as AttendanceLoaded;
+          emit(s.copyWith(
+            todayRecord: attendance,
+            isCheckedIn: attendance != null && attendance.isCheckedIn,
+          ));
+        } else {
+          final records = await _firebaseService.getTodayAttendanceRecords();
+          emit(AttendanceLoaded(
+            records: records,
+            todayRecord: attendance,
+            isCheckedIn: attendance != null && attendance.isCheckedIn,
+          ));
+        }
+      },
+    );
   }
 
   /// تسجيل الحضور للموظف (من قبل المدير عبر QR) - Check in nurse (by ID)
@@ -57,9 +83,9 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     emit(AttendanceLoading());
     try {
       final existing = await _firebaseService.getTodayAttendance(targetUserId);
-      if (existing != null) {
-        emit(const AttendanceError('الموظف قام بتسجيل الحضور مسبقاً اليوم'));
-        await loadTodayAttendance();
+      if (existing != null && !existing.isCheckedOut) {
+        emit(const AttendanceError('الموظف لديه وردية نشطة حالياً مسبقاً'));
+        loadTodayAttendance();
         return;
       }
 
@@ -88,9 +114,61 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       );
 
       emit(AttendanceCheckedIn(attendance));
-      await loadTodayAttendance();
+      loadTodayAttendance();
     } catch (e) {
       emit(AttendanceError('خطأ في تسجيل حضور QR: ${e.toString()}'));
+    }
+  }
+
+  /// مسح الـ QR للتحقق من الحضور أو الانصراف - Handle QR Scan for Check-in / Check-out
+  Future<void> handleQrScan({
+    required String targetUserId,
+    required String targetUserName,
+    required String adminUserId,
+    required String adminUserName,
+  }) async {
+    emit(AttendanceLoading());
+    try {
+      final latest = await _firebaseService.getTodayAttendance(targetUserId);
+      if (latest == null || latest.isCheckedOut) {
+        // تسجيل حضور جديد - Check in a new session
+        await checkInByUserId(
+          targetUserId: targetUserId,
+          targetUserName: targetUserName,
+          adminUserId: adminUserId,
+          adminUserName: adminUserName,
+        );
+      } else {
+        // تسجيل انصراف للجلسة النشطة - Check out the active session
+        await checkOut(userId: targetUserId, userName: targetUserName);
+      }
+    } catch (e) {
+      emit(AttendanceError('خطأ في مسح QR: ${e.toString()}'));
+      loadTodayAttendance();
+    }
+  }
+
+  Future<void> processCenterQr({
+    required String qrCode,
+    required String userId,
+    required String userName,
+  }) async {
+    emit(AttendanceLoading());
+    try {
+      // Treat both codes as a toggle if appropriate, or handle them based on unified logic
+      final latest = await _firebaseService.getTodayAttendance(userId);
+      
+      if (qrCode == 'NEWCARE_ATTENDANCE' || qrCode == 'NEWCARE_DEPARTURE' || qrCode == 'NEWCARE_UNIFIED') {
+        if (latest == null || latest.isCheckedOut) {
+          await checkIn(userId: userId, userName: userName);
+        } else {
+          await checkOut(userId: userId, userName: userName);
+        }
+      } else {
+        emit(const AttendanceError('كود QR غير صالح أو غير معترف به'));
+      }
+    } catch (e) {
+      emit(AttendanceError('خطأ في معالجة الكود: ${e.toString()}'));
     }
   }
 
@@ -102,8 +180,8 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     emit(AttendanceLoading());
     try {
       final existing = await _firebaseService.getTodayAttendance(userId);
-      if (existing != null) {
-        emit(const AttendanceError('تم تسجيل الحضور مسبقاً اليوم'));
+      if (existing != null && !existing.isCheckedOut) {
+        emit(const AttendanceError('لديك وردية نشطة حالياً مسبقاً'));
         return;
       }
 
@@ -137,7 +215,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       );
 
       emit(AttendanceCheckedIn(attendance));
-      await loadTodayAttendance();
+      loadTodayAttendance();
     } catch (e) {
       emit(AttendanceError('خطأ في تسجيل الحضور: ${e.toString()}'));
     }
@@ -182,7 +260,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       );
 
       emit(AttendanceCheckedOut(updatedRecord));
-      await loadTodayAttendance();
+      loadTodayAttendance();
     } catch (e) {
       emit(AttendanceError('خطأ في تسجيل الانصراف: ${e.toString()}'));
     }

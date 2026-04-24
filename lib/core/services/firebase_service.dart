@@ -1,4 +1,7 @@
 import 'dart:developer';
+import 'dart:io';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -72,10 +75,14 @@ class FirebaseService {
   String _handleAuthError(dynamic e) {
     if (e is FirebaseAuthException) {
       switch (e.code) {
-        case 'email-already-in-use': return 'البريد الإلكتروني مستخدم بالفعل';
-        case 'weak-password': return 'كلمة المرور ضعيفة جداً';
-        case 'invalid-email': return 'البريد الإلكتروني غير صالح';
-        default: return e.message ?? 'فشل إنشاء الحساب';
+        case 'email-already-in-use':
+          return 'البريد الإلكتروني مستخدم بالفعل';
+        case 'weak-password':
+          return 'كلمة المرور ضعيفة جداً';
+        case 'invalid-email':
+          return 'البريد الإلكتروني غير صالح';
+        default:
+          return e.message ?? 'فشل إنشاء الحساب';
       }
     }
     return e.toString();
@@ -128,22 +135,42 @@ class FirebaseService {
     readCount++;
     final snapshot = await _usersRef.orderBy('name').get();
     return snapshot.docs
-        .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .toList();
   }
 
   /// جلب عدد المستخدمين - Get users count
   Future<int> getUsersCount() async {
     readCount++;
-    final snapshot = await _usersRef.get();
-    return snapshot.size;
+    final snapshot = await _usersRef.count().get();
+    return snapshot.count ?? 0;
+  }
+
+  /// جلب المستخدمين المحدثين بعد وقت معين - Get users updated after timestamp
+  Future<List<UserModel>> getUpdatedUsers(DateTime lastSync) async {
+    readCount++;
+    final snapshot = await _usersRef
+        .where('updatedAt', isGreaterThan: lastSync.toIso8601String())
+        .get();
+    return snapshot.docs
+        .map(
+          (doc) =>
+              UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
+        .toList();
   }
 
   /// بث المستخدمين - Stream all users
   Stream<List<UserModel>> usersStream() {
-    return _usersRef.orderBy('name').snapshots().map((snapshot) {
+    return _safeStream(_usersRef.orderBy('name')).map((snapshot) {
       return snapshot.docs
-          .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+          .map(
+            (doc) =>
+                UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+          )
           .toList();
     });
   }
@@ -151,13 +178,19 @@ class FirebaseService {
   /// جلب الطاقم النشط (ممرضين أو مدراء) - Get active staff for assignments
   Future<List<UserModel>> getActiveNurses() async {
     readCount++;
-    final snapshot = await _usersRef
-        .where('isActive', isEqualTo: true)
-        .get();
+    final snapshot = await _usersRef.where('isActive', isEqualTo: true).get();
     return snapshot.docs
-        .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         // يمكن تعيين الحالات لأي شخص نشط (ممرض أو مدير)
-        .where((u) => u.role.value == 'nurse' || u.role.value == 'admin' || u.role.value == 'super_admin')
+        .where(
+          (u) =>
+              u.role.value == 'nurse' ||
+              u.role.value == 'admin' ||
+              u.role.value == 'super_admin',
+        )
         .toList();
   }
 
@@ -169,15 +202,18 @@ class FirebaseService {
     // Check if the database is already seeded (has a super admin)
     // If so, exit immediately to prevent overwriting the active authentication session.
     try {
-      final superAdmins = await _usersRef.where('role', isEqualTo: 'super_admin').limit(1).get();
+      final superAdmins = await _usersRef
+          .where('role', isEqualTo: 'super_admin')
+          .limit(1)
+          .get();
       if (superAdmins.docs.isNotEmpty) {
         return; // Already seeded, safe to exit.
       }
     } catch (_) {
       // Offline or network error, skip seed
-      return; 
+      return;
     }
-    
+
     // سنقوم الآن بالتحقق من كل مستخدم افتراضي على حدة لضمان وجوده في Firestore
     // حتى لو كانت المجموعة غير فارغة، فقد يكون المشرف الافتراضي مفقوداً
 
@@ -241,7 +277,9 @@ class FirebaseService {
           await createUser(user);
           log('[Seed] User doc created successfully for ${seedData['email']}');
         } else {
-          log('[Seed] User profile already exists in Firestore for ${seedData['email']}');
+          log(
+            '[Seed] User profile already exists in Firestore for ${seedData['email']}',
+          );
         }
       } catch (e) {
         log('[Seed] Error processing user ${seedData['email']}: $e');
@@ -258,11 +296,23 @@ class FirebaseService {
   Future<void> seedDefaultProcedures() async {
     try {
       final snapshot = await _proceduresRef.get();
-      final existingNames = snapshot.docs.map((d) => d['name'] as String).toSet();
+      final existingNames = snapshot.docs
+          .map((d) => d['name'] as String)
+          .toSet();
 
       final defaults = [
-        {'name': 'تركيب كانيولا كبار', 'inside': 50.0, 'outside': 80.0, 'notes': ''},
-        {'name': 'متابعه كبار + زيارة', 'inside': 40.0, 'outside': 50.0, 'notes': ''},
+        {
+          'name': 'تركيب كانيولا كبار',
+          'inside': 50.0,
+          'outside': 80.0,
+          'notes': '',
+        },
+        {
+          'name': 'متابعه كبار + زيارة',
+          'inside': 40.0,
+          'outside': 50.0,
+          'notes': '',
+        },
         {'name': 'غيار', 'inside': 50.0, 'outside': 80.0, 'notes': ''},
         {'name': 'اختبار حساسية', 'inside': 60.0, 'outside': 80.0, 'notes': ''},
         {'name': 'قسطرة', 'inside': 300.0, 'outside': 400.0, 'notes': ''},
@@ -273,14 +323,34 @@ class FirebaseService {
         {'name': 'خياطة', 'inside': 200.0, 'outside': 200.0, 'notes': ''},
         {'name': 'قياس ضغط', 'inside': 30.0, 'outside': 30.0, 'notes': ''},
         {'name': 'قياس ضغط وسكر', 'inside': 60.0, 'outside': 60.0, 'notes': ''},
-        {'name': 'غيار فاكيم شامل الجهاز', 'inside': 500.0, 'outside': 500.0, 'notes': ''},
+        {
+          'name': 'غيار فاكيم شامل الجهاز',
+          'inside': 500.0,
+          'outside': 500.0,
+          'notes': '',
+        },
         {'name': 'تركيب رايل', 'inside': 200.0, 'outside': 300.0, 'notes': ''},
         {'name': 'حقنه شرجية', 'inside': 250.0, 'outside': 350.0, 'notes': ''},
         {'name': 'غسول انف', 'inside': 30.0, 'outside': 50.0, 'notes': ''},
-        {'name': 'علاج طبيعي ع الصدر', 'inside': 30.0, 'outside': 50.0, 'notes': ''},
+        {
+          'name': 'علاج طبيعي ع الصدر',
+          'inside': 30.0,
+          'outside': 50.0,
+          'notes': '',
+        },
         {'name': 'تشفيط', 'inside': 50.0, 'outside': 100.0, 'notes': ''},
-        {'name': 'متابعه اطفال', 'inside': 100.0, 'outside': 100.0, 'notes': ''},
-        {'name': 'تركيب كانيولا اطفال', 'inside': 70.0, 'outside': 100.0, 'notes': ''},
+        {
+          'name': 'متابعه اطفال',
+          'inside': 100.0,
+          'outside': 100.0,
+          'notes': '',
+        },
+        {
+          'name': 'تركيب كانيولا اطفال',
+          'inside': 70.0,
+          'outside': 100.0,
+          'notes': '',
+        },
       ];
 
       for (var d in defaults) {
@@ -288,7 +358,7 @@ class FirebaseService {
           final id = _proceduresRef.doc().id;
           await _proceduresRef.doc(id).set({
             'name': d['name'],
-            'defaultPrice': d['outside'], 
+            'defaultPrice': d['outside'],
             'priceInside': d['inside'],
             'priceOutside': d['outside'],
             'notes': d['notes'],
@@ -302,7 +372,9 @@ class FirebaseService {
   Future<void> seedDefaultInventory() async {
     try {
       final snapshot = await _inventoryRef.get();
-      final existingNames = snapshot.docs.map((d) => d['name'] as String).toSet();
+      final existingNames = snapshot.docs
+          .map((d) => d['name'] as String)
+          .toSet();
 
       final defaults = [
         {'name': 'سرنجات 1/3/5', 'price': 5.0},
@@ -344,8 +416,7 @@ class FirebaseService {
   // === الإجراءات الطبية - Procedures ===
   // ============================================
 
-  CollectionReference get _proceduresRef =>
-      _firestore.collection('procedures');
+  CollectionReference get _proceduresRef => _firestore.collection('procedures');
 
   Future<void> createProcedure(ProcedureModel procedure) async {
     writeCount++;
@@ -363,25 +434,51 @@ class FirebaseService {
   }
 
   Stream<List<ProcedureModel>> streamProcedures() {
-    return _proceduresRef.snapshots().map(
-          (snapshot) => snapshot.docs
-              .map((doc) => ProcedureModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-              .toList(),
-        );
+    return _safeStream(_proceduresRef).map(
+      (snapshot) => snapshot.docs
+          .map(
+            (doc) => ProcedureModel.fromMap(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
+          )
+          .toList(),
+    );
   }
 
   Future<List<ProcedureModel>> getAllProcedures() async {
     readCount++;
     final snapshot = await _proceduresRef.get();
     return snapshot.docs
-        .map((doc) => ProcedureModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) => ProcedureModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
         .toList();
   }
 
   Future<int> getProceduresCount() async {
     readCount++;
-    final snapshot = await _proceduresRef.get();
-    return snapshot.size;
+    final snapshot = await _proceduresRef.count().get();
+    return snapshot.count ?? 0;
+  }
+
+  /// جلب الإجراءات المحدثة بعد وقت معين - Get procedures updated after timestamp
+  Future<List<ProcedureModel>> getUpdatedProcedures(DateTime lastSync) async {
+    readCount++;
+    final snapshot = await _proceduresRef
+        .where('updatedAt', isGreaterThan: lastSync.toIso8601String())
+        .get();
+    return snapshot.docs
+        .map(
+          (doc) => ProcedureModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
+        .toList();
   }
 
   // ============================================
@@ -394,10 +491,9 @@ class FirebaseService {
   /// جلب عدد المرضى (الحالات حالياً) - Get patients count
   Future<int> getPatientsCount() async {
     readCount++;
-    final snapshot = await _casesRef.get();
-    return snapshot.size;
+    final snapshot = await _casesRef.count().get();
+    return snapshot.count ?? 0;
   }
-
 
   /// إنشاء حالة - Create case
   Future<void> createCase(CaseModel caseModel) async {
@@ -418,43 +514,62 @@ class FirebaseService {
   }
 
   /// جلب جميع الحالات - Get all cases
-  Future<List<CaseModel>> getAllCases() async {
+  Future<List<CaseModel>> getAllCases({String? nurseId}) async {
     readCount++;
-    final snapshot = await _casesRef.orderBy('caseDate', descending: true).get();
+    Query query = _casesRef.orderBy('caseDate', descending: true);
+    if (nurseId != null) {
+      query = query.where('nurseId', isEqualTo: nurseId);
+    }
+    final snapshot = await query.get();
     return snapshot.docs
-        .map((doc) => CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
+        .toList();
+  }
+
+  /// جلب الحالات المحدثة بعد وقت معين - Get cases updated after timestamp
+  Future<List<CaseModel>> getUpdatedCases(DateTime lastSync) async {
+    readCount++;
+    final snapshot = await _casesRef
+        .where('updatedAt', isGreaterThan: lastSync.toIso8601String())
+        .get();
+    return snapshot.docs
+        .map(
+          (doc) =>
+              CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .toList();
   }
 
   /// جلب حالات اليوم - Get today's cases
-  Future<List<CaseModel>> getTodayCases() async {
+  Future<List<CaseModel>> getTodayCases({String? nurseId}) async {
+    readCount++;
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
 
-    final snapshot = await _casesRef
+    Query query = _casesRef
         .where('caseDate', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
-        .where('caseDate', isLessThan: endOfDay.toIso8601String())
-        .get();
+        .where('caseDate', isLessThan: endOfDay.toIso8601String());
+
+    if (nurseId != null) {
+      query = query.where('nurseId', isEqualTo: nurseId);
+    }
+
+    final snapshot = await query.get();
 
     // نستخدم الفرز في الذاكرة لتجنب طلب الفهارس المركبة (Composite Indexes) حالياً
     final cases = snapshot.docs
-        .map((doc) => CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .toList();
-    
+
     cases.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return cases;
-  }
-
-  /// جلب حالات بحسب الحالة - Get cases by status
-  Future<List<CaseModel>> getCasesByStatus(String status) async {
-    final snapshot = await _casesRef
-        .where('status', isEqualTo: status)
-        .orderBy('caseDate', descending: true)
-        .get();
-    return snapshot.docs
-        .map((doc) => CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-        .toList();
   }
 
   /// جلب حالات ممرض - Get nurse's cases
@@ -464,8 +579,51 @@ class FirebaseService {
         .orderBy('caseDate', descending: true)
         .get();
     return snapshot.docs
-        .map((doc) => CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .toList();
+  }
+
+  /// بث جميع الحالات - Stream all cases
+  Stream<List<CaseModel>> streamAllCases({String? nurseId}) {
+    Query query = _casesRef.orderBy('caseDate', descending: true);
+    if (nurseId != null) {
+      query = query.where('nurseId', isEqualTo: nurseId);
+    }
+    return _safeStream(query).map(
+      (snapshot) => snapshot.docs
+          .map(
+            (doc) =>
+                CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+          )
+          .toList(),
+    );
+  }
+
+  /// بث حالات اليوم - Stream today's cases
+  Stream<List<CaseModel>> streamTodayCases({String? nurseId}) {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    Query query = _casesRef
+        .where('caseDate', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
+        .where('caseDate', isLessThan: endOfDay.toIso8601String());
+
+    if (nurseId != null) {
+      query = query.where('nurseId', isEqualTo: nurseId);
+    }
+
+    return _safeStream(query).map(
+      (snapshot) => snapshot.docs
+          .map(
+            (doc) =>
+                CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+          )
+          .toList(),
+    );
   }
 
   // ============================================
@@ -501,14 +659,32 @@ class FirebaseService {
 
   Future<int> getInventoryCount() async {
     readCount++;
-    final snapshot = await _firestore.collection('inventory').get();
-    return snapshot.size;
+    final snapshot = await _inventoryRef.count().get();
+    return snapshot.count ?? 0;
+  }
+
+  /// جلب المخزون المحدث بعد وقت معين - Get inventory updated after timestamp
+  Future<List<InventoryModel>> getUpdatedInventory(DateTime lastSync) async {
+    readCount++;
+    final snapshot = await _inventoryRef
+        .where('updatedAt', isGreaterThan: lastSync.toIso8601String())
+        .get();
+    return snapshot.docs
+        .map(
+          (doc) => InventoryModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
+        .toList();
   }
 
   /// جلب المستلزمات منخفضة المخزون - Get low stock items
   Future<List<InventoryModel>> getLowStockItems() async {
     final allItems = await getAllInventory();
-    return allItems.where((item) => item.isLowStock || item.isOutOfStock).toList();
+    return allItems
+        .where((item) => item.isLowStock || item.isOutOfStock)
+        .toList();
   }
 
   /// تحديث كمية المستلزم - Update item quantity
@@ -545,18 +721,27 @@ class FirebaseService {
   Future<List<ExpenseModel>> getAllExpenses() async {
     final snapshot = await _expensesRef.orderBy('date', descending: true).get();
     return snapshot.docs
-        .map((doc) => ExpenseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              ExpenseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .toList();
   }
 
   /// جلب مصاريف بحسب التاريخ - Get expenses by date range
-  Future<List<ExpenseModel>> getExpensesByRange(DateTime start, DateTime end) async {
+  Future<List<ExpenseModel>> getExpensesByRange(
+    DateTime start,
+    DateTime end,
+  ) async {
     final snapshot = await _expensesRef
         .where('date', isGreaterThanOrEqualTo: start.toIso8601String())
         .where('date', isLessThanOrEqualTo: end.toIso8601String())
         .get();
     return snapshot.docs
-        .map((doc) => ExpenseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              ExpenseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .toList();
   }
 
@@ -579,7 +764,9 @@ class FirebaseService {
         .limit(limit)
         .get();
     return snapshot.docs
-        .map((doc) => LogModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) => LogModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .toList();
   }
 
@@ -621,13 +808,13 @@ class FirebaseService {
     final results = await Future.wait([
       _casesRef.count().get(),
       _casesRef
-          .where('caseDate', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
+          .where(
+            'caseDate',
+            isGreaterThanOrEqualTo: startOfDay.toIso8601String(),
+          )
           .where('caseDate', isLessThan: endOfDay.toIso8601String())
           .count()
           .get(),
-      _casesRef.where('status', isEqualTo: 'pending').count().get(),
-      _casesRef.where('status', isEqualTo: 'in_progress').count().get(),
-      _casesRef.where('status', isEqualTo: 'completed').count().get(),
       _usersRef
           .where('role', isEqualTo: 'nurse')
           .where('isActive', isEqualTo: true)
@@ -635,23 +822,21 @@ class FirebaseService {
           .get(),
     ]);
 
-    // جلب حالات اليوم للفلترة في الذاكرة لتجنب مشاكل الفهرسة المركبة
+    // جلب حالات اليوم للفلترة في الذاكرة
     final todayCases = await getTodayCases();
 
-    final todayCompletedCases = todayCases.where((c) => c.status.name == 'completed').toList();
-
     double todayRevenue = 0;
-    for (final c in todayCompletedCases) {
+    for (final c in todayCases) {
       todayRevenue += c.totalPrice - c.discount;
     }
 
     return {
       'totalPatients': results[0].count ?? 0,
       'todayCases': todayCases.length,
-      'pendingCases': todayCases.where((c) => c.status.name == 'pending').length,
-      'inProgressCases': todayCases.where((c) => c.status.name == 'in_progress').length,
-      'completedCases': todayCompletedCases.length,
-      'availableNurses': results[5].count ?? 0,
+      'pendingCases': 0,
+      'inProgressCases': 0,
+      'completedCases': 0,
+      'availableNurses': results[2].count ?? 0,
       'todayRevenue': todayRevenue,
     };
   }
@@ -659,24 +844,27 @@ class FirebaseService {
   /// إحصائيات الممرض - Nurse dashboard stats
   Future<Map<String, dynamic>> getNurseDashboardStats(String nurseId) async {
     final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
-
     try {
       // جلب جميع حالات اليوم وفلترتها في الذاكرة لتجنب طلب فهرس مركب (Composite Index)
-      final allTodayCases = await getTodayCases();
-      final nurseTodayCases = allTodayCases.where((c) => c.nurseId == nurseId).toList();
+      // Get only nurse's cases from Firestore directly
+      final nurseTodayCases = await getTodayCases(nurseId: nurseId);
 
       final todayAttendance = await getTodayAttendance(nurseId);
-      
+
       // جلب سجلات حضور الشهر لحساب الساعات
-      final monthlyAttendance = await getMonthlyAttendanceRecords(now.year, now.month);
-      final nurseMonthlyAttendance = monthlyAttendance.where((a) => a.userId == nurseId).toList();
+      final monthlyAttendance = await getMonthlyAttendanceRecords(
+        now.year,
+        now.month,
+      );
+      final nurseMonthlyAttendance = monthlyAttendance
+          .where((a) => a.userId == nurseId)
+          .toList();
 
       double totalHours = 0;
       for (var a in nurseMonthlyAttendance) {
         if (a.checkOutTime != null) {
-          totalHours += a.checkOutTime!.difference(a.checkInTime).inMinutes / 60.0;
+          totalHours +=
+              a.checkOutTime!.difference(a.checkInTime).inMinutes / 60.0;
         }
       }
 
@@ -700,14 +888,24 @@ class FirebaseService {
   /// بيانات الرسم البياني للأسبوع - Weekly Chart Data (Last 7 Days)
   Future<Map<String, List<double>>> getDashboardChartData() async {
     final now = DateTime.now();
-    final sevenDaysAgo = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
+    final sevenDaysAgo = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(const Duration(days: 6));
 
     final snapshot = await _casesRef
-        .where('caseDate', isGreaterThanOrEqualTo: sevenDaysAgo.toIso8601String())
+        .where(
+          'caseDate',
+          isGreaterThanOrEqualTo: sevenDaysAgo.toIso8601String(),
+        )
         .get();
 
     final allCases = snapshot.docs
-        .map((doc) => CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .toList();
 
     List<double> counts = List.filled(7, 0.0);
@@ -717,33 +915,27 @@ class FirebaseService {
       final targetDate = sevenDaysAgo.add(Duration(days: i));
       final dayCases = allCases.where((c) {
         return c.caseDate.year == targetDate.year &&
-               c.caseDate.month == targetDate.month &&
-               c.caseDate.day == targetDate.day;
+            c.caseDate.month == targetDate.month &&
+            c.caseDate.day == targetDate.day;
       }).toList();
 
       counts[i] = dayCases.length.toDouble();
-      
+
       double dayRevenue = 0;
       for (final c in dayCases) {
-        if (c.status.name == 'completed') {
-          dayRevenue += (c.totalPrice - c.discount);
-        }
+        dayRevenue += (c.totalPrice - c.discount);
       }
       revenues[i] = dayRevenue;
     }
 
-    return {
-      'counts': counts,
-      'revenues': revenues,
-    };
+    return {'counts': counts, 'revenues': revenues};
   }
 
   // ============================================
   // === الورديات - Shifts ===
   // ============================================
 
-  CollectionReference get _shiftsRef =>
-      _firestore.collection('shifts');
+  CollectionReference get _shiftsRef => _firestore.collection('shifts');
 
   /// إنشاء وردية - Create shift
   Future<void> createShift(ShiftModel shift) async {
@@ -788,36 +980,46 @@ class FirebaseService {
     final endMonth = month == 12 ? 1 : month + 1;
     final endYear = month == 12 ? year + 1 : year;
     final endId = '$endYear-${endMonth.toString().padLeft(2, '0')}-01';
-    
+
     final snapshot = await _shiftsRef
         .where('date', isGreaterThanOrEqualTo: startId)
         .where('date', isLessThan: endId)
         .get();
     return snapshot.docs
-        .map((doc) => ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .toList();
   }
 
   /// جلب جميع ورديات اليوم - Get all today's shifts
   Future<List<ShiftModel>> getTodayShifts() async {
     final today = _todayString();
-    final snapshot = await _shiftsRef
-        .where('date', isEqualTo: today)
-        .get();
+    final snapshot = await _shiftsRef.where('date', isEqualTo: today).get();
     return snapshot.docs
-        .map((doc) => ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .toList();
   }
 
   /// جلب ورديات مستخدم - Get user shifts
-  Future<List<ShiftModel>> getUserShifts(String userId, {int limit = 30}) async {
+  Future<List<ShiftModel>> getUserShifts(
+    String userId, {
+    int limit = 30,
+  }) async {
     final snapshot = await _shiftsRef
         .where('userId', isEqualTo: userId)
         .orderBy('date', descending: true)
         .limit(limit)
         .get();
     return snapshot.docs
-        .map((doc) => ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .toList();
   }
 
@@ -826,33 +1028,37 @@ class FirebaseService {
     readCount++;
     final snapshot = await _shiftsRef.where('date', isEqualTo: date).get();
     return snapshot.docs
-        .map((doc) => ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .toList();
   }
 
   Future<int> getShiftsCount() async {
     readCount++;
-    final snapshot = await _shiftsRef.get();
-    return snapshot.size;
+    final snapshot = await _firestore.collection('shifts').count().get();
+    return snapshot.count ?? 0;
   }
 
   /// بث ورديات اليوم - Stream today's shifts
   Stream<List<ShiftModel>> streamTodayShifts() {
-    final today = _todayString();
-    return _shiftsRef
-        .where('date', isEqualTo: today)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-            .toList());
+    final todayStr = _todayString();
+    return _safeStream(_shiftsRef.where('date', isEqualTo: todayStr)).map(
+      (snapshot) => snapshot.docs
+          .map(
+            (doc) =>
+                ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+          )
+          .toList(),
+    );
   }
 
   // ============================================
   // === الحضور والانصراف - Attendance ===
   // ============================================
 
-  CollectionReference get _attendanceRef =>
-      _firestore.collection('attendance');
+  CollectionReference get _attendanceRef => _firestore.collection('attendance');
 
   /// تسجيل حضور - Check in
   Future<void> checkIn(AttendanceModel attendance) async {
@@ -873,6 +1079,7 @@ class FirebaseService {
     final snapshot = await _attendanceRef
         .where('userId', isEqualTo: userId)
         .where('date', isEqualTo: today)
+        .orderBy('checkInTime', descending: true)
         .limit(1)
         .get();
 
@@ -890,53 +1097,94 @@ class FirebaseService {
   }
 
   /// جلب جميع سجلات حضور شهر معين
-  Future<List<AttendanceModel>> getMonthlyAttendanceRecords(int year, int month) async {
+  Future<List<AttendanceModel>> getMonthlyAttendanceRecords(
+    int year,
+    int month,
+  ) async {
     final startId = '$year-${month.toString().padLeft(2, '0')}-01';
     final endMonth = month == 12 ? 1 : month + 1;
     final endYear = month == 12 ? year + 1 : year;
     final endId = '$endYear-${endMonth.toString().padLeft(2, '0')}-01';
-    
+
     final snapshot = await _attendanceRef
         .where('date', isGreaterThanOrEqualTo: startId)
         .where('date', isLessThan: endId)
         .get();
     return snapshot.docs
-        .map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) => AttendanceModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
         .toList();
   }
 
   /// جلب جميع سجلات حضور اليوم - Get all today's attendance
   Future<List<AttendanceModel>> getTodayAttendanceRecords() async {
     final today = _todayString();
-    final snapshot = await _attendanceRef
-        .where('date', isEqualTo: today)
-        .get();
+    final snapshot = await _attendanceRef.where('date', isEqualTo: today).get();
     return snapshot.docs
-        .map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) => AttendanceModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
         .toList();
   }
 
   /// جلب سجلات حضور مستخدم - Get user attendance history
-  Future<List<AttendanceModel>> getUserAttendance(String userId, {int limit = 30}) async {
+  Future<List<AttendanceModel>> getUserAttendance(
+    String userId, {
+    int limit = 30,
+  }) async {
     final snapshot = await _attendanceRef
         .where('userId', isEqualTo: userId)
         .orderBy('date', descending: true)
         .limit(limit)
         .get();
     return snapshot.docs
-        .map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) => AttendanceModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
         .toList();
   }
 
-  /// بث حضور اليوم - Stream today's attendance
-  Stream<List<AttendanceModel>> streamTodayAttendance() {
+  /// بث سجلات حضور اليوم - Stream today's attendance records
+  Stream<List<AttendanceModel>> streamTodayAttendanceRecords() {
+    final todayStr = _todayString();
+    return _safeStream(_attendanceRef.where('date', isEqualTo: todayStr)).map(
+      (snapshot) => snapshot.docs
+          .map(
+            (doc) => AttendanceModel.fromMap(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  /// بث حالة حضور مستخدم معين لليوم - Stream user's today attendance status
+  Stream<AttendanceModel?> streamTodayAttendance(String userId) {
     final today = _todayString();
-    return _attendanceRef
-        .where('date', isEqualTo: today)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-            .toList());
+    return _safeStream(
+      _attendanceRef
+          .where('userId', isEqualTo: userId)
+          .where('date', isEqualTo: today)
+          .orderBy('checkInTime', descending: true)
+          .limit(1),
+    ).map((snapshot) {
+      if (snapshot.docs.isEmpty) return null;
+      return AttendanceModel.fromMap(
+        snapshot.docs.first.data() as Map<String, dynamic>,
+        snapshot.docs.first.id,
+      );
+    });
   }
 
   /// تحديث معرف الجهاز للمستخدم - Update user device ID
@@ -970,5 +1218,23 @@ class FirebaseService {
   String _todayString() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  // ============================================
+  // === مساعدات البث الآمن - Safe Stream Helpers ===
+  // ============================================
+
+  /// مساعد لإنشاء بث آمن متوافق مع ويندوز
+  /// Helper to create a safe stream compatible with Windows
+  Stream<QuerySnapshot<Object?>> _safeStream(Query query) {
+    if (kIsWeb || !Platform.isWindows) {
+      return query.snapshots();
+    }
+
+    // على ويندوز، نستخدم السحب الدوري (Polling) لتجنب انهيار النظام بسبب الخيوط البرمجية (Threads)
+    // On Windows, use periodic polling to avoid native thread crashes
+    return Stream.periodic(
+      const Duration(seconds: 5),
+    ).asyncMap((_) => query.get()).asBroadcastStream();
   }
 }

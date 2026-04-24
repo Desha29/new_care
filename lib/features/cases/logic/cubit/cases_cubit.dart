@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/firebase_service.dart';
 import '../../../../core/services/local_log_service.dart';
@@ -10,14 +12,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 class CasesCubit extends Cubit<CasesState> {
   final SyncManager _syncManager;
 
-  CasesCubit()
-      : _syncManager = SyncManager.instance,
-        super(CasesInitial());
+  CasesCubit() : _syncManager = SyncManager.instance, super(CasesInitial());
 
-  Future<void> loadCases() async {
+  Future<void> loadCases({String? nurseId}) async {
     emit(CasesLoading());
     try {
-      final cases = await FirebaseService.instance.getAllCases();
+      final cases = await FirebaseService.instance.getAllCases(nurseId: nurseId);
       cases.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       emit(CasesLoaded(cases: cases));
     } catch (e) {
@@ -42,13 +42,24 @@ class CasesCubit extends Cubit<CasesState> {
         try {
           if (isConnected) {
             final inventory = await FirebaseService.instance.getAllInventory();
-            final item = inventory.firstWhere((i) => i.id == supply.inventoryId);
+            final item = inventory.firstWhere(
+              (i) => i.id == supply.inventoryId,
+            );
             if (item.quantity >= supply.quantity) {
               final updatedItem = item.copyWith(
                 quantity: item.quantity - supply.quantity,
                 updatedAt: DateTime.now(),
               );
-              await _syncManager.saveInventoryWithSync(updatedItem, isNew: false);
+              // Save to Firebase immediately
+              await FirebaseService.instance.updateInventoryItem(updatedItem);
+              await _syncManager.saveInventoryWithSync(
+                updatedItem,
+                isNew: false,
+              );
+            } else {
+              throw Exception(
+                'لا يوجد كمية كافية من ${supply.name}. المتوفر: ${item.quantity}',
+              );
             }
           } else {
             // في حالة عدم الاتصال: سجل العملية للمزامنة لاحقاً
@@ -59,7 +70,10 @@ class CasesCubit extends Cubit<CasesState> {
               data: {'quantity': supply.quantity},
             );
           }
-        } catch (_) {}
+        } catch (e) {
+          log('[InventoryDeduction] Error: $e');
+          rethrow; // Re-throw to be caught by outer try-catch
+        }
       }
 
       // 2. حفظ الحالة مع مزامنة
@@ -68,7 +82,7 @@ class CasesCubit extends Cubit<CasesState> {
       // 3. تسجيل النشاط
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final uName = FirebaseAuth.instance.currentUser?.displayName ?? 'مستخدم';
-      
+
       await LocalLogService.instance.logActivity(
         userId: uid,
         userName: uName,
@@ -76,13 +90,14 @@ class CasesCubit extends Cubit<CasesState> {
         actionLabel: 'إضافة حالة',
         targetType: 'case',
         targetId: newCase.id,
-        details: 'تم إضافة حالة جديدة بنجاح للمريض ${newCase.patientName} - المبلغ: ${newCase.totalPrice}',
+        details:
+            'تم إضافة حالة جديدة بنجاح للمريض ${newCase.patientName} - المبلغ: ${newCase.totalPrice}',
       );
 
       // 4. إعادة تحميل
       loadCases();
     } catch (e) {
-      emit(CasesError('خطأ في إضافة الحالة: ${e.toString()}'));
+      emit(CasesError('خطأ: ${e.toString()}'));
     }
   }
 

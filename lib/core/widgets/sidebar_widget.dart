@@ -113,10 +113,6 @@ class _SidebarWidgetState extends State<SidebarWidget> {
               // === معلومات المستخدم - User Info ===
               _buildUserInfo(isNarrow),
               
-              // === تغيير كلمة المرور للمستخدم - Change Password ===
-              _buildChangePasswordButton(isNarrow),
-              const SizedBox(height: 4),
-
               // === تسجيل الخروج - Logout ===
               _buildLogoutButton(isNarrow),
               const SizedBox(height: 12),
@@ -433,66 +429,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
     );
   }
 
-  /// زر تغيير كلمة المرور - Change Password Button
-  Widget _buildChangePasswordButton(bool isNarrow) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: InkWell(
-        onTap: () async {
-          final newPassword = await UIFeedback.showChangePasswordDialog(context);
-          if (newPassword != null && mounted) {
-            try {
-              await context.read<AuthCubit>().changePassword(newPassword);
-              UIFeedback.showSuccess(context, 'تم تغيير كلمة المرور بنجاح');
-            } catch (e) {
-              UIFeedback.showError(context, e.toString());
-            }
-          }
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: AnimatedContainer(
-          duration: AppConstants.animationFast,
-          padding: EdgeInsets.symmetric(
-            horizontal: isNarrow ? 0 : 16,
-            vertical: 12,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: isNarrow
-              ? const Center(
-                  child: Icon(
-                    Icons.lock_reset_rounded,
-                    color: AppColors.info,
-                    size: 20,
-                  ),
-                )
-              : Row(
-                  children: [
-                    const Icon(
-                      Icons.lock_reset_rounded,
-                      color: AppColors.info,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Text(
-                        'تغيير كلمة المرور',
-                        style: TextStyle(
-                          color: AppColors.info,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'Cairo',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-        ),
-      ),
-    );
-  }
+
 
   /// زر تسجيل الخروج - Logout Button
   Widget _buildLogoutButton(bool isNarrow) {

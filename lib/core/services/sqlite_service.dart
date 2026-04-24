@@ -27,7 +27,7 @@ class SqliteService {
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 6, // ترقية لإضافة حقول الجرد المفقودة وتصحيح الأسماء
+        version: 7, // ترقية لإضافة جدول الإجراءات وحل المشكلة
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -176,11 +176,25 @@ class SqliteService {
         retryCount INTEGER DEFAULT 0
       )
     ''');
+
+    // جدول الإجراءات الطبية - Procedures table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS procedures (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        price REAL DEFAULT 0,
+        category TEXT DEFAULT '',
+        notes TEXT DEFAULT '',
+        isActive INTEGER DEFAULT 1,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    ''');
   }
 
   /// ترقية قاعدة البيانات - Upgrade database
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 6) {
+    if (oldVersion < 7) {
       await db.execute('DROP TABLE IF EXISTS users');
       await db.execute('DROP TABLE IF EXISTS patients');
       await db.execute('DROP TABLE IF EXISTS cases');
@@ -190,6 +204,7 @@ class SqliteService {
       await db.execute('DROP TABLE IF EXISTS shifts');
       await db.execute('DROP TABLE IF EXISTS attendance');
       await db.execute('DROP TABLE IF EXISTS pending_sync');
+      await db.execute('DROP TABLE IF EXISTS procedures');
       await _onCreate(db, newVersion);
     }
   }
@@ -243,6 +258,56 @@ class SqliteService {
   Future<void> deleteCase(String id) async {
     final db = await database;
     await db.delete('cases', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // --- الإعدادات - Settings Helpers ---
+
+  Future<void> setSetting(String key, String value) async {
+    final db = await database;
+    await db.insert(
+      'settings',
+      {
+        'id': key,
+        'key': key,
+        'value': value,
+        'updatedAt': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<String?> getSetting(String key) async {
+    final db = await database;
+    final results = await db.query('settings', where: 'key = ?', whereArgs: [key]);
+    if (results.isEmpty) return null;
+    return results.first['value'] as String?;
+  }
+
+  Future<Map<String, String>> getClinicInfo() async {
+    final name = await getSetting('clinic_name') ?? 'مركز نيو كير';
+    final phone = await getSetting('clinic_phone') ?? '01012345678';
+    final address = await getSetting('clinic_address') ?? 'العنوان الافتراضي';
+    return {
+      'name': name,
+      'phone': phone,
+      'address': address,
+    };
+  }
+
+  Future<void> saveClinicInfo(String name, String phone, String address) async {
+    await setSetting('clinic_name', name);
+    await setSetting('clinic_phone', phone);
+    await setSetting('clinic_address', address);
+  }
+
+  Future<DateTime> getLastSync() async {
+    final val = await getSetting('last_sync_timestamp');
+    if (val == null) return DateTime(2025, 1, 1);
+    return DateTime.tryParse(val) ?? DateTime(2025, 1, 1);
+  }
+
+  Future<void> updateLastSync() async {
+    await setSetting('last_sync_timestamp', DateTime.now().toIso8601String());
   }
 
   /// جلب عدد المستخدمين - Get users count

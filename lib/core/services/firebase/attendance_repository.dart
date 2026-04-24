@@ -84,9 +84,7 @@ class AttendanceRepository extends FirebaseBase {
   /// بث حضور اليوم - Stream today's attendance
   Stream<List<AttendanceModel>> streamTodayAttendance() {
     final today = todayString();
-    return _attendanceRef
-        .where('date', isEqualTo: today)
-        .snapshots()
+    return safeStream(_attendanceRef.where('date', isEqualTo: today))
         .map((snapshot) => snapshot.docs
             .map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
             .toList());

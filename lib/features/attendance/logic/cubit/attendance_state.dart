@@ -22,6 +22,18 @@ class AttendanceLoaded extends AttendanceState {
     this.isCheckedIn = false,
   });
 
+  AttendanceLoaded copyWith({
+    List<AttendanceModel>? records,
+    AttendanceModel? todayRecord,
+    bool? isCheckedIn,
+  }) {
+    return AttendanceLoaded(
+      records: records ?? this.records,
+      todayRecord: todayRecord ?? this.todayRecord,
+      isCheckedIn: isCheckedIn ?? this.isCheckedIn,
+    );
+  }
+
   @override
   List<Object?> get props => [records, todayRecord, isCheckedIn];
 }

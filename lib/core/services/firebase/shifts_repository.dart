@@ -95,10 +95,8 @@ class ShiftsRepository extends FirebaseBase {
 
   /// بث ورديات اليوم - Stream today's shifts
   Stream<List<ShiftModel>> streamTodayShifts() {
-    final today = todayString();
-    return _shiftsRef
-        .where('date', isEqualTo: today)
-        .snapshots()
+    final todayStr = todayString();
+    return safeStream(_shiftsRef.where('date', isEqualTo: todayStr))
         .map((snapshot) => snapshot.docs
             .map((doc) => ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
             .toList());

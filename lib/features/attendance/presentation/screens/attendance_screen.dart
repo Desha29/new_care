@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -28,6 +30,7 @@ class AttendanceScreen extends StatefulWidget {
 class _AttendanceScreenState extends State<AttendanceScreen> {
   final TextEditingController _scanController = TextEditingController();
   final FocusNode _scanFocusNode = FocusNode();
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -39,6 +42,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final authState = context.read<AuthCubit>().state;
     if (authState is AuthAuthenticated) {
       context.read<AttendanceCubit>().checkTodayStatus(authState.user.id);
+      context.read<AttendanceCubit>().loadTodayAttendance();
     }
   }
 
@@ -130,29 +134,27 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ),
         const Spacer(),
         if (isAdmin) ...[
-          SizedBox(
-            width: 250,
-            height: 45,
-            child: TextField(
-              controller: _scanController,
-              focusNode: _scanFocusNode,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'امسح الـ QR أو ادخل الكود...',
-                hintStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 12),
-                prefixIcon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-                filled: true,
-                fillColor: AppColors.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-              ),
-              onSubmitted: (value) => _processQrScan(context, value),
+          ElevatedButton.icon(
+            onPressed: () => _showCenterQr(isDeparture: false),
+            icon: const Icon(Icons.qr_code_2_rounded),
+            label: const Text('كود الحضور', style: TextStyle(fontFamily: 'Cairo')),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: () => _showCenterQr(isDeparture: true),
+            icon: const Icon(Icons.logout_rounded),
+            label: const Text('كود الانصراف', style: TextStyle(fontFamily: 'Cairo')),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
           const SizedBox(width: 12),
@@ -195,37 +197,54 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-  void _processQrScan(BuildContext context, String rawValue) async {
-    if (rawValue.isEmpty) return;
-
-    final authState = context.read<AuthCubit>().state;
-    if (authState is! AuthAuthenticated) return;
-
-    // توقع التنسيق: UID:Name أو مجرد UID
-    final parts = rawValue.split(':');
-    final targetUid = parts.isNotEmpty ? parts[0].trim() : '';
-    String targetName = parts.length > 1 ? parts[1].trim() : 'ممرض';
-
-    if (targetUid.length < 5) return; // كود غير صالح
-
-    // إذا لم يتوفر الاسم في الـ QR، نحاول إيجاده من قائمة المستخدمين
-    if (targetName == 'ممرض') {
-      try {
-        final user = await FirebaseService.instance.getUser(targetUid);
-        if (user != null) targetName = user.name;
-      } catch (_) {}
-    }
-
-    if (mounted) {
-      context.read<AttendanceCubit>().checkInByUserId(
-        targetUserId: targetUid,
-        targetUserName: targetName,
-        adminUserId: authState.user.id,
-        adminUserName: authState.user.name,
-      );
-      _scanController.clear();
-      _scanFocusNode.requestFocus(); // العودة للتركيز للمسح التالي
-    }
+  void _showCenterQr({required bool isDeparture}) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          isDeparture ? 'كود انصراف المركز' : 'كود حضور المركز',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+        ),
+        content: SizedBox(
+          width: 300,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: QrImageView(
+                  data: isDeparture ? 'NEWCARE_DEPARTURE' : 'NEWCARE_ATTENDANCE',
+                  version: QrVersions.auto,
+                  size: 250.0,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                isDeparture 
+                  ? 'اطلب من الممرض مسح هذا الكود عند نهاية نوبة العمل لتسجيل الانصراف'
+                  : 'اطلب من الممرض مسح هذا الكود عند بداية نوبة العمل لتسجيل الحضور',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontFamily: 'Cairo', fontSize: 13, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إغلاق', style: TextStyle(fontFamily: 'Cairo')),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildCheckInCard(BuildContext context, AttendanceState state) {
@@ -511,6 +530,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       records = state.records;
     }
 
+    final filteredRecords = records.where((r) => r.userName.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -546,6 +567,30 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ),
                 ),
                 const Spacer(),
+                SizedBox(
+                  width: 200,
+                  height: 35,
+                  child: TextField(
+                    onChanged: (val) => setState(() => _searchQuery = val),
+                    decoration: InputDecoration(
+                      hintText: 'تصفية بالاسم...',
+                      hintStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 12),
+                      prefixIcon: const Icon(Icons.search, size: 18),
+                      filled: true,
+                      fillColor: AppColors.background,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -556,7 +601,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '${records.length} سجل',
+                    '${filteredRecords.length} سجل',
                     style: const TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 12,
@@ -587,17 +632,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           Expanded(
             child: state is AttendanceLoading
                 ? const Center(child: CircularProgressIndicator())
-                : records.isEmpty
+                : filteredRecords.isEmpty
                 ? const EmptyStateWidget(
                     icon: Icons.fingerprint_rounded,
                     title: 'لا توجد سجلات حضور اليوم',
                     subtitle: 'سيتم عرض سجلات الحضور هنا عند تسجيلها',
                   )
                 : ListView.separated(
-                    itemCount: records.length,
+                    itemCount: filteredRecords.length,
                     separatorBuilder: (_, __) =>
                         const Divider(height: 1, color: AppColors.borderLight),
-                    itemBuilder: (_, i) => _recordRow(records[i], i),
+                    itemBuilder: (_, i) => _recordRow(filteredRecords[i], i),
                   ),
           ),
         ],

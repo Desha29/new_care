@@ -1,46 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/enums/case_status.dart';
-
-/// شارة الحالة - Status Badge Widget
-/// تعرض حالة الملف بلون مميز
-class StatusBadge extends StatelessWidget {
-  final CaseStatus status;
-  final double fontSize;
-
-  const StatusBadge({
-    super.key,
-    required this.status,
-    this.fontSize = 12,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: status.backgroundColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(status.icon, color: status.color, size: fontSize + 2),
-          const SizedBox(width: 6),
-          Text(
-            status.label,
-            style: TextStyle(
-              color: status.color,
-              fontSize: fontSize,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'Cairo',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// شارة المخزون - Stock Badge Widget
 class StockBadge extends StatelessWidget {
   final int quantity;

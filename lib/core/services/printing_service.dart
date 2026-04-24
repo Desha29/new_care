@@ -171,12 +171,6 @@ class PrintingService {
             AppStrings.caseType,
             caseModel.caseType.label,
           ),
-          _infoItem(
-            boldFont,
-            regularFont,
-            AppStrings.caseStatus,
-            caseModel.status.label,
-          ),
         ],
       ),
     );

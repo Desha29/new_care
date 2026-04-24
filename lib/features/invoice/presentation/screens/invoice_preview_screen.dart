@@ -1,13 +1,10 @@
-import 'dart:typed_data';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/material.dart';
-import 'package:printing/printing.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/services/report_service.dart';
-import '../../../cases/data/models/case_model.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../cases/data/models/case_model.dart';
+import '../../../../core/services/report_service.dart';
 
-/// شاشة معاينة الفاتورة - Invoice Preview Screen
-/// تعرض الفاتورة مع خيارات الطباعة والمشاركة والحفظ
 class InvoicePreviewScreen extends StatelessWidget {
   final CaseModel caseData;
 
@@ -16,194 +13,406 @@ class InvoicePreviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
+        title: const Text(
+          'معاينة الفاتورة الشخصية',
+          style: TextStyle(fontFamily: 'Cairo'),
         ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'معاينة الفاتورة',
-                  style: TextStyle(fontFamily: 'Cairo', fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                ),
-                Text(
-                  '#${caseData.id.substring(0, 6).toUpperCase()} • ${DateFormat('yyyy/MM/dd').format(caseData.caseDate)}',
-                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-          ],
-        ),
+        centerTitle: true,
         actions: [
-          // زر الطباعة
-          _ActionButton(
-            icon: Icons.print_rounded,
-            label: 'طباعة',
-            color: AppColors.primary,
-            onTap: () => ReportService.instance.generateCaseInvoice(caseData),
+          IconButton(
+            icon: const Icon(Icons.share_rounded),
+            onPressed: () => ReportService.instance.shareCaseInvoice(caseData),
+            tooltip: 'مشاركة الفاتورة',
+          ),
+          IconButton(
+            icon: const Icon(Icons.print_rounded),
+            onPressed: () =>
+                ReportService.instance.generateCaseInvoice(caseData),
+            tooltip: 'طباعة الفاتورة',
           ),
           const SizedBox(width: 8),
-          // زر المشاركة
-          _ActionButton(
-            icon: Icons.share_rounded,
-            label: 'مشاركة',
-            color: AppColors.info,
-            onTap: () => ReportService.instance.shareCaseInvoice(caseData),
-          ),
-          const SizedBox(width: 16),
         ],
       ),
-      body: Column(
-        children: [
-          // شريط المعلومات السريعة
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border: Border(bottom: BorderSide(color: AppColors.border)),
-            ),
-            child: Row(
-              children: [
-                _InfoChip(label: 'المريض', value: caseData.patientName, icon: Icons.person_rounded),
-                const SizedBox(width: 16),
-                _InfoChip(label: 'النوع', value: caseData.caseType.label, icon: Icons.category_rounded),
-                const SizedBox(width: 16),
-                _InfoChip(label: 'الممرض', value: caseData.nurseName, icon: Icons.local_hospital_rounded),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${(caseData.totalPrice - caseData.discount).toStringAsFixed(0)} E.P',
-                    style: const TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
+      body: Center(
+        child: SingleChildScrollView(
+          child: Container(
+            width: 420, // عرض يشبه الإيصال (Thermal Receipt style)
+            margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
                 ),
               ],
             ),
+            child: Column(
+              children: [
+                _buildReceiptHeader(),
+                _dashedDivider(),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildPatientDetails(),
+                      const SizedBox(height: 20),
+                      _dashedDivider(),
+                      const SizedBox(height: 20),
+                      _buildReceiptItems(),
+                      const SizedBox(height: 20),
+                      _dashedDivider(),
+                      const SizedBox(height: 20),
+                      _buildFinancials(),
+
+                      // _buildQRCode(),
+                      const SizedBox(height: 24),
+                      Align(
+                        alignment: Alignment.center,
+                        child: _buildFooterText(),
+                      ),
+                    ],
+                  ),
+                ),
+                _buildBottomCutEffect(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReceiptHeader() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      width: double.infinity,
+      child: Column(
+        children: [
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Image.asset(
+              'assets/images/logo.png',
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => const Icon(
+                Icons.local_hospital_rounded,
+                color: AppColors.primary,
+                size: 60,
+              ),
+            ),
           ),
 
-          // عرض الفاتورة PDF مباشرة
-          Expanded(
-            child: FutureBuilder<Uint8List>(
-              future: ReportService.instance.generateCaseInvoiceBytes(caseData),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(color: AppColors.primary),
-                        SizedBox(height: 16),
-                        Text('جاري تحضير الفاتورة...', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary)),
-                      ],
-                    ),
-                  );
-                }
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text('خطأ في تحضير الفاتورة: ${snapshot.error}', style: const TextStyle(fontFamily: 'Cairo', color: AppColors.error)),
-                  );
-                }
-                if (snapshot.hasData) {
-                  final pdfBytes = snapshot.data!;
-                  return PdfPreview(
-                    build: (format) async => pdfBytes,
-                    canChangePageFormat: false,
-                    canChangeOrientation: false,
-                    canDebug: false,
-                    pdfFileName: 'Invoice_${caseData.id.substring(0, 6)}.pdf',
-                    actions: const [], // الأزرار في AppBar
-                  );
-                }
-                return const SizedBox.shrink();
-              },
+          const Text(
+            'مركـز نيـو كيـر الطبـي',
+            style: TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
             ),
+          ),
+          const Text(
+            'فاتورة خدمة طبية',
+            style: TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'رقم: #${caseData.id.substring(0, 8).toUpperCase()}',
+                style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                DateFormat('yyyy/MM/dd HH:mm', 'ar').format(caseData.caseDate),
+                style: const TextStyle(fontFamily: 'Cairo', fontSize: 12),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
-}
 
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionButton({required this.icon, required this.label, required this.color, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+  Widget _buildPatientDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _receiptRow('المريض:', caseData.patientName, isBold: true),
+        const SizedBox(height: 4),
+        _receiptRow(
+          'الهاتف:',
+          caseData.patientPhone.isEmpty ? '-' : caseData.patientPhone,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 6),
-            Text(label, style: TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.w600, color: color)),
-          ],
-        ),
-      ),
+        const SizedBox(height: 4),
+        _receiptRow('الممرض:', caseData.nurseName),
+      ],
     );
   }
-}
 
-class _InfoChip extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _InfoChip({required this.label, required this.value, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+  Widget _buildReceiptItems() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: AppColors.textHint),
-        const SizedBox(width: 6),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontFamily: 'Cairo', fontSize: 10, color: AppColors.textHint)),
-            Text(value, style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.w600)),
-          ],
+        const Text(
+          'البيان / الخدمات:',
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...caseData.services.map(
+          (s) => _itemRow(s.name, s.quantity, s.price * s.quantity),
+        ),
+        ...caseData.suppliesUsed.map(
+          (su) => _itemRow('${su.name} (مستلزم)', su.quantity, su.total),
         ),
       ],
     );
   }
+
+  Widget _itemRow(String name, int qty, double total) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              name,
+              style: const TextStyle(fontFamily: 'Cairo', fontSize: 13),
+            ),
+          ),
+          Text(
+            '${qty}x',
+            style: const TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(width: 20),
+          Text(
+            '${total.toStringAsFixed(0)} ج.م',
+            style: const TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFinancials() {
+    return Column(
+      children: [
+        _receiptRow(
+          'المجموع الفرعي:',
+          '${caseData.totalPrice.toStringAsFixed(0)} ج.م',
+        ),
+        if (caseData.discount > 0)
+          _receiptRow(
+            'الخصم:',
+            '- ${caseData.discount.toStringAsFixed(0)} ج.م',
+            color: Colors.red,
+          ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: _receiptRow(
+            'الإجمــالي النهائـي:',
+            '${(caseData.totalPrice - caseData.discount).toStringAsFixed(0)} ج.م',
+            isBold: true,
+            fontSize: 18,
+            color: AppColors.primary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _receiptRow(
+    String label,
+    String value, {
+    bool isBold = false,
+    double fontSize = 13,
+    Color? color,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: fontSize,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: fontSize,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            color: color ?? AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _dashedDivider() {
+    return Row(
+      children: List.generate(
+        30,
+        (index) => Expanded(
+          child: Container(
+            color: index % 2 == 0
+                ? Colors.transparent
+                : Colors.grey.withValues(alpha: 0.3),
+            height: 1,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Widget _buildQRCode() {
+  //   return Center(
+  //     child: Column(
+  //       children: [
+  //         Container(
+  //           padding: const EdgeInsets.all(12),
+  //           decoration: BoxDecoration(
+  //             border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+  //             borderRadius: BorderRadius.circular(12),
+  //           ),
+  //           child: QrImageView(
+  //             data: caseData.id,
+  //             version: QrVersions.auto,
+  //             size: 100.0,
+  //             gapless: false,
+  //             eyeStyle: const QrEyeStyle(
+  //               eyeShape: QrEyeShape.square,
+  //               color: Color(0xFF333333),
+  //             ),
+  //             dataModuleStyle: const QrDataModuleStyle(
+  //               dataModuleShape: QrDataModuleShape.square,
+  //               color: Color(0xFF333333),
+  //             ),
+  //           ),
+  //         ),
+  //         const SizedBox(height: 12),
+  //         const Text(
+  //           'شكراً لثقتكم بنا',
+  //           style: TextStyle(
+  //             fontFamily: 'Cairo',
+  //             fontSize: 12,
+  //             color: AppColors.textHint,
+  //             fontWeight: FontWeight.bold,
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  Widget _buildFooterText() {
+    return const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          'نتمنى لكم الشفاء العاجل',
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          'للتواصل: 01012345678',
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: AppColors.primary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomCutEffect() {
+    return Container(
+      height: 10,
+      child: Row(
+        children: List.generate(
+          20,
+          (index) => Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                border: Border(
+                  top: BorderSide(
+                    color: Colors.grey.withValues(alpha: 0.1),
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: CustomPaint(painter: _ZigZagPainter()),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ZigZagPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    var paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    var path = Path();
+    path.moveTo(0, 0);
+    path.lineTo(size.width / 2, size.height);
+    path.lineTo(size.width, 0);
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

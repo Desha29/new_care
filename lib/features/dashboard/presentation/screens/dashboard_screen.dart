@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
@@ -25,6 +27,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = true;
   bool _isOffline = false;
+  final List<StreamSubscription> _subscriptions = [];
 
   Map<String, dynamic> _stats = {
     'todayCases': 0,
@@ -43,11 +46,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDashboardData();
+    _loadDashboardData(showLoading: true);
+    _setupRealtimeListeners();
   }
 
-  Future<void> _loadDashboardData() async {
-    setState(() => _isLoading = true);
+  void _setupRealtimeListeners() {
+    // Listen to changes in today's cases
+    _subscriptions.add(
+      FirebaseService.instance.streamTodayCases().listen((_) {
+        _loadDashboardData(showLoading: false);
+      }),
+    );
+    // Listen to attendance changes
+    _subscriptions.add(
+      FirebaseService.instance.streamTodayAttendanceRecords().listen((_) {
+        _loadDashboardData(showLoading: false);
+      }),
+    );
+  }
+
+  @override
+  void dispose() {
+    for (var sub in _subscriptions) {
+      sub.cancel();
+    }
+    super.dispose();
+  }
+
+  Future<void> _loadDashboardData({bool showLoading = false}) async {
+    if (showLoading) setState(() => _isLoading = true);
 
     try {
       final isConnected = await ConnectivityService.instance.checkConnection();
@@ -164,14 +191,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     if (isSmall) ...[
                       _buildCasesChart(),
                       const SizedBox(height: 20),
-                      _buildStatusPieChart(),
+                      _buildKPIMetricsWidget(),
                     ] else
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(flex: 3, child: _buildCasesChart()),
                           const SizedBox(width: 20),
-                          Expanded(flex: 2, child: _buildStatusPieChart()),
+                          Expanded(flex: 2, child: _buildKPIMetricsWidget()),
                         ],
                       ),
                     const SizedBox(height: 24),
@@ -259,6 +286,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(width: 12),
               IconButton(
+                onPressed: () => _showCenterQr(isDeparture: false),
+                icon: const Icon(
+                  Icons.qr_code_2_rounded,
+                  size: 20,
+                  color: AppColors.secondary,
+                ),
+                tooltip: 'عرض كود حضور المركز',
+              ),
+              IconButton(
+                onPressed: () => _showCenterQr(isDeparture: true),
+                icon: const Icon(
+                  Icons.logout_rounded,
+                  size: 20,
+                  color: AppColors.error,
+                ),
+                tooltip: 'عرض كود انصراف المركز',
+              ),
+              IconButton(
                 onPressed: _loadDashboardData,
                 icon: const Icon(
                   Icons.refresh_rounded,
@@ -270,6 +315,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showCenterQr({required bool isDeparture}) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          isDeparture ? 'كود انصراف المركز' : 'كود حضور المركز',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+        ),
+        content: SizedBox(
+          width: 300,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: QrImageView(
+                  data: isDeparture ? 'NEWCARE_DEPARTURE' : 'NEWCARE_ATTENDANCE',
+                  version: QrVersions.auto,
+                  size: 250.0,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                isDeparture
+                    ? 'اطلب من الممرض مسح هذا الكود في نهاية نوبة العمل لتسجيل الانصراف'
+                    : 'اطلب من الممرض مسح هذا الكود في بداية نوبة العمل لتسجيل الحضور',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إغلاق', style: TextStyle(fontFamily: 'Cairo')),
+          ),
+        ],
+      ),
     );
   }
 
@@ -294,18 +392,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           subtitle: 'حالة اليوم',
         ),
         StatCard(
-          title: AppStrings.totalPatients,
-          value: '${_stats['totalPatients']}',
-          icon: Icons.people_rounded,
-          color: AppColors.secondary,
-          subtitle: 'مريض مسجل',
-        ),
-        StatCard(
           title: AppStrings.totalRevenue,
           value: NumberFormatter.currency((_stats['todayRevenue'] as double)),
           icon: Icons.account_balance_wallet_rounded,
           color: AppColors.success,
           subtitle: 'إيرادات اليوم',
+        ),
+        StatCard(
+          title: 'توزيع الحالات',
+          value: '${_stats['todayCases'] > 0 ? ((_stats['completedCases'] / _stats['todayCases']) * 100).toStringAsFixed(0) : 0}%',
+          icon: Icons.pie_chart_rounded,
+          color: AppColors.secondary,
+          subtitle: 'نسبة الإنجاز اليومي',
         ),
         StatCard(
           title: AppStrings.availableNurses,
@@ -464,13 +562,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// رسم بياني دائري لحالات الأعمال - Status Pie Chart
-  Widget _buildStatusPieChart() {
-    final pending = (_stats['pendingCases'] as int).toDouble();
-    final inProgress = (_stats['inProgressCases'] as int).toDouble();
-    final completed = (_stats['completedCases'] as int).toDouble();
+  /// مقاييس الأداء المهنية - Professional KPI Metrics
+  Widget _buildKPIMetricsWidget() {
+    final totalCases = _stats['todayCases'] as int;
+    final completedCases = _stats['completedCases'] as int;
+    final availableNurses = _stats['availableNurses'] as int;
+    final todayRevenue = _stats['todayRevenue'] as double;
 
-    final total = pending + inProgress + completed;
+    // حساب المقاييس
+    final completionRate = totalCases > 0
+        ? (completedCases / totalCases * 100).toStringAsFixed(1)
+        : '0.0';
+    final casesPerNurse = availableNurses > 0
+        ? (totalCases / availableNurses).toStringAsFixed(1)
+        : '0.0';
+    final avgRevenue = totalCases > 0
+        ? (todayRevenue / totalCases).toStringAsFixed(0)
+        : '0';
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -483,7 +591,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'حالات اليوم',
+            'مؤشرات الأداء',
             style: TextStyle(
               fontFamily: 'Cairo',
               fontSize: 16,
@@ -492,112 +600,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          SizedBox(
-            height: 180,
-            child: total == 0
-                ? const Center(
-                    child: Text(
-                      "لا توجد بيانات اليوم",
-                      style: TextStyle(fontFamily: 'Cairo'),
-                    ),
-                  )
-                : PieChart(
-                    PieChartData(
-                      sectionsSpace: 3,
-                      centerSpaceRadius: 40,
-                      sections: [
-                        if (pending > 0)
-                          PieChartSectionData(
-                            color: AppColors.statusPending,
-                            value: pending,
-                            title: '${pending.toInt()}',
-                            titleStyle: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                            radius: 45,
-                          ),
-                        if (inProgress > 0)
-                          PieChartSectionData(
-                            color: AppColors.statusInProgress,
-                            value: inProgress,
-                            title: '${inProgress.toInt()}',
-                            titleStyle: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                            radius: 45,
-                          ),
-                        if (completed > 0)
-                          PieChartSectionData(
-                            color: AppColors.statusCompleted,
-                            value: completed,
-                            title: '${completed.toInt()}',
-                            titleStyle: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                            radius: 45,
-                          ),
-                      ],
-                    ),
-                  ),
+          _buildKPIRow(
+            label: 'معدل الإنجاز',
+            value: '$completionRate%',
+            icon: Icons.trending_up_rounded,
+            color: AppColors.success,
           ),
-          const SizedBox(height: 20),
-          // الأسطورة - Legend
-          _buildLegendItem(
-            AppColors.statusPending,
-            AppStrings.pending,
-            pending.toInt(),
+          const SizedBox(height: 16),
+          _buildKPIRow(
+            label: 'حالات لكل ممرض',
+            value: casesPerNurse,
+            icon: Icons.person_outline_rounded,
+            color: AppColors.info,
           ),
-          const SizedBox(height: 8),
-          _buildLegendItem(
-            AppColors.statusInProgress,
-            AppStrings.inProgress,
-            inProgress.toInt(),
-          ),
-          const SizedBox(height: 8),
-          _buildLegendItem(
-            AppColors.statusCompleted,
-            AppStrings.completed,
-            completed.toInt(),
+          const SizedBox(height: 16),
+          _buildKPIRow(
+            label: 'متوسط الإيراد',
+            value: '$avgRevenue ج.م',
+            icon: Icons.attach_money_rounded,
+            color: AppColors.primary,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLegendItem(Color color, String label, int count) {
+  /// صف مقياس أداء واحد - Single KPI Row
+  Widget _buildKPIRow({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
     return Row(
       children: [
         Container(
-          width: 10,
-          height: 10,
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
           ),
+          child: Icon(icon, color: color, size: 20),
         ),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: const TextStyle(
-            fontFamily: 'Cairo',
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const Spacer(),
-        Text(
-          '$count',
-          style: const TextStyle(
-            fontFamily: 'Cairo',
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -826,22 +895,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: caseData.status.backgroundColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              caseData.status.label,
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 10,
-                color: caseData.status.color,
-                fontWeight: FontWeight.w600,
-              ),
             ),
           ),
         ],

@@ -24,7 +24,7 @@ class ProceduresRepository extends FirebaseBase {
 
   /// بث الإجراءات - Stream procedures
   Stream<List<ProcedureModel>> streamProcedures() {
-    return _proceduresRef.snapshots().map(
+    return safeStream(_proceduresRef).map(
           (snapshot) => snapshot.docs
               .map((doc) => ProcedureModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
               .toList(),
@@ -56,10 +56,14 @@ class ProceduresRepository extends FirebaseBase {
 
       for (var d in defaults) {
         final id = _proceduresRef.doc().id;
+        final now = DateTime.now().toIso8601String();
         await _proceduresRef.doc(id).set({
           'name': d['name'],
           'defaultPrice': d['price'],
+          'priceInside': d['price'],
+          'priceOutside': d['price'],
           'notes': 'خدمة افتراضية مُضافة آلياً',
+          'updatedAt': now,
         });
       }
     } catch (_) {}

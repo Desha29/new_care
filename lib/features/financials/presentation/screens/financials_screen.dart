@@ -10,6 +10,7 @@ import '../../../../core/widgets/buttons/primary_button.dart';
 import '../../../../core/widgets/buttons/icon_action_button.dart';
 import '../../../../core/services/report_service.dart';
 import '../../../../core/services/firebase_service.dart';
+import '../../../reports/presentation/screens/report_preview_screen.dart';
 import '../../logic/cubit/financials_cubit.dart';
 import '../../data/models/expense_model.dart';
 import 'package:intl/intl.dart';
@@ -38,7 +39,10 @@ class _FinancialsView extends StatelessWidget {
         listener: (context, state) {
           if (state is FinancialsError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.error,
+              ),
             );
           }
         },
@@ -46,7 +50,7 @@ class _FinancialsView extends StatelessWidget {
           if (state is FinancialsLoading) {
             return const Center(child: CircularProgressIndicator());
           }
-          
+
           if (state is FinancialsLoaded) {
             final padding = ResponsiveHelper.getScreenPadding(context);
             final isSmall = !ResponsiveHelper.isDesktop(context);
@@ -68,7 +72,10 @@ class _FinancialsView extends StatelessWidget {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(flex: 3, child: _buildExpensesTable(context, state)),
+                        Expanded(
+                          flex: 3,
+                          child: _buildExpensesTable(context, state),
+                        ),
                         const SizedBox(width: 20),
                         Expanded(flex: 2, child: _buildIncomeSummary(state)),
                       ],
@@ -77,7 +84,7 @@ class _FinancialsView extends StatelessWidget {
               ),
             );
           }
-          
+
           return const Center(child: Text('حدث خطأ في عرض البيانات المادية'));
         },
       ),
@@ -114,15 +121,38 @@ class _FinancialsView extends StatelessWidget {
           runSpacing: 8,
           children: [
             OutlinedButton.icon(
-              onPressed: () => ReportService.instance.generateFinancialReport(
-                cases: state.cases,
-                expenses: state.expenses,
-                start: DateTime.now().subtract(const Duration(days: 30)),
-                end: DateTime.now(),
-              ),
+              onPressed: () {
+                final now = DateTime.now();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ReportPreviewScreen(
+                      title:
+                          'التقرير المالي - ${DateFormat('MMMM yyyy', 'ar').format(now)}',
+                      fileName:
+                          'Financial_Report_${DateFormat('yyyy_MM').format(now)}',
+                      buildReport: () =>
+                          ReportService.instance.generateFinancialReportBytes(
+                            cases: state.cases,
+                            expenses: state.expenses,
+                            start: DateTime(now.year, now.month, 1),
+                            end: now,
+                          ),
+                    ),
+                  ),
+                );
+              },
               icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-              label: Text(isMobile ? 'PDF' : 'تقرير PDF مجمع', style: const TextStyle(fontFamily: 'Cairo')),
-              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+              label: Text(
+                isMobile ? 'PDF' : 'تقرير PDF مجمع',
+                style: const TextStyle(fontFamily: 'Cairo'),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
             ),
             PrimaryButton(
               label: isMobile ? 'إضافة' : 'إضافة مصروف',
@@ -147,14 +177,16 @@ class _FinancialsView extends StatelessWidget {
       children: [
         StatCard(
           title: 'إجمالي الدخل',
-          value: '${state.totalIncome.toStringAsFixed(0)} ${AppStrings.currency}',
+          value:
+              '${state.totalIncome.toStringAsFixed(0)} ${AppStrings.currency}',
           icon: Icons.trending_up_rounded,
           color: AppColors.success,
           subtitle: 'من الحالات المؤكدة',
         ),
         StatCard(
           title: 'إجمالي المصروفات',
-          value: '${state.totalExpenses.toStringAsFixed(0)} ${AppStrings.currency}',
+          value:
+              '${state.totalExpenses.toStringAsFixed(0)} ${AppStrings.currency}',
           icon: Icons.trending_down_rounded,
           color: AppColors.error,
           subtitle: 'تكاليف وشراء مستلزمات',
@@ -181,7 +213,14 @@ class _FinancialsView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('سجل المصروفات', style: TextStyle(fontFamily: 'Cairo', fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'سجل المصروفات',
+            style: TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 20),
           if (state.expenses.isEmpty)
             EmptyStateWidget(
@@ -205,24 +244,59 @@ class _FinancialsView extends StatelessWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                        child: const Icon(Icons.payment_rounded, color: AppColors.error, size: 18),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.payment_rounded,
+                          color: AppColors.error,
+                          size: 18,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(e.label, style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 14)),
-                            Text(e.category, style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textSecondary)),
+                            Text(
+                              e.label,
+                              style: const TextStyle(
+                                fontFamily: 'Cairo',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            Text(
+                              e.category,
+                              style: const TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text('${e.amount} ${AppStrings.currency}', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: AppColors.error)),
-                          Text(DateFormat('dd/MM/yyyy').format(e.date), style: const TextStyle(fontFamily: 'Cairo', fontSize: 10, color: AppColors.textHint)),
+                          Text(
+                            '${e.amount} ${AppStrings.currency}',
+                            style: const TextStyle(
+                              fontFamily: 'Cairo',
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.error,
+                            ),
+                          ),
+                          Text(
+                            DateFormat('dd/MM/yyyy').format(e.date),
+                            style: const TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: 10,
+                              color: AppColors.textHint,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(width: 8),
@@ -250,22 +324,55 @@ class _FinancialsView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('نظرة على الدخل', style: TextStyle(fontFamily: 'Cairo', fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'نظرة على الدخل',
+            style: TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 20),
-          _incomeRow('حالات اليوم', state.cases.where((c) => c.caseDate.day == DateTime.now().day).length.toString(), AppColors.primary),
+          _incomeRow(
+            'حالات اليوم',
+            state.cases
+                .where((c) => c.caseDate.day == DateTime.now().day)
+                .length
+                .toString(),
+            AppColors.primary,
+          ),
           const SizedBox(height: 12),
-          _incomeRow('حالات مكتملة', state.cases.where((c) => c.status.name == 'completed').length.toString(), AppColors.success),
-          const SizedBox(height: 12),
-          _incomeRow('إجمالي الحالات', state.cases.length.toString(), AppColors.secondary),
+          _incomeRow(
+            'إجمالي الحالات',
+            state.cases.length.toString(),
+            AppColors.success,
+          ),
           const SizedBox(height: 30),
           const Divider(),
           const SizedBox(height: 20),
-          const Text('توزيع الدخل حسب نوع الحالة', style: TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.bold)),
+          const Text(
+            'توزيع الدخل حسب نوع الحالة',
+            style: TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 15),
           // توزيع مبسط كنسبة
-          _progressRow('داخل المركز', state.cases.where((c) => c.caseType.name == 'inCenter').length, state.cases.length, AppColors.info),
+          _progressRow(
+            'داخل المركز',
+            state.cases.where((c) => c.caseType.name == 'inCenter').length,
+            state.cases.length,
+            AppColors.info,
+          ),
           const SizedBox(height: 10),
-          _progressRow('زيارات منزلية', state.cases.where((c) => c.caseType.name == 'homeVisit').length, state.cases.length, AppColors.warning),
+          _progressRow(
+            'زيارات منزلية',
+            state.cases.where((c) => c.caseType.name == 'homeVisit').length,
+            state.cases.length,
+            AppColors.warning,
+          ),
         ],
       ),
     );
@@ -275,8 +382,22 @@ class _FinancialsView extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary)),
-        Text(value, style: TextStyle(fontFamily: 'Cairo', fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Cairo',
+            color: AppColors.textSecondary,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
       ],
     );
   }
@@ -289,12 +410,28 @@ class _FinancialsView extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: const TextStyle(fontFamily: 'Cairo', fontSize: 12)),
-            Text('$count', style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.bold)),
+            Text(
+              label,
+              style: const TextStyle(fontFamily: 'Cairo', fontSize: 12),
+            ),
+            Text(
+              '$count',
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 6),
-        LinearProgressIndicator(value: pr, color: color, backgroundColor: color.withValues(alpha: 0.1), minHeight: 6, borderRadius: BorderRadius.circular(4)),
+        LinearProgressIndicator(
+          value: pr,
+          color: color,
+          backgroundColor: color.withValues(alpha: 0.1),
+          minHeight: 6,
+          borderRadius: BorderRadius.circular(4),
+        ),
       ],
     );
   }
@@ -311,7 +448,10 @@ class _FinancialsView extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('إضافة مصروف جديد', style: TextStyle(fontFamily: 'Cairo')),
+        title: const Text(
+          'إضافة مصروف جديد',
+          style: TextStyle(fontFamily: 'Cairo'),
+        ),
         content: Form(
           key: formKey,
           child: Column(
@@ -319,7 +459,25 @@ class _FinancialsView extends StatelessWidget {
             children: [
               DropdownButtonFormField<String>(
                 value: category,
-                items: ['مرتبات', 'إيجار', 'مستلزمات طبية', 'كهرباء ومياه', 'صيانة', 'أخرى'].map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontFamily: 'Cairo')))).toList(),
+                items:
+                    [
+                          'مرتبات',
+                          'إيجار',
+                          'مستلزمات طبية',
+                          'كهرباء ومياه',
+                          'صيانة',
+                          'أخرى',
+                        ]
+                        .map(
+                          (c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(
+                              c,
+                              style: const TextStyle(fontFamily: 'Cairo'),
+                            ),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (v) => category = v!,
                 decoration: const InputDecoration(labelText: 'التصنيف'),
               ),
@@ -334,19 +492,26 @@ class _FinancialsView extends StatelessWidget {
                 controller: amountCtrl,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'المبلغ'),
-                validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0 ? 'مبلغ غير صحيح' : null,
+                validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0
+                    ? 'مبلغ غير صحيح'
+                    : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: noteCtrl,
                 maxLines: 2,
-                decoration: const InputDecoration(labelText: 'ملاحظات (اختياري)'),
+                decoration: const InputDecoration(
+                  labelText: 'ملاحظات (اختياري)',
+                ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo'))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+          ),
           ElevatedButton(
             onPressed: () {
               if (formKey.currentState!.validate()) {
@@ -377,13 +542,22 @@ class _FinancialsView extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('حذف مصروف', style: TextStyle(fontFamily: 'Cairo')),
-        content: Text('هل أنت متأكد من حذف مصروف "${e.label}" بمبلغ ${e.amount}؟', style: const TextStyle(fontFamily: 'Cairo')),
+        content: Text(
+          'هل أنت متأكد من حذف مصروف "${e.label}" بمبلغ ${e.amount}؟',
+          style: const TextStyle(fontFamily: 'Cairo'),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          TextButton(onPressed: () {
-            cubit.deleteExpense(e.id);
-            Navigator.pop(ctx);
-          }, child: const Text('حذف', style: TextStyle(color: AppColors.error))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () {
+              cubit.deleteExpense(e.id);
+              Navigator.pop(ctx);
+            },
+            child: const Text('حذف', style: TextStyle(color: AppColors.error)),
+          ),
         ],
       ),
     );

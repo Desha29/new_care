@@ -219,39 +219,44 @@ class SyncManager {
   // === تنزيل من Firebase - Download from Firebase ===
   // ============================================
 
-  /// تنزيل أحدث البيانات من Firebase إلى SQLite
+  /// تنزيل أحدث البيانات من Firebase إلى SQLite (مُحسّن - Delta Sync)
   Future<void> _syncDownFromFirebase() async {
     try {
-      // مزامنة الحالات
-      final cases = await _firebaseService.getAllCases();
-      for (var c in cases) {
+      final lastSync = await _sqliteService.getLastSync();
+      log('[SyncManager] Syncing changes since: ${lastSync.toIso8601String()}');
+
+      // 1. مزامنة الحالات المحدثة فقط
+      final updatedCases = await _firebaseService.getUpdatedCases(lastSync);
+      for (var c in updatedCases) {
         await _sqliteService.saveCase(c.toSqliteMap());
       }
+      log('[SyncManager] Downloaded ${updatedCases.length} updated cases');
 
-      // مزامنة المستخدمين
-      final users = await _firebaseService.getAllUsers();
-      for (var u in users) {
+      // 2. مزامنة المستخدمين المحدثين
+      final updatedUsers = await _firebaseService.getUpdatedUsers(lastSync);
+      for (var u in updatedUsers) {
         await _sqliteService.saveUser(u.toSqliteMap());
       }
+      log('[SyncManager] Downloaded ${updatedUsers.length} updated users');
 
-      // مزامنة الورديات (آخر 7 أيام)
-      final now = DateTime.now();
-      for (int i = 0; i < 7; i++) {
-        final date = now.subtract(Duration(days: i));
-        final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-        final shifts = await _firebaseService.getShiftsByDate(dateStr);
-        for (var s in shifts) {
-          await _sqliteService.insert('shifts', s.toSqliteMap());
-        }
-      }
-
-      // مزامنة المخزون
-      final inventory = await _firebaseService.getAllInventory();
-      for (var item in inventory) {
+      // 3. مزامنة المخزون المحدث
+      final updatedInventory = await _firebaseService.getUpdatedInventory(lastSync);
+      for (var item in updatedInventory) {
         await _sqliteService.insert('inventory', item.toSqliteMap());
       }
+      log('[SyncManager] Downloaded ${updatedInventory.length} updated inventory items');
 
-      log('[SyncManager] Download from Firebase completed');
+      // 4. مزامنة الإجراءات المحدثة
+      final updatedProcedures = await _firebaseService.getUpdatedProcedures(lastSync);
+      for (var p in updatedProcedures) {
+        await _sqliteService.insert('procedures', p.toSqliteMap());
+      }
+      log('[SyncManager] Downloaded ${updatedProcedures.length} updated procedures');
+
+      // تحديث وقت المزامنة الأخير بعد النجاح
+      await _sqliteService.updateLastSync();
+      log('[SyncManager] Last sync timestamp updated');
+      
     } catch (e) {
       log('[SyncManager] Error downloading from Firebase: $e');
     }

@@ -83,11 +83,10 @@ class CaseModel extends Equatable {
   final String patientPhone;
   final String patientAddress;
   final String medicalHistory;
-  
+
   final String nurseId;
   final String nurseName;
   final CaseType caseType;
-  final CaseStatus status;
   final List<ServiceItem> services;
   final List<SupplyUsed> suppliesUsed;
   final double totalPrice;
@@ -109,7 +108,6 @@ class CaseModel extends Equatable {
     this.nurseId = '',
     this.nurseName = '',
     this.caseType = CaseType.inCenter,
-    this.status = CaseStatus.pending,
     this.services = const [],
     this.suppliesUsed = const [],
     this.totalPrice = 0,
@@ -146,7 +144,6 @@ class CaseModel extends Equatable {
       nurseId: map['nurseId'] ?? '',
       nurseName: map['nurseName'] ?? '',
       caseType: CaseType.fromString(map['caseType'] ?? 'in_center'),
-      status: CaseStatus.fromString(map['status'] ?? 'pending'),
       services:
           (map['services'] as List<dynamic>?)
               ?.map((e) => ServiceItem.fromMap(e as Map<String, dynamic>))
@@ -179,7 +176,6 @@ class CaseModel extends Equatable {
       'nurseId': nurseId,
       'nurseName': nurseName,
       'caseType': caseType.value,
-      'status': status.value,
       'services': services.map((e) => e.toMap()).toList(),
       'suppliesUsed': suppliesUsed.map((e) => e.toMap()).toList(),
       'totalPrice': totalPrice,
@@ -205,7 +201,6 @@ class CaseModel extends Equatable {
       'nurseId': nurseId,
       'nurseName': nurseName,
       'caseType': caseType.value,
-      'status': status.value,
       'totalPrice': totalPrice,
       'discount': discount,
       'caseDate': caseDate.toIso8601String(),
@@ -227,7 +222,6 @@ class CaseModel extends Equatable {
     String? nurseId,
     String? nurseName,
     CaseType? caseType,
-    CaseStatus? status,
     List<ServiceItem>? services,
     List<SupplyUsed>? suppliesUsed,
     double? totalPrice,
@@ -249,7 +243,6 @@ class CaseModel extends Equatable {
       nurseId: nurseId ?? this.nurseId,
       nurseName: nurseName ?? this.nurseName,
       caseType: caseType ?? this.caseType,
-      status: status ?? this.status,
       services: services ?? this.services,
       suppliesUsed: suppliesUsed ?? this.suppliesUsed,
       totalPrice: totalPrice ?? this.totalPrice,
@@ -274,7 +267,6 @@ class CaseModel extends Equatable {
     nurseId,
     nurseName,
     caseType,
-    status,
     services,
     suppliesUsed,
     totalPrice,

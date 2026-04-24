@@ -59,7 +59,7 @@ class UsersRepository extends FirebaseBase {
 
   /// بث المستخدمين - Stream all users
   Stream<List<UserModel>> usersStream() {
-    return _usersRef.orderBy('name').snapshots().map((snapshot) {
+    return safeStream(_usersRef.orderBy('name')).map((snapshot) {
       return snapshot.docs
           .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
           .toList();
