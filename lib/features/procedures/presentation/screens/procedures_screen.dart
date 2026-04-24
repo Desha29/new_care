@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/widgets/search_bar_widget.dart';
 import '../../../../core/widgets/dialogs/confirm_dialog.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
@@ -28,8 +29,11 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final padding = ResponsiveHelper.getScreenPadding(context);
+    final isDesktop = ResponsiveHelper.isDesktop(context);
+
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -43,7 +47,7 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
           Row(
             children: [
               Expanded(
-                flex: 2,
+                flex: isDesktop ? 2 : 1,
                 child: SearchBarWidget(
                   controller: _searchCtrl,
                   hintText: 'ابحث عن الإجراء أو الخدمة...',
@@ -51,7 +55,7 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
                       context.read<ProceduresCubit>().searchProcedures(v),
                 ),
               ),
-              const Spacer(flex: 3),
+              if (isDesktop) const Spacer(flex: 3),
             ],
           ),
           const SizedBox(height: 24),

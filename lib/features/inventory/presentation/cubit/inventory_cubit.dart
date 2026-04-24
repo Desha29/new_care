@@ -32,7 +32,7 @@ class InventoryCubit extends Cubit<InventoryState> {
   Future<void> addOrUpdateItem(InventoryModel item) async {
     try {
       await _inventoryRepository.updateInventoryItem(item);
-      loadInventory();
+      loadInventory(force: true);
     } catch (e) {
       emit(InventoryError('خطأ في التعديل: ${e.toString()}'));
     }
@@ -41,7 +41,7 @@ class InventoryCubit extends Cubit<InventoryState> {
   Future<void> deleteItem(String id) async {
     try {
       await _inventoryRepository.deleteInventoryItem(id);
-      loadInventory();
+      loadInventory(force: true);
     } catch (e) {
       emit(InventoryError('خطأ في الحذف: ${e.toString()}'));
     }

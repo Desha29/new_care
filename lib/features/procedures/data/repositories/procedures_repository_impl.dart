@@ -47,15 +47,36 @@ class ProceduresRepositoryImpl implements IProceduresRepository {
 
   @override
   Future<List<ProcedureModel>> getAllProcedures() async {
-    final results = await _local.database.then((db) => db.query('procedures'));
-    if (results.isNotEmpty) {
-      return results.map((m) => ProcedureModel.fromMap(m, m['id'] as String)).toList();
+    try {
+      final results = await _local.database.then((db) => db.query('procedures'));
+      if (results.isNotEmpty) {
+        return results.map((m) => ProcedureModel.fromMap(m, m['id'] as String)).toList();
+      }
+    } catch (e) {
+      // If table is corrupted or schema mismatched, try to recreate it
+      final db = await _local.database;
+      await db.execute('DROP TABLE IF EXISTS procedures');
+      await db.execute('''
+        CREATE TABLE procedures (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          defaultPrice REAL DEFAULT 0,
+          priceInside REAL DEFAULT 0,
+          priceOutside REAL DEFAULT 0,
+          notes TEXT DEFAULT '',
+          updatedAt TEXT NOT NULL
+        )
+      ''');
     }
     
-    // Fallback to remote
+    // Fallback to remote or initial load
     final remoteItems = await _remote.getAllProcedures();
     for (var item in remoteItems) {
-      await _local.insert('procedures', item.toSqliteMap());
+      try {
+        await _local.insert('procedures', item.toSqliteMap());
+      } catch (e) {
+        // Final fallback
+      }
     }
     return remoteItems;
   }

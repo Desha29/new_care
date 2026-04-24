@@ -37,115 +37,136 @@ class _AttendanceRecordsListState extends State<AttendanceRecordsList> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final minWidth = constraints.maxWidth < 750 ? 750.0 : constraints.maxWidth;
+          return Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                decoration: const BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.people_rounded,
+                        size: 20,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'سجلات حضور اليوم',
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      SizedBox(
+                        width: 200,
+                        height: 35,
+                        child: TextField(
+                          onChanged: (val) => setState(() => _searchQuery = val),
+                          decoration: InputDecoration(
+                            hintText: 'تصفية بالاسم...',
+                            hintStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 12),
+                            prefixIcon: const Icon(Icons.search, size: 18),
+                            filled: true,
+                            fillColor: AppColors.background,
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: AppColors.border),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: AppColors.border),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${filteredRecords.length} سجل',
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.people_rounded,
-                  size: 20,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  'سجلات حضور اليوم',
-                  style: TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const Spacer(),
-                SizedBox(
-                  width: 200,
-                  height: 35,
-                  child: TextField(
-                    onChanged: (val) => setState(() => _searchQuery = val),
-                    decoration: InputDecoration(
-                      hintText: 'تصفية بالاسم...',
-                      hintStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 12),
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      filled: true,
-                      fillColor: AppColors.background,
-                      contentPadding:
-                          const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
+              const Divider(height: 1, color: AppColors.border),
+              // Table header
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: minWidth,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    child: Row(
+                      children: [
+                        _hc('الموظف', 3),
+                        _hc('وقت الحضور', 2),
+                        _hc('وقت الانصراف', 2),
+                        _hc('الحالة', 2),
+                        _hc('الجهاز', 2),
+                        _hc('إجراء', 1),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${filteredRecords.length} سجل',
-                    style: const TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          // Table header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Row(
-              children: [
-                _hc('الموظف', 3),
-                _hc('وقت الحضور', 2),
-                _hc('وقت الانصراف', 2),
-                _hc('الحالة', 2),
-                _hc('الجهاز', 2),
-                _hc('إجراء', 1),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          Expanded(
-            child: widget.state is AttendanceLoading
-                ? const Center(child: CircularProgressIndicator())
-                : filteredRecords.isEmpty
-                    ? const EmptyStateWidget(
-                        icon: Icons.fingerprint_rounded,
-                        title: 'لا توجد سجلات حضور اليوم',
-                        subtitle: 'سيتم عرض سجلات الحضور هنا عند تسجيلها',
-                      )
-                    : ListView.separated(
-                        itemCount: filteredRecords.length,
-                        separatorBuilder: (context, index) =>
-                            const Divider(height: 1, color: AppColors.borderLight),
-                        itemBuilder: (context, i) => _recordRow(filteredRecords[i], i),
-                      ),
-          ),
-        ],
+              ),
+              const Divider(height: 1, color: AppColors.border),
+              Expanded(
+                child: widget.state is AttendanceLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : filteredRecords.isEmpty
+                        ? const EmptyStateWidget(
+                            icon: Icons.fingerprint_rounded,
+                            title: 'لا توجد سجلات حضور اليوم',
+                            subtitle: 'سيتم عرض سجلات الحضور هنا عند تسجيلها',
+                          )
+                        : SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: SizedBox(
+                              width: minWidth,
+                              child: ListView.separated(
+                                shrinkWrap: true,
+                                itemCount: filteredRecords.length,
+                                separatorBuilder: (context, index) =>
+                                    const Divider(height: 1, color: AppColors.borderLight),
+                                itemBuilder: (context, i) => _recordRow(filteredRecords[i], i),
+                              ),
+                            ),
+                          ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

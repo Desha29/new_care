@@ -30,42 +30,56 @@ class UsersTable extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final minWidth = constraints.maxWidth < 800 ? 800.0 : constraints.maxWidth;
+          return Column(
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: minWidth,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    decoration: const BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        _hc('الاسم', 2),
+                        _hc('البريد', 2),
+                        _hc('الهاتف', 2),
+                        _hc('الصلاحية', 2),
+                        _hc('الحالة', 1),
+                        _hc('إجراءات', 2),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                _hc('الاسم', 2),
-                _hc('البريد', 2),
-                _hc('الهاتف', 2),
-                _hc('الصلاحية', 2),
-                _hc('الحالة', 1),
-                _hc('إجراءات', 2),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          Expanded(
-            child: users.isEmpty
-                ? const EmptyStateWidget(
-                    icon: Icons.people_rounded,
-                    title: 'لا يوجد مستخدمين',
-                    subtitle: 'أضف مستخدمين جدد لإدارة النظام',
-                  )
-                : ListView.separated(
-                    itemCount: users.length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 1, color: AppColors.borderLight),
-                    itemBuilder: (_, i) {
-                      final u = users[i];
+              const Divider(height: 1, color: AppColors.border),
+              Expanded(
+                child: users.isEmpty
+                    ? const EmptyStateWidget(
+                        icon: Icons.people_rounded,
+                        title: 'لا يوجد مستخدمين',
+                        subtitle: 'أضف مستخدمين جدد لإدارة النظام',
+                      )
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: minWidth,
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: users.length,
+                            separatorBuilder: (context, index) =>
+                                const Divider(height: 1, color: AppColors.borderLight),
+                            itemBuilder: (_, i) {
+                              final u = users[i];
                       return Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
@@ -206,8 +220,12 @@ class UsersTable extends StatelessWidget {
                       );
                     },
                   ),
-          ),
-        ],
+                ),
+              ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

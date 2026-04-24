@@ -89,8 +89,8 @@ class DashboardRepositoryImpl implements IDashboardRepository {
         0.0,
         (total, c) => total + (c.totalPrice - c.discount),
       ),
-      'todayCases': todayCases,
-      'todayCasesCount': todayCases.length,
+      'todayCases': todayCases.length,
+      'todayCasesList': todayCases,
       'attendance': attendance,
     };
   }

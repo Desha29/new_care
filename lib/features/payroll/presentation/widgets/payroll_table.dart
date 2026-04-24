@@ -31,42 +31,60 @@ class PayrollTable extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        children: [
-          // Table header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(AppSpacing.radiusLg),
-                topRight: Radius.circular(AppSpacing.radiusLg),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final minWidth = constraints.maxWidth < 900 ? 900.0 : constraints.maxWidth;
+          return Column(
+            children: [
+              // Table header
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: minWidth,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(AppSpacing.radiusLg),
+                        topRight: Radius.circular(AppSpacing.radiusLg),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        _hc('الموظف', 3),
+                        _hc('الساعات', 2),
+                        _hc('الراتب', 2),
+                        _hc('خارجية', 1),
+                        _hc('مكافآت', 1),
+                        _hc('خصم', 1),
+                        _hc('الصافي', 2),
+                        _hc('الحالة', 2),
+                        _hc('إجراءات', 2),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                _hc('الموظف', 3),
-                _hc('الساعات', 2),
-                _hc('الراتب', 2),
-                _hc('خارجية', 1),
-                _hc('مكافآت', 1),
-                _hc('خصم', 1),
-                _hc('الصافي', 2),
-                _hc('الحالة', 2),
-                _hc('إجراءات', 2),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          // Table body
-          Expanded(
-            child: ListView.separated(
-              itemCount: payrolls.length,
-              separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.borderLight),
-              itemBuilder: (context, i) => _buildRow(context, payrolls[i], i),
-            ),
-          ),
-        ],
+              const Divider(height: 1, color: AppColors.border),
+              // Table body
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: minWidth,
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: payrolls.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.borderLight),
+                      itemBuilder: (context, i) => _buildRow(context, payrolls[i], i),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

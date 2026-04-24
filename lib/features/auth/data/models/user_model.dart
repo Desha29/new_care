@@ -36,7 +36,9 @@ class UserModel extends Equatable {
       email: map['email'] ?? '',
       phone: map['phone'] ?? '',
       role: UserRole.fromString(map['role'] ?? 'nurse'),
-      isActive: map['isActive'] ?? true,
+      isActive: map['isActive'] is int
+          ? (map['isActive'] as int) == 1
+          : (map['isActive'] ?? true),
       deviceId: map['deviceId'] ?? '',
       allowedDeviceIds: List<String>.from(map['allowedDeviceIds'] ?? []),
       salary: (map['salary'] ?? 3000.0).toDouble(),

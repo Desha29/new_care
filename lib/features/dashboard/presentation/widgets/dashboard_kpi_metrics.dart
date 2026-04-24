@@ -15,9 +15,7 @@ class DashboardKpiMetrics extends StatelessWidget {
     final todayRevenue = (stats['todayRevenue'] ?? 0.0) as double;
 
     // حساب المقاييس
-    final completionRate = totalCases > 0
-        ? (completedCases / totalCases)
-        : 0.0;
+    final completionRate = totalCases > 0 ? (completedCases / totalCases) : 0.0;
     final avgCaseValue = totalCases > 0 ? todayRevenue / totalCases : 0.0;
     final efficiency = availableNurses > 0 ? totalCases / availableNurses : 0.0;
 

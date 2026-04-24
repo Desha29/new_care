@@ -120,95 +120,113 @@ class _LogsScreenState extends State<LogsScreen> {
                           color: AppColors.surface,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: AppColors.border)),
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 14),
-                            decoration: const BoxDecoration(
-                                color: AppColors.surfaceVariant,
-                                borderRadius: BorderRadius.only(
-                                    topLeft: Radius.circular(16),
-                                    topRight: Radius.circular(16))),
-                            child: Row(
-                              children: [
-                                const SizedBox(width: 32),
-                                _hc('المستخدم', 2),
-                                _hc('الإجراء', 2),
-                                _hc('التفاصيل', 3),
-                                _hc('التاريخ والوقت', 2),
-                              ],
-                            ),
-                          ),
-                          const Divider(height: 1, color: AppColors.border),
-                          Expanded(
-                            child: _filtered.isEmpty
-                                ? const Center(
-                                    child: Text(AppStrings.noLogs,
-                                        style: TextStyle(
-                                            fontFamily: 'Cairo',
-                                            color: AppColors.textHint)))
-                                : ListView.separated(
-                                    itemCount: _filtered.length,
-                                    separatorBuilder: (context, index) => const Divider(
-                                        height: 1,
-                                        color: AppColors.borderLight),
-                                    itemBuilder: (context, i) {
-                                      final l = _filtered[i];
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 20, vertical: 12),
-                                        color: i.isEven
-                                            ? Colors.transparent
-                                            : AppColors.surfaceVariant
-                                                .withValues(alpha: 0.3),
-                                        child: Row(
-                                          children: [
-                                            SizedBox(
-                                                width: 32,
-                                                child: Text(l.actionEmoji,
-                                                    style: const TextStyle(
-                                                        fontSize: 18))),
-                                            Expanded(
-                                                flex: 2,
-                                                child: Text(l.userName,
-                                                    style: const TextStyle(
-                                                        fontFamily: 'Cairo',
-                                                        fontSize: 13,
-                                                        fontWeight:
-                                                            FontWeight.w600))),
-                                            Expanded(
-                                                flex: 2,
-                                                child: Text(l.actionLabel,
-                                                    style: const TextStyle(
-                                                        fontFamily: 'Cairo',
-                                                        fontSize: 13))),
-                                            Expanded(
-                                                flex: 3,
-                                                child: Text(l.details,
-                                                    style: const TextStyle(
-                                                        fontFamily: 'Cairo',
-                                                        fontSize: 12,
-                                                        color: AppColors
-                                                            .textSecondary),
-                                                    overflow: TextOverflow
-                                                        .ellipsis)),
-                                            Expanded(
-                                                flex: 2,
-                                                child: Text(
-                                                    _formatDate(l.timestamp),
-                                                    style: const TextStyle(
-                                                        fontFamily: 'Cairo',
-                                                        fontSize: 11,
-                                                        color: AppColors
-                                                            .textHint))),
-                                          ],
-                                        ),
-                                      );
-                                    },
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final minWidth = constraints.maxWidth < 700 ? 700.0 : constraints.maxWidth;
+                          return Column(
+                            children: [
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: SizedBox(
+                                  width: minWidth,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20, vertical: 14),
+                                    decoration: const BoxDecoration(
+                                        color: AppColors.surfaceVariant,
+                                        borderRadius: BorderRadius.only(
+                                            topLeft: Radius.circular(16),
+                                            topRight: Radius.circular(16))),
+                                    child: Row(
+                                      children: [
+                                        const SizedBox(width: 32),
+                                        _hc('المستخدم', 2),
+                                        _hc('الإجراء', 2),
+                                        _hc('التفاصيل', 3),
+                                        _hc('التاريخ والوقت', 2),
+                                      ],
+                                    ),
                                   ),
-                          ),
-                        ],
+                                ),
+                              ),
+                              const Divider(height: 1, color: AppColors.border),
+                              Expanded(
+                                child: _filtered.isEmpty
+                                    ? const Center(
+                                        child: Text(AppStrings.noLogs,
+                                            style: TextStyle(
+                                                fontFamily: 'Cairo',
+                                                color: AppColors.textHint)))
+                                    : SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: SizedBox(
+                                          width: minWidth,
+                                          child: ListView.separated(
+                                            shrinkWrap: true,
+                                            itemCount: _filtered.length,
+                                            separatorBuilder: (context, index) => const Divider(
+                                                height: 1,
+                                                color: AppColors.borderLight),
+                                            itemBuilder: (context, i) {
+                                              final l = _filtered[i];
+                                              return Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 20, vertical: 12),
+                                                color: i.isEven
+                                                    ? Colors.transparent
+                                                    : AppColors.surfaceVariant
+                                                        .withValues(alpha: 0.3),
+                                                child: Row(
+                                                  children: [
+                                                    SizedBox(
+                                                        width: 32,
+                                                        child: Text(l.actionEmoji,
+                                                            style: const TextStyle(
+                                                                fontSize: 18))),
+                                                    Expanded(
+                                                        flex: 2,
+                                                        child: Text(l.userName,
+                                                            style: const TextStyle(
+                                                                fontFamily: 'Cairo',
+                                                                fontSize: 13,
+                                                                fontWeight:
+                                                                    FontWeight.w600))),
+                                                    Expanded(
+                                                        flex: 2,
+                                                        child: Text(l.actionLabel,
+                                                            style: const TextStyle(
+                                                                fontFamily: 'Cairo',
+                                                                fontSize: 13))),
+                                                    Expanded(
+                                                        flex: 3,
+                                                        child: Text(l.details,
+                                                            style: const TextStyle(
+                                                                fontFamily: 'Cairo',
+                                                                fontSize: 12,
+                                                                color: AppColors
+                                                                    .textSecondary),
+                                                            overflow: TextOverflow
+                                                                .ellipsis)),
+                                                    Expanded(
+                                                        flex: 2,
+                                                        child: Text(
+                                                            _formatDate(l.timestamp),
+                                                            style: const TextStyle(
+                                                                fontFamily: 'Cairo',
+                                                                fontSize: 11,
+                                                                color: AppColors
+                                                                    .textHint))),
+                                                  ],
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
             ),

@@ -65,51 +65,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onRefresh: () => context.read<DashboardCubit>().loadDashboardData(),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.all(padding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const DashboardHeader(),
-                    const SizedBox(height: 24),
-                    StatsCardsGrid(stats: stats),
-                    const SizedBox(height: 24),
-
-                    if (isSmall) ...[
-                      DashboardWeeklyChart(weeklyCounts: weeklyCounts),
-                      const SizedBox(height: 20),
-                      DashboardKpiMetrics(stats: stats),
-                      const SizedBox(height: 20),
-                      DashboardRevenueChart(weeklyRevenues: weeklyRevenues),
-                      const SizedBox(height: 20),
-                      DashboardRecentCases(recentCases: recentCases),
-                    ] else
-                      Row(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1400),
+                    child: Padding(
+                      padding: EdgeInsets.all(padding),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            flex: 3,
-                            child: Column(
+                          const DashboardHeader(),
+                          const SizedBox(height: 24),
+                          StatsCardsGrid(stats: stats),
+                          const SizedBox(height: 24),
+
+                          if (isSmall) ...[
+                            DashboardWeeklyChart(weeklyCounts: weeklyCounts),
+                            const SizedBox(height: 20),
+                            DashboardKpiMetrics(stats: stats),
+                            const SizedBox(height: 20),
+                            DashboardRevenueChart(weeklyRevenues: weeklyRevenues),
+                            const SizedBox(height: 20),
+                            DashboardRecentCases(recentCases: recentCases),
+                          ] else
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                DashboardWeeklyChart(weeklyCounts: weeklyCounts),
-                                const SizedBox(height: 20),
-                                DashboardRevenueChart(weeklyRevenues: weeklyRevenues),
+                                Expanded(
+                                  flex: 3,
+                                  child: Column(
+                                    children: [
+                                      DashboardWeeklyChart(weeklyCounts: weeklyCounts),
+                                      const SizedBox(height: 20),
+                                      DashboardRevenueChart(weeklyRevenues: weeklyRevenues),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 20),
+                                Expanded(
+                                  flex: 2,
+                                  child: Column(
+                                    children: [
+                                      DashboardKpiMetrics(stats: stats),
+                                      const SizedBox(height: 20),
+                                      DashboardRecentCases(recentCases: recentCases),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            flex: 2,
-                            child: Column(
-                              children: [
-                                DashboardKpiMetrics(stats: stats),
-                                const SizedBox(height: 20),
-                                DashboardRecentCases(recentCases: recentCases),
-                              ],
-                            ),
-                          ),
                         ],
                       ),
-                  ],
+                    ),
+                  ),
                 ),
               ),
             ),

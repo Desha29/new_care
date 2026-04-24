@@ -27,7 +27,7 @@ class SqliteService {
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 10, // Added salary to users
+        version: 12, // Fixed procedures table NOT NULL constraints
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -200,11 +200,10 @@ class SqliteService {
       CREATE TABLE IF NOT EXISTS procedures (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
-        price REAL DEFAULT 0,
-        category TEXT DEFAULT '',
+        defaultPrice REAL DEFAULT 0,
+        priceInside REAL DEFAULT 0,
+        priceOutside REAL DEFAULT 0,
         notes TEXT DEFAULT '',
-        isActive INTEGER DEFAULT 1,
-        createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
       )
     ''');
@@ -234,6 +233,25 @@ class SqliteService {
         await db.execute('ALTER TABLE users ADD COLUMN salary REAL DEFAULT 3000.0');
       } catch (e) {
         // Ignore if column already exists
+      }
+    }
+    if (oldVersion < 12) {
+      // Force recreation of procedures table if it's in an inconsistent state
+      try {
+        await db.execute('DROP TABLE IF EXISTS procedures');
+        await db.execute('''
+          CREATE TABLE procedures (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            defaultPrice REAL DEFAULT 0,
+            priceInside REAL DEFAULT 0,
+            priceOutside REAL DEFAULT 0,
+            notes TEXT DEFAULT '',
+            updatedAt TEXT NOT NULL
+          )
+        ''');
+      } catch (e) {
+        // Ignore
       }
     }
   }
@@ -384,6 +402,14 @@ class SqliteService {
     final db = await database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM inventory');
     return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<void> deductInventory(String id, int quantity) async {
+    final db = await database;
+    await db.rawUpdate(
+      'UPDATE inventory SET quantity = quantity - ? WHERE id = ?',
+      [quantity, id],
+    );
   }
 
   Future<int> getProceduresCount() async {

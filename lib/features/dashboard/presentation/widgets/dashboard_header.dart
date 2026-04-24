@@ -14,24 +14,26 @@ class DashboardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final titleSize = ResponsiveHelper.getTitleFontSize(context);
 
-    return Row(
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                AppStrings.dashboard,
-                style: AppTypography.pageTitle.copyWith(fontSize: titleSize),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              AppStrings.dashboard,
+              style: AppTypography.pageTitle.copyWith(fontSize: titleSize),
+            ),
+            Text(
+              'نظرة عامة على أداء المركز اليوم',
+              style: AppTypography.pageSubtitle.copyWith(
+                fontSize: ResponsiveHelper.getSubtitleFontSize(context),
               ),
-              Text(
-                'نظرة عامة على أداء المركز اليوم',
-                style: AppTypography.pageSubtitle.copyWith(
-                  fontSize: ResponsiveHelper.getSubtitleFontSize(context),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
         // أزرار سريعة - Quick Action Buttons
         Container(

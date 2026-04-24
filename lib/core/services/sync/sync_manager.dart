@@ -80,6 +80,12 @@ class SyncManager {
         'retryCount': 0,
       }, conflictAlgorithm: ConflictAlgorithm.replace);
 
+      // Apply locally if it's a deduction to keep UI in sync
+      if (tableName == 'inventory' && operation == 'deduct') {
+        final qty = (data['quantity'] ?? 0) as int;
+        await _sqliteService.deductInventory(docId, qty);
+      }
+
       log('[SyncManager] Enqueued: $operation on $tableName/$docId');
       
       // Trigger sync in background without blocking
@@ -191,10 +197,13 @@ class SyncManager {
         }
         break;
       case 'inventory':
-        final model = InventoryModel.fromMap(data, id);
         if (op == 'delete') {
           await _firebaseService.deleteInventoryItem(id);
+        } else if (op == 'deduct') {
+          final qty = (data['quantity'] ?? 0) as int;
+          await _firebaseService.deductInventoryItem(id, qty);
         } else {
+          final model = InventoryModel.fromMap(data, id);
           await _firebaseService.updateInventoryItem(model);
         }
         break;

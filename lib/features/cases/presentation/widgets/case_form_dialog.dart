@@ -14,6 +14,11 @@ import '../../../invoice/domain/repositories/invoice_repository.dart';
 import '../../../procedures/data/models/procedure_model.dart';
 import '../../../procedures/presentation/cubit/procedures_cubit.dart';
 import '../../../procedures/presentation/cubit/procedures_state.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../auth/presentation/cubit/auth_state.dart';
+import '../../../dashboard/presentation/cubit/dashboard_cubit.dart';
+import '../../../financials/presentation/cubit/financials_cubit.dart';
+import '../../../payroll/presentation/cubit/payroll_cubit.dart';
 import '../../data/models/case_model.dart';
 import '../cubit/cases_cubit.dart';
 import 'package:uuid/uuid.dart' as uuid;
@@ -731,6 +736,24 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
       } else {
         context.read<CasesCubit>().addCase(newCase);
       }
+      
+      // Refresh all connected features based on user role
+      final user = context.read<AuthCubit>().state is AuthAuthenticated 
+          ? (context.read<AuthCubit>().state as AuthAuthenticated).user 
+          : null;
+          
+      if (user != null) {
+        if (user.role.isAdmin) {
+          context.read<DashboardCubit>().loadDashboardData(force: true);
+        } else {
+          context.read<DashboardCubit>().loadNurseDashboardData(user.id, force: true);
+        }
+      }
+      
+      context.read<FinancialsCubit>().loadFinancials(force: true);
+      context.read<InventoryCubit>().loadInventory(force: true);
+      context.read<PayrollCubit>().loadPayroll(force: true);
+
       _hasChanges = false;
       Navigator.pop(context, true);
     }

@@ -25,39 +25,57 @@ class ProceduresTable extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final minWidth = constraints.maxWidth < 600 ? 600.0 : constraints.maxWidth;
+          return Column(
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: minWidth,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    decoration: const BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        _hc('م', 1),
+                        _hc('اسم الإجراء', 3),
+                        _hc('سعر الداخل', 2),
+                        _hc('سعر الخارج', 2),
+                        _hc('إجراءات', 2),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                _hc('م', 1),
-                _hc('اسم الإجراء', 3),
-                _hc('سعر الداخل', 2),
-                _hc('سعر الخارج', 2),
-                _hc('إجراءات', 2),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          Expanded(
-            child: ListView.separated(
-              itemCount: procedures.length,
-              separatorBuilder: (context, index) => const Divider(
-                height: 1,
-                color: AppColors.borderLight,
+              const Divider(height: 1, color: AppColors.border),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: minWidth,
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: procedures.length,
+                      separatorBuilder: (context, index) => const Divider(
+                        height: 1,
+                        color: AppColors.borderLight,
+                      ),
+                      itemBuilder: (context, index) => _buildRow(procedures[index], index),
+                    ),
+                  ),
+                ),
               ),
-              itemBuilder: (context, index) => _buildRow(procedures[index], index),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

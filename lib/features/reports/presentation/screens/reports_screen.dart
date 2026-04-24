@@ -93,7 +93,11 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildHeader() {
     final titleSize = ResponsiveHelper.getTitleFontSize(context);
-    return Row(
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,18 +112,22 @@ class _ReportsScreenState extends State<ReportsScreen>
             ),
           ],
         ),
-        const Spacer(),
-        _buildDatePicker(),
-        const SizedBox(width: 12),
-        IconButton(
-          onPressed: _generateDailyReport,
-          icon: const Icon(Icons.today_rounded, color: AppColors.secondary),
-          tooltip: 'تقرير اليوم',
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          onPressed: _loadData,
-          icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildDatePicker(),
+            const SizedBox(width: 12),
+            IconButton(
+              onPressed: _generateDailyReport,
+              icon: const Icon(Icons.today_rounded, color: AppColors.secondary),
+              tooltip: 'تقرير اليوم',
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: _loadData,
+              icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
+            ),
+          ],
         ),
       ],
     );

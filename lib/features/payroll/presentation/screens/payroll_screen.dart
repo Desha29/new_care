@@ -141,6 +141,8 @@ class _PayrollScreenState extends State<PayrollScreen> {
   }
 
   Widget _buildMonthSelector() {
+    final isMobile = ResponsiveHelper.isMobile(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
@@ -148,80 +150,83 @@ class _PayrollScreenState extends State<PayrollScreen> {
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         border: Border.all(color: AppColors.border),
       ),
-      child: Row(
-        children: [
-          const Icon(Icons.calendar_month_rounded, size: 20, color: AppColors.primary),
-          const SizedBox(width: 12),
-          Text('الفترة:', style: AppTypography.sectionTitle.copyWith(fontSize: 14)),
-          const SizedBox(width: 16),
-          // Month dropdown
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<int>(
-                value: _selectedMonth,
-                style: AppTypography.tableCell.copyWith(color: AppColors.textPrimary),
-                items: List.generate(12, (i) => DropdownMenuItem(
-                  value: i + 1,
-                  child: Text(_months[i]),
-                )),
-                onChanged: (v) {
-                  if (v != null) {
-                    setState(() => _selectedMonth = v);
-                    context.read<PayrollCubit>().loadPayroll(year: _selectedYear, month: v);
-                  }
-                },
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_month_rounded, size: 20, color: AppColors.primary),
+            const SizedBox(width: 12),
+            Text('الفترة:', style: AppTypography.sectionTitle.copyWith(fontSize: 14)),
+            const SizedBox(width: 16),
+            // Month dropdown
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _selectedMonth,
+                  style: AppTypography.tableCell.copyWith(color: AppColors.textPrimary),
+                  items: List.generate(12, (i) => DropdownMenuItem(
+                    value: i + 1,
+                    child: Text(_months[i]),
+                  )),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() => _selectedMonth = v);
+                      context.read<PayrollCubit>().loadPayroll(year: _selectedYear, month: v);
+                    }
+                  },
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          // Year dropdown
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<int>(
-                value: _selectedYear,
-                style: AppTypography.tableCell.copyWith(color: AppColors.textPrimary),
-                items: List.generate(5, (i) {
-                  final y = DateTime.now().year - 2 + i;
-                  return DropdownMenuItem(value: y, child: Text('$y'));
-                }),
-                onChanged: (v) {
-                  if (v != null) {
-                    setState(() => _selectedYear = v);
-                    context.read<PayrollCubit>().loadPayroll(year: v, month: _selectedMonth);
-                  }
-                },
+            const SizedBox(width: 12),
+            // Year dropdown
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _selectedYear,
+                  style: AppTypography.tableCell.copyWith(color: AppColors.textPrimary),
+                  items: List.generate(5, (i) {
+                    final y = DateTime.now().year - 2 + i;
+                    return DropdownMenuItem(value: y, child: Text('$y'));
+                  }),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() => _selectedYear = v);
+                      context.read<PayrollCubit>().loadPayroll(year: v, month: _selectedMonth);
+                    }
+                  },
+                ),
               ),
             ),
-          ),
-          const Spacer(),
-          // Period display
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              '${_months[_selectedMonth - 1]} $_selectedYear',
-              style: const TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+            SizedBox(width: isMobile ? 16 : 80),
+            // Period display
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${_months[_selectedMonth - 1]} $_selectedYear',
+                style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

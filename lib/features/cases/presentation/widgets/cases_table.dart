@@ -7,6 +7,11 @@ import '../../../../core/widgets/empty_state_widget.dart';
 import '../../../../core/widgets/dialogs/confirm_dialog.dart';
 import '../../data/models/case_model.dart';
 import '../cubit/cases_cubit.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../auth/presentation/cubit/auth_state.dart';
+import '../../../dashboard/presentation/cubit/dashboard_cubit.dart';
+import '../../../financials/presentation/cubit/financials_cubit.dart';
+import '../../../payroll/presentation/cubit/payroll_cubit.dart';
 import '../../../invoice/presentation/screens/invoice_preview_screen.dart';
 import 'case_form_dialog.dart';
 
@@ -30,24 +35,39 @@ class CasesTable extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          _buildTableHeader(),
-          const Divider(height: 1, color: AppColors.border),
-          Expanded(
-            child: cases.isEmpty
-                ? EmptyStateWidget.cases(
-                    onAction: () => _showCaseDialog(context),
-                  )
-                : ListView.separated(
-                    itemCount: cases.length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 1, color: AppColors.borderLight),
-                    itemBuilder: (context, index) =>
-                        _buildTableRow(context, cases[index], index),
-                  ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final minWidth = constraints.maxWidth < 700 ? 700.0 : constraints.maxWidth;
+          return Column(
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(width: minWidth, child: _buildTableHeader()),
+              ),
+              const Divider(height: 1, color: AppColors.border),
+              Expanded(
+                child: cases.isEmpty
+                    ? EmptyStateWidget.cases(
+                        onAction: () => _showCaseDialog(context),
+                      )
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: minWidth,
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: cases.length,
+                            separatorBuilder: (context, index) =>
+                                const Divider(height: 1, color: AppColors.borderLight),
+                            itemBuilder: (context, index) =>
+                                _buildTableRow(context, cases[index], index),
+                          ),
+                        ),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -205,6 +225,22 @@ class CasesTable extends StatelessWidget {
     ).then((confirmed) {
       if (confirmed == true && context.mounted) {
         context.read<CasesCubit>().deleteCase(c);
+        
+        // Refresh all connected features based on user role
+        final user = context.read<AuthCubit>().state is AuthAuthenticated 
+            ? (context.read<AuthCubit>().state as AuthAuthenticated).user 
+            : null;
+            
+        if (user != null) {
+          if (user.role.isAdmin) {
+            context.read<DashboardCubit>().loadDashboardData(force: true);
+          } else {
+            context.read<DashboardCubit>().loadNurseDashboardData(user.id, force: true);
+          }
+        }
+        
+        context.read<FinancialsCubit>().loadFinancials(force: true);
+        context.read<PayrollCubit>().loadPayroll(force: true);
       }
     });
   }

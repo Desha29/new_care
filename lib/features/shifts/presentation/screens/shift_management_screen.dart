@@ -190,47 +190,65 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-            ),
-            child: Row(
-              children: [
-                _hc('الموظف', 3),
-                _hc('الدور اليوم', 2),
-                _hc('حالات', 1),
-                _hc('مخزون', 1),
-                _hc('خارجي', 1),
-                _hc('مالية', 1),
-                _hc('ملاحظات', 2),
-                _hc('إجراءات', 1),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          Expanded(
-            child: shifts.isEmpty
-                ? EmptyStateWidget(
-                    icon: Icons.event_busy_rounded,
-                    title: 'لا توجد ورديات لهذا اليوم',
-                    subtitle: 'قم بتعيين ورديات جديدة للموظفين اليوم',
-                    actionLabel: 'تعيين وردية الآن',
-                    onAction: () => _showCreateShiftDialog(context),
-                  )
-                : ListView.separated(
-                    itemCount: shifts.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.borderLight),
-                    itemBuilder: (context, i) => _shiftRow(context, shifts[i], i),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final minWidth = constraints.maxWidth < 800 ? 800.0 : constraints.maxWidth;
+          return Column(
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: minWidth,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    decoration: const BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        _hc('الموظف', 3),
+                        _hc('الدور اليوم', 2),
+                        _hc('حالات', 1),
+                        _hc('مخزون', 1),
+                        _hc('خارجي', 1),
+                        _hc('مالية', 1),
+                        _hc('ملاحظات', 2),
+                        _hc('إجراءات', 1),
+                      ],
+                    ),
                   ),
-          ),
-        ],
+                ),
+              ),
+              const Divider(height: 1, color: AppColors.border),
+              Expanded(
+                child: shifts.isEmpty
+                    ? EmptyStateWidget(
+                        icon: Icons.event_busy_rounded,
+                        title: 'لا توجد ورديات لهذا اليوم',
+                        subtitle: 'قم بتعيين ورديات جديدة للموظفين اليوم',
+                        actionLabel: 'تعيين وردية الآن',
+                        onAction: () => _showCreateShiftDialog(context),
+                      )
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: minWidth,
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: shifts.length,
+                            separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.borderLight),
+                            itemBuilder: (context, i) => _shiftRow(context, shifts[i], i),
+                          ),
+                        ),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

@@ -32,7 +32,7 @@ class ProceduresCubit extends Cubit<ProceduresState> {
   Future<void> addProcedure(ProcedureModel p) async {
     try {
       await _proceduresRepository.createProcedure(p);
-      loadProcedures();
+      loadProcedures(force: true);
     } catch (e) {
       emit(ProceduresError('خطأ في إضافة الإجراء: ${e.toString()}'));
     }
@@ -41,7 +41,7 @@ class ProceduresCubit extends Cubit<ProceduresState> {
   Future<void> deleteProcedure(String id) async {
     try {
       await _proceduresRepository.deleteProcedure(id);
-      loadProcedures();
+      loadProcedures(force: true);
     } catch (e) {
       emit(ProceduresError('خطأ في حذف الإجراء: ${e.toString()}'));
     }

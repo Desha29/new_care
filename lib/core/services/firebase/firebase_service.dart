@@ -248,6 +248,17 @@ class FirebaseService {
     return snapshot.docs.map((doc) => InventoryModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
   }
 
+  Future<void> deductInventoryItem(String id, int quantity) async {
+    _incWrite();
+    final docRef = _inventoryRef.doc(id);
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      if (!snapshot.exists) throw 'Item not found';
+      final currentQuantity = (snapshot.data() as Map<String, dynamic>)['quantity'] ?? 0;
+      transaction.update(docRef, {'quantity': currentQuantity - quantity});
+    });
+  }
+
   Future<List<InventoryModel>> getUpdatedInventory(DateTime lastSync) async {
     _incRead();
     final snapshot = await _inventoryRef.where('updatedAt', isGreaterThan: lastSync.toIso8601String()).get();

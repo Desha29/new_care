@@ -89,7 +89,7 @@ class CasesCubit extends Cubit<CasesState> {
       );
 
       // 4. إعادة تحميل
-      loadCases();
+      loadCases(force: true);
     } catch (e) {
       emit(CasesError('خطأ: ${e.toString()}'));
     }
@@ -113,7 +113,7 @@ class CasesCubit extends Cubit<CasesState> {
         details: 'تم تعديل حالة المريض ${updatedCase.patientName}',
       );
 
-      loadCases();
+      loadCases(force: true);
     } catch (e) {
       emit(CasesError('خطأ في تعديل الحالة: ${e.toString()}'));
     }
@@ -147,7 +147,7 @@ class CasesCubit extends Cubit<CasesState> {
         details: 'تم حذف حالة ${c.patientName}',
       );
 
-      loadCases();
+      loadCases(force: true);
     } catch (e) {
       emit(CasesError('خطأ في حذف الحالة: ${e.toString()}'));
     }

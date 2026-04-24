@@ -29,6 +29,9 @@ class StatsCardsGrid extends StatelessWidget {
           icon: Icons.medical_services_rounded,
           color: AppColors.info,
           subtitle: 'حالة اليوم',
+          onTap: () {
+            // Logic to navigate to Cases screen
+          },
         ),
         StatCard(
           title: AppStrings.totalRevenue,
@@ -36,6 +39,9 @@ class StatsCardsGrid extends StatelessWidget {
           icon: Icons.account_balance_wallet_rounded,
           color: AppColors.success,
           subtitle: 'إيرادات اليوم',
+          onTap: () {
+            // Logic to navigate to Financials screen
+          },
         ),
         StatCard(
           title: 'توزيع الحالات',
@@ -43,6 +49,7 @@ class StatsCardsGrid extends StatelessWidget {
           icon: Icons.pie_chart_rounded,
           color: AppColors.secondary,
           subtitle: 'نسبة الإنجاز اليومي',
+          onTap: () {},
         ),
         StatCard(
           title: AppStrings.availableNurses,
@@ -50,6 +57,9 @@ class StatsCardsGrid extends StatelessWidget {
           icon: Icons.person_rounded,
           color: const Color(0xFF8B5CF6),
           subtitle: 'ممرض نشط',
+          onTap: () {
+            // Logic to navigate to Users screen
+          },
         ),
       ],
     );

@@ -31,42 +31,60 @@ class InventoryTable extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-            ),
-            child: Row(
-              children: [
-                _hc('المستلزم', 3),
-                _hc('التصنيف', 2),
-                _hc('الوحدة', 1),
-                _hc('الكمية', 1),
-                _hc('الحد الأدنى', 1),
-                _hc('السعر', 1),
-                _hc('حالة المخزون', 2),
-                _hc('إجراءات', 2),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          Expanded(
-            child: items.isEmpty
-                ? EmptyStateWidget.inventory(onAction: onEmptyAction)
-                : ListView.separated(
-                    itemCount: items.length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 1, color: AppColors.borderLight),
-                    itemBuilder: (context, i) => _row(context, items[i], i),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final minWidth = constraints.maxWidth < 800 ? 800.0 : constraints.maxWidth;
+          return Column(
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: minWidth,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    decoration: const BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        _hc('المستلزم', 3),
+                        _hc('التصنيف', 2),
+                        _hc('الوحدة', 1),
+                        _hc('الكمية', 1),
+                        _hc('الحد الأدنى', 1),
+                        _hc('السعر', 1),
+                        _hc('حالة المخزون', 2),
+                        _hc('إجراءات', 2),
+                      ],
+                    ),
                   ),
-          ),
-        ],
+                ),
+              ),
+              const Divider(height: 1, color: AppColors.border),
+              Expanded(
+                child: items.isEmpty
+                    ? EmptyStateWidget.inventory(onAction: onEmptyAction)
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: minWidth,
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: items.length,
+                            separatorBuilder: (context, index) =>
+                                const Divider(height: 1, color: AppColors.borderLight),
+                            itemBuilder: (context, i) => _row(context, items[i], i),
+                          ),
+                        ),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
