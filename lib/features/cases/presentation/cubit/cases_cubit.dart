@@ -17,9 +17,9 @@ class CasesCubit extends Cubit<CasesState> {
   CasesCubit({
     required ICasesRepository casesRepository,
     SyncManager? syncManager,
-  })  : _casesRepository = casesRepository,
-        _syncManager = syncManager ?? SyncManager.instance,
-        super(CasesInitial());
+  }) : _casesRepository = casesRepository,
+       _syncManager = syncManager ?? SyncManager.instance,
+       super(CasesInitial());
 
   StreamSubscription? _casesSub;
 
@@ -31,25 +31,27 @@ class CasesCubit extends Cubit<CasesState> {
 
   Future<void> loadCases({String? nurseId, bool force = false}) async {
     if (!force && state is CasesLoaded) return;
-    
+
     emit(CasesLoading());
     _casesSub?.cancel();
-    _casesSub = _casesRepository.streamAllCases(nurseId: nurseId).listen(
-      (cases) {
-        final sortedCases = List<CaseModel>.from(cases)
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        
-        if (state is CasesLoaded) {
-          final s = state as CasesLoaded;
-          emit(s.copyWith(cases: sortedCases));
-        } else {
-          emit(CasesLoaded(cases: sortedCases));
-        }
-      },
-      onError: (e) {
-        emit(CasesError('خطأ في تحميل الحالات: ${e.toString()}'));
-      },
-    );
+    _casesSub = _casesRepository
+        .streamAllCases(nurseId: nurseId)
+        .listen(
+          (cases) {
+            final sortedCases = List<CaseModel>.from(cases)
+              ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+            if (state is CasesLoaded) {
+              final s = state as CasesLoaded;
+              emit(s.copyWith(cases: sortedCases));
+            } else {
+              emit(CasesLoaded(cases: sortedCases));
+            }
+          },
+          onError: (e) {
+            emit(CasesError('خطأ في تحميل الحالات: ${e.toString()}'));
+          },
+        );
   }
 
   void searchCases(String query) {
@@ -62,7 +64,12 @@ class CasesCubit extends Cubit<CasesState> {
   /// إضافة حالة مع خصم مخزون ومزامنة - Add case with inventory deduction & sync
   Future<void> addCase(CaseModel newCase) async {
     try {
-      // 1. خصم المخزون أولاً
+      // 1. Get Firebase Auth info on main thread BEFORE async operations
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final uid = currentUser?.uid ?? '';
+      final uName = currentUser?.displayName ?? 'مستخدم';
+
+      // 2. خصم المخزون أولاً
       final isConnected = await ConnectivityService.instance.checkConnection();
 
       for (var supply in newCase.suppliesUsed) {
@@ -89,13 +96,10 @@ class CasesCubit extends Cubit<CasesState> {
         }
       }
 
-      // 2. حفظ الحالة مع مزامنة
+      // 3. حفظ الحالة مع مزامنة
       await _syncManager.saveCaseWithSync(newCase, isNew: true);
 
-      // 3. تسجيل النشاط
-      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-      final uName = FirebaseAuth.instance.currentUser?.displayName ?? 'مستخدم';
-
+      // 4. تسجيل النشاط (using previously retrieved user info)
       await LocalLogService.instance.logActivity(
         userId: uid,
         userName: uName,
@@ -107,7 +111,10 @@ class CasesCubit extends Cubit<CasesState> {
             'تم إضافة حالة جديدة بنجاح للمريض ${newCase.patientName} - المبلغ: ${newCase.totalPrice}',
       );
 
-      // 4. إعادة تحميل
+      // 5. Brief delay to ensure local DB write completes
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      // 6. إعادة تحميل
       loadCases(force: true);
     } catch (e) {
       emit(CasesError('خطأ: ${e.toString()}'));
@@ -117,10 +124,12 @@ class CasesCubit extends Cubit<CasesState> {
   /// تحديث حالة - Update case
   Future<void> updateCase(CaseModel updatedCase) async {
     try {
-      await _syncManager.saveCaseWithSync(updatedCase, isNew: false);
+      // Get Firebase Auth info on main thread BEFORE async operations
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final uid = currentUser?.uid ?? '';
+      final uName = currentUser?.displayName ?? 'مستخدم';
 
-      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-      final uName = FirebaseAuth.instance.currentUser?.displayName ?? 'مستخدم';
+      await _syncManager.saveCaseWithSync(updatedCase, isNew: false);
 
       await LocalLogService.instance.logActivity(
         userId: uid,
@@ -132,6 +141,9 @@ class CasesCubit extends Cubit<CasesState> {
         details: 'تم تعديل حالة المريض ${updatedCase.patientName}',
       );
 
+      // Brief delay to ensure local DB write completes
+      await Future.delayed(const Duration(milliseconds: 200));
+
       loadCases(force: true);
     } catch (e) {
       emit(CasesError('خطأ في تعديل الحالة: ${e.toString()}'));
@@ -141,6 +153,11 @@ class CasesCubit extends Cubit<CasesState> {
   /// حذف حالة - Delete case
   Future<void> deleteCase(CaseModel c) async {
     try {
+      // Get Firebase Auth info on main thread BEFORE async operations
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final uid = currentUser?.uid ?? '';
+      final uName = currentUser?.displayName ?? 'مستخدم';
+
       final isConnected = await ConnectivityService.instance.checkConnection();
       if (isConnected) {
         await _casesRepository.deleteCase(c.id);
@@ -153,9 +170,6 @@ class CasesCubit extends Cubit<CasesState> {
         );
       }
 
-      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-      final uName = FirebaseAuth.instance.currentUser?.displayName ?? 'مستخدم';
-
       await LocalLogService.instance.logActivity(
         userId: uid,
         userName: uName,
@@ -166,10 +180,12 @@ class CasesCubit extends Cubit<CasesState> {
         details: 'تم حذف حالة ${c.patientName}',
       );
 
+      // Brief delay to ensure local DB write completes
+      await Future.delayed(const Duration(milliseconds: 200));
+
       loadCases(force: true);
     } catch (e) {
       emit(CasesError('خطأ في حذف الحالة: ${e.toString()}'));
     }
   }
 }
-

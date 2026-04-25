@@ -14,20 +14,20 @@ class DataStatusScreen extends StatefulWidget {
 
 class _DataStatusScreenState extends State<DataStatusScreen> {
   bool _isLoading = true;
-  
+
   // Counts
   int _firestoreUsers = 0;
   int _firestorePatients = 0;
   int _firestoreShifts = 0;
   int _firestoreInventory = 0;
   int _firestoreProcedures = 0;
-  
+
   int _sqliteUsers = 0;
   int _sqlitePatients = 0;
   int _sqliteShifts = 0;
   int _sqliteInventory = 0;
   int _sqliteProcedures = 0;
-  
+
   int _pendingCount = 0;
   int _fbRead = 0;
   int _fbWrite = 0;
@@ -47,13 +47,13 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
         FirebaseService.instance.getShiftsCount(),
         FirebaseService.instance.getInventoryCount(),
         FirebaseService.instance.getProceduresCount(),
-        
+
         SqliteService.instance.getUsersCount(),
         SqliteService.instance.getPatientsCount(),
         SqliteService.instance.getShiftsCount(),
         SqliteService.instance.getInventoryCount(),
         SqliteService.instance.getProceduresCount(),
-        
+
         SyncManager.instance.getPendingCount(),
       ]);
 
@@ -63,13 +63,13 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
         _firestoreShifts = futures[2];
         _firestoreInventory = futures[3];
         _firestoreProcedures = futures[4];
-        
+
         _sqliteUsers = futures[5];
         _sqlitePatients = futures[6];
         _sqliteShifts = futures[7];
         _sqliteInventory = futures[8];
         _sqliteProcedures = futures[9];
-        
+
         _pendingCount = futures[10];
         _fbRead = FirebaseService.readCount;
         _fbWrite = FirebaseService.writeCount;
@@ -77,7 +77,9 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في جلب البيانات: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ في جلب البيانات: $e')));
       }
       setState(() => _isLoading = false);
     }
@@ -88,7 +90,10 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('المزامنة والبيانات', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+        title: const Text(
+          'المزامنة والبيانات',
+          style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+        ),
         elevation: 0,
         backgroundColor: Colors.transparent,
         foregroundColor: AppColors.textPrimary,
@@ -97,8 +102,8 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
             onPressed: () {
               FirebaseService.instance.resetStats();
               _loadData();
-            }, 
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary)
+            },
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
           ),
           const SizedBox(width: 8),
         ],
@@ -121,7 +126,9 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                           title: 'السحابة (Cloud)',
                           subtitle: 'قاعدة بيانات Firestore Live',
                           icon: Icons.cloud_outlined,
-                          gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryLight]),
+                          gradient: const LinearGradient(
+                            colors: [AppColors.primary, AppColors.primaryLight],
+                          ),
                           users: _firestoreUsers,
                           patients: _firestorePatients,
                           shifts: _firestoreShifts,
@@ -135,7 +142,12 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                           title: 'المحلية (Local)',
                           subtitle: 'قاعدة بيانات SQLite المدمجة',
                           icon: Icons.cell_tower_rounded,
-                          gradient: const LinearGradient(colors: [AppColors.secondary, AppColors.secondaryDark]),
+                          gradient: const LinearGradient(
+                            colors: [
+                              AppColors.secondary,
+                              AppColors.secondaryDark,
+                            ],
+                          ),
                           users: _sqliteUsers,
                           patients: _sqlitePatients,
                           shifts: _sqliteShifts,
@@ -162,7 +174,11 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Row(
@@ -170,12 +186,16 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isInSync ? AppColors.statusCompletedBg : AppColors.statusPendingBg,
+              color: isInSync
+                  ? AppColors.statusCompletedBg
+                  : AppColors.statusPendingBg,
               shape: BoxShape.circle,
             ),
             child: Icon(
               isInSync ? Icons.done_all_rounded : Icons.sync_problem_rounded,
-              color: isInSync ? AppColors.statusCompleted : AppColors.statusPending,
+              color: isInSync
+                  ? AppColors.statusCompleted
+                  : AppColors.statusPending,
               size: 32,
             ),
           ),
@@ -185,17 +205,25 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isInSync ? 'كافة البيانات متزامنة' : 'انتظار المزامنة المحلية',
+                  isInSync
+                      ? 'كافة البيانات متزامنة'
+                      : 'انتظار المزامنة المحلية',
                   style: const TextStyle(
-                    fontFamily: 'Cairo', 
-                    fontSize: 20, 
+                    fontFamily: 'Cairo',
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                   ),
                 ),
                 Text(
-                  isInSync ? 'جميع التغييرات تم حفظها بأمان في السحابة' : 'يوجد $_pendingCount عملية تنتظر المزامنة التلقائية',
-                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, color: AppColors.textSecondary),
+                  isInSync
+                      ? 'جميع التغييرات تم حفظها بأمان في السحابة'
+                      : 'يوجد $_pendingCount عملية تنتظر المزامنة التلقائية',
+                  style: const TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -221,7 +249,10 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
         color: AppColors.primaryDark,
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
-          colors: [AppColors.primaryDark, AppColors.primary.withValues(alpha: 0.8)],
+          colors: [
+            AppColors.primaryDark,
+            AppColors.primary.withValues(alpha: 0.8),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -229,9 +260,19 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildUsageStat('قراءات السحابة', _fbRead, Icons.visibility_outlined, Colors.cyanAccent),
+          _buildUsageStat(
+            'قراءات السحابة',
+            _fbRead,
+            Icons.visibility_outlined,
+            Colors.cyanAccent,
+          ),
           Container(width: 1, height: 50, color: Colors.white12),
-          _buildUsageStat('كتابات السحابة', _fbWrite, Icons.create_rounded, Colors.orangeAccent),
+          _buildUsageStat(
+            'كتابات السحابة',
+            _fbWrite,
+            Icons.create_rounded,
+            Colors.orangeAccent,
+          ),
         ],
       ),
     );
@@ -244,11 +285,19 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
         const SizedBox(height: 8),
         Text(
           value.toString(),
-          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+          style: const TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         Text(
           label,
-          style: const TextStyle(fontFamily: 'Cairo', color: Colors.white70, fontSize: 13),
+          style: const TextStyle(
+            fontFamily: 'Cairo',
+            color: Colors.white70,
+            fontSize: 13,
+          ),
         ),
       ],
     );
@@ -289,22 +338,61 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontFamily: 'Cairo', fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(subtitle, style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textSecondary)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                 ],
               ),
             ],
           ),
           const SizedBox(height: 24),
-          _buildDataRow(Icons.groups_outlined, 'الموظفين', users, AppColors.primary),
+          _buildDataRow(
+            Icons.groups_outlined,
+            'الموظفين',
+            users,
+            AppColors.primary,
+          ),
           const Divider(height: 16),
-          _buildDataRow(Icons.person_pin_rounded, 'المرضى', patients, AppColors.info),
+          _buildDataRow(
+            Icons.person_pin_rounded,
+            'المرضى',
+            patients,
+            AppColors.info,
+          ),
           const Divider(height: 16),
-          _buildDataRow(Icons.event_note_rounded, 'الورديات', shifts, AppColors.secondary),
+          _buildDataRow(
+            Icons.event_note_rounded,
+            'الورديات',
+            shifts,
+            AppColors.secondary,
+          ),
           const Divider(height: 16),
-          _buildDataRow(Icons.inventory_2_outlined, 'المخزون', inv, Colors.purple),
+          _buildDataRow(
+            Icons.inventory_2_outlined,
+            'المخزون',
+            inv,
+            Colors.purple,
+          ),
           const Divider(height: 16),
-          _buildDataRow(Icons.medical_services_outlined, 'الإجراءات', proc, AppColors.success),
+          _buildDataRow(
+            Icons.medical_services_outlined,
+            'الإجراءات',
+            proc,
+            AppColors.success,
+          ),
         ],
       ),
     );
@@ -315,11 +403,22 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
       children: [
         Icon(icon, size: 18, color: color.withValues(alpha: 0.7)),
         const SizedBox(width: 10),
-        Text(label, style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
+        ),
         const Spacer(),
         Text(
           count.toString(),
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
         ),
       ],
     );
@@ -331,13 +430,44 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
       child: PrimaryButton(
         label: 'مزامنة إجبارية شاملة',
         icon: Icons.sync_rounded,
-        onPressed: () async {
-          setState(() => _isLoading = true);
-          await SyncManager.instance.syncAll();
-          _loadData();
-        },
+        onPressed: _isLoading
+            ? null
+            : () async {
+                try {
+                  setState(() => _isLoading = true);
+                  await SyncManager.instance.syncAll();
+                  await _loadData();
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'تمت المزامنة بنجاح',
+                          style: TextStyle(fontFamily: 'Cairo'),
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'خطأ في المزامنة: $e',
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } finally {
+                  if (mounted) {
+                    setState(() => _isLoading = false);
+                  }
+                }
+              },
       ),
     );
   }
 }
-

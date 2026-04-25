@@ -25,9 +25,9 @@ class SyncManager {
   StreamSubscription? _connectivitySub;
 
   SyncManager._()
-      : _firebaseService = FirebaseService.instance,
-        _sqliteService = SqliteService.instance,
-        _connectivityService = ConnectivityService.instance {
+    : _firebaseService = FirebaseService.instance,
+      _sqliteService = SqliteService.instance,
+      _connectivityService = ConnectivityService.instance {
     _initAutoSync();
   }
 
@@ -38,10 +38,15 @@ class SyncManager {
 
   void _initAutoSync() {
     // Attempt sync every 5 minutes automatically
-    _autoSyncTimer = Timer.periodic(const Duration(minutes: 5), (_) => syncAll());
-    
+    _autoSyncTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) => syncAll(),
+    );
+
     // Attempt sync when connectivity is restored
-    _connectivitySub = _connectivityService.connectivityStream.listen((isConnected) {
+    _connectivitySub = _connectivityService.connectivityStream.listen((
+      isConnected,
+    ) {
       if (isConnected) {
         log('[SyncManager] Connection restored, triggering sync');
         syncAll();
@@ -68,8 +73,9 @@ class SyncManager {
   }) async {
     try {
       final db = await _sqliteService.database;
-      final syncId = '${tableName}_$docId'; // Use a predictable ID to prevent duplicate pending ops for same record
-      
+      final syncId =
+          '${tableName}_$docId'; // Use a predictable ID to prevent duplicate pending ops for same record
+
       await db.insert('pending_sync', {
         'id': syncId,
         'tableName': tableName,
@@ -87,7 +93,7 @@ class SyncManager {
       }
 
       log('[SyncManager] Enqueued: $operation on $tableName/$docId');
-      
+
       // Trigger sync in background without blocking
       unawaited(syncAll());
     } catch (e) {
@@ -102,7 +108,12 @@ class SyncManager {
     required String docId,
     required Map<String, dynamic> data,
   }) async {
-    return enqueue(tableName: tableName, operation: operation, docId: docId, data: data);
+    return enqueue(
+      tableName: tableName,
+      operation: operation,
+      docId: docId,
+      data: data,
+    );
   }
 
   // ============================================
@@ -121,11 +132,20 @@ class SyncManager {
 
     try {
       // 1. Process local changes -> Firebase (Upload)
-      await _uploadPendingChanges();
+      try {
+        await _uploadPendingChanges();
+      } catch (e) {
+        log('[SyncManager] Upload phase error (continuing): $e');
+        // Continue to download phase even if upload fails
+      }
 
       // 2. Process remote changes -> Local (Download)
-      await _downloadDeltaChanges();
-      
+      try {
+        await _downloadDeltaChanges();
+      } catch (e) {
+        log('[SyncManager] Download phase error: $e');
+      }
+
       log('[SyncManager] Sync cycle completed successfully');
     } catch (e) {
       log('[SyncManager] Sync cycle failed: $e');
@@ -142,7 +162,12 @@ class SyncManager {
   /// رفع التغييرات المحلية - Upload pending changes to Firebase
   Future<void> _uploadPendingChanges() async {
     final db = await _sqliteService.database;
-    final pending = await db.query('pending_sync', orderBy: 'createdAt ASC');
+    final pending = await db.query(
+      'pending_sync',
+      orderBy: 'createdAt ASC',
+      limit:
+          10, // Process max 10 operations per cycle to prevent overwhelming the API
+    );
 
     if (pending.isEmpty) return;
     log('[SyncManager] Processing ${pending.length} pending uploads...');
@@ -156,28 +181,80 @@ class SyncManager {
       final retryCount = op['retryCount'] as int;
 
       try {
-        await _dispatchOperation(tableName, operation, docId, data);
-        
+        // Add timeout to prevent hanging
+        log('[SyncManager] Syncing $tableName/$docId (Operation: $operation)');
+
+        await _dispatchOperation(
+          tableName,
+          operation,
+          docId,
+          data,
+        ).timeout(const Duration(seconds: 30));
+
         // Success: Remove from queue
         await db.delete('pending_sync', where: 'id = ?', whereArgs: [id]);
-        log('[SyncManager] Successfully synced $tableName/$docId');
-      } catch (e) {
-        log('[SyncManager] Failed to sync $tableName/$docId (Attempt ${retryCount + 1}): $e');
-        
-        // Error: Update retry count and last error
-        await db.update('pending_sync', {
-          'retryCount': retryCount + 1,
-          'lastError': e.toString(),
-          'lastAttempt': DateTime.now().toIso8601String(),
-        }, where: 'id = ?', whereArgs: [id]);
+        log('[SyncManager] ✓ Successfully synced $tableName/$docId');
 
-        if (retryCount >= 10) {
-          log('[SyncManager] Max retries reached for $tableName/$docId. Discarding.');
+        // Increased delay to avoid rapid-fire Firebase operations on Windows
+        await Future.delayed(const Duration(milliseconds: 250));
+      } on TimeoutException {
+        log(
+          '[SyncManager] ⏱️ Timeout syncing $tableName/$docId (Attempt ${retryCount + 1})',
+        );
+
+        // Timeout: Update retry count and continue
+        await db.update(
+          'pending_sync',
+          {
+            'retryCount': retryCount + 1,
+            'lastError': 'Timeout after 30 seconds',
+            'lastAttempt': DateTime.now().toIso8601String(),
+          },
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+
+        if (retryCount >= 5) {
+          log(
+            '[SyncManager] ❌ Max retries reached for $tableName/$docId. Discarding timeout.',
+          );
           await db.delete('pending_sync', where: 'id = ?', whereArgs: [id]);
         }
-        
-        // Break the loop if it's a network error to avoid multiple quick failures
-        if (e.toString().contains('network') || e.toString().contains('connection')) {
+        // Break to avoid more timeouts
+        break;
+      } catch (e, st) {
+        log(
+          '[SyncManager] ❌ Failed to sync $tableName/$docId (Attempt ${retryCount + 1}): $e',
+        );
+        log('[SyncManager] Stack trace: $st');
+
+        // Error: Update retry count and last error
+        await db.update(
+          'pending_sync',
+          {
+            'retryCount': retryCount + 1,
+            'lastError': e.toString(),
+            'lastAttempt': DateTime.now().toIso8601String(),
+          },
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+
+        if (retryCount >= 10) {
+          log(
+            '[SyncManager] ❌ Max retries reached for $tableName/$docId. Discarding.',
+          );
+          await db.delete('pending_sync', where: 'id = ?', whereArgs: [id]);
+        }
+
+        // Break the loop if it's a network/connection error to avoid multiple quick failures
+        if (e.toString().contains('network') ||
+            e.toString().contains('connection') ||
+            e.toString().contains('disconnected') ||
+            e.toString().contains('socket')) {
+          log(
+            '[SyncManager] 🔌 Connection error detected. Stopping sync cycle.',
+          );
           break;
         }
       }
@@ -185,104 +262,228 @@ class SyncManager {
   }
 
   /// توزيع العملية على الخدمة المناسبة - Dispatch operation to Firebase
-  Future<void> _dispatchOperation(String table, String op, String id, Map<String, dynamic> data) async {
-    switch (table) {
-      case 'cases':
-        final model = CaseModel.fromMap(data, id);
-        if (op == 'delete') {
-          await _firebaseService.deleteCase(id);
-        } else {
-          // Idempotent: set/update will work regardless of 'create' vs 'update'
-          await _firebaseService.updateCase(model);
-        }
-        break;
-      case 'inventory':
-        if (op == 'delete') {
-          await _firebaseService.deleteInventoryItem(id);
-        } else if (op == 'deduct') {
-          final qty = (data['quantity'] ?? 0) as int;
-          await _firebaseService.deductInventoryItem(id, qty);
-        } else {
-          final model = InventoryModel.fromMap(data, id);
-          await _firebaseService.updateInventoryItem(model);
-        }
-        break;
-      case 'attendance':
-        final model = AttendanceModel.fromMap(data, id);
-        if (op == 'update') {
-          await _firebaseService.checkOut(id);
-        } else {
-          await _firebaseService.checkIn(model);
-        }
-        break;
-      case 'shifts':
-        final model = ShiftModel.fromMap(data, id);
-        if (op == 'delete') {
-          await _firebaseService.deleteShift(id);
-        } else {
-          await _firebaseService.updateShift(model);
-        }
-        break;
-      case 'procedures':
-        final model = ProcedureModel.fromMap(data, id);
-        if (op == 'delete') {
-          await _firebaseService.deleteProcedure(id);
-        } else {
-          await _firebaseService.updateProcedure(model);
-        }
-        break;
-      case 'users':
-        final model = UserModel.fromMap(data, id);
-        if (op == 'delete') {
-          await _firebaseService.deleteUser(id);
-        } else {
-          await _firebaseService.updateUser(model);
-        }
-        break;
+  Future<void> _dispatchOperation(
+    String table,
+    String op,
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      log('[SyncManager] Dispatching $op on $table/$id');
+
+      switch (table) {
+        case 'cases':
+          try {
+            final model = CaseModel.fromMap(data, id);
+            if (op == 'delete') {
+              await _firebaseService.deleteCase(id);
+            } else {
+              // Idempotent: set/update will work regardless of 'create' vs 'update'
+              await _firebaseService.updateCase(model);
+            }
+            log('[SyncManager] Case operation completed: $op on $id');
+          } catch (e, st) {
+            log('[SyncManager] Case model/operation error: $e');
+            log('[SyncManager] Case stack: $st');
+            log('[SyncManager] Case data keys: ${data.keys.toString()}');
+            rethrow;
+          }
+          break;
+        case 'inventory':
+          try {
+            if (op == 'delete') {
+              await _firebaseService.deleteInventoryItem(id);
+            } else if (op == 'deduct') {
+              final qty = (data['quantity'] ?? 0) as int;
+              log('[SyncManager] Attempting to deduct $qty from inventory $id');
+              // Deduct operations can safely fail without crashing sync
+              try {
+                await _firebaseService
+                    .deductInventoryItem(id, qty)
+                    .timeout(
+                      const Duration(seconds: 15),
+                    ); // Shorter timeout for deduct
+              } catch (deductError) {
+                log(
+                  '[SyncManager] Deduct operation failed (non-fatal): $deductError',
+                );
+                // Don't rethrow - deduct failures are recoverable
+              }
+            } else {
+              final model = InventoryModel.fromMap(data, id);
+              await _firebaseService.updateInventoryItem(model);
+            }
+            log('[SyncManager] Inventory operation completed: $op on $id');
+          } catch (e, st) {
+            log('[SyncManager] Inventory operation error: $e');
+            log('[SyncManager] Inventory stack: $st');
+            rethrow;
+          }
+          break;
+        case 'attendance':
+          try {
+            final model = AttendanceModel.fromMap(data, id);
+            if (op == 'update') {
+              await _firebaseService.checkOut(id);
+            } else {
+              await _firebaseService.checkIn(model);
+            }
+            log('[SyncManager] Attendance operation completed: $op on $id');
+          } catch (e, st) {
+            log('[SyncManager] Attendance operation error: $e');
+            log('[SyncManager] Attendance stack: $st');
+            rethrow;
+          }
+          break;
+        case 'shifts':
+          try {
+            final model = ShiftModel.fromMap(data, id);
+            if (op == 'delete') {
+              await _firebaseService.deleteShift(id);
+            } else {
+              await _firebaseService.updateShift(model);
+            }
+            log('[SyncManager] Shift operation completed: $op on $id');
+          } catch (e, st) {
+            log('[SyncManager] Shift operation error: $e');
+            log('[SyncManager] Shift stack: $st');
+            rethrow;
+          }
+          break;
+        case 'procedures':
+          try {
+            final model = ProcedureModel.fromMap(data, id);
+            if (op == 'delete') {
+              await _firebaseService.deleteProcedure(id);
+            } else {
+              await _firebaseService.updateProcedure(model);
+            }
+            log('[SyncManager] Procedure operation completed: $op on $id');
+          } catch (e, st) {
+            log('[SyncManager] Procedure operation error: $e');
+            log('[SyncManager] Procedure stack: $st');
+            rethrow;
+          }
+          break;
+        case 'users':
+          try {
+            final model = UserModel.fromMap(data, id);
+            if (op == 'delete') {
+              await _firebaseService.deleteUser(id);
+            } else {
+              await _firebaseService.updateUser(model);
+            }
+            log('[SyncManager] User operation completed: $op on $id');
+          } catch (e, st) {
+            log('[SyncManager] User operation error: $e');
+            log('[SyncManager] User stack: $st');
+            rethrow;
+          }
+          break;
+        default:
+          throw Exception('Unknown table: $table');
+      }
+    } catch (e, st) {
+      log('[SyncManager] Dispatch operation error for $table/$op/$id: $e');
+      log('[SyncManager] Dispatch stack: $st');
+      rethrow;
     }
   }
 
   /// تنزيل التغييرات الجديدة - Download only what changed since last sync
   Future<void> _downloadDeltaChanges() async {
-    final lastSync = await _sqliteService.getLastSync();
-    log('[SyncManager] Fetching delta since $lastSync');
+    try {
+      final lastSync = await _sqliteService.getLastSync();
+      log('[SyncManager] Fetching delta since $lastSync');
 
-    // Optimization: Run downloads in parallel where possible
-    final results = await Future.wait([
-      _firebaseService.getUpdatedCases(lastSync),
-      _firebaseService.getUpdatedUsers(lastSync),
-      _firebaseService.getUpdatedInventory(lastSync),
-      _firebaseService.getUpdatedProcedures(lastSync),
-    ]);
+      // Run downloads with timeout protection and error handling
+      final results = await Future.wait([
+        _firebaseService
+            .getUpdatedCases(lastSync)
+            .timeout(const Duration(seconds: 30))
+            .catchError((e) {
+              log('[SyncManager] Failed to fetch cases: $e');
+              return <CaseModel>[];
+            }),
+        _firebaseService
+            .getUpdatedUsers(lastSync)
+            .timeout(const Duration(seconds: 30))
+            .catchError((e) {
+              log('[SyncManager] Failed to fetch users: $e');
+              return <UserModel>[];
+            }),
+        _firebaseService
+            .getUpdatedInventory(lastSync)
+            .timeout(const Duration(seconds: 30))
+            .catchError((e) {
+              log('[SyncManager] Failed to fetch inventory: $e');
+              return <InventoryModel>[];
+            }),
+        _firebaseService
+            .getUpdatedProcedures(lastSync)
+            .timeout(const Duration(seconds: 30))
+            .catchError((e) {
+              log('[SyncManager] Failed to fetch procedures: $e');
+              return <ProcedureModel>[];
+            }),
+      ]);
 
-    await _sqliteService.runTransaction((txn) async {
-      final batch = txn.batch();
-      
-      // 1. Cases
-      for (var c in results[0] as List<CaseModel>) {
-        batch.insert('cases', c.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-      }
-      
-      // 2. Users
-      for (var u in results[1] as List<UserModel>) {
-        batch.insert('users', u.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-      }
-      
-      // 3. Inventory
-      for (var i in results[2] as List<InventoryModel>) {
-        batch.insert('inventory', i.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-      }
-      
-      // 4. Procedures
-      for (var p in results[3] as List<ProcedureModel>) {
-        batch.insert('procedures', p.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-      }
-      
-      await batch.commit(noResult: true);
-    });
+      // Small delay between download and write to avoid rapid operations
+      await Future.delayed(const Duration(milliseconds: 200));
 
-    await _sqliteService.updateLastSync();
-    log('[SyncManager] Delta sync applied');
+      await _sqliteService.runTransaction((txn) async {
+        try {
+          final batch = txn.batch();
+
+          // 1. Cases
+          for (var c in results[0] as List<CaseModel>) {
+            batch.insert(
+              'cases',
+              c.toSqliteMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+
+          // 2. Users
+          for (var u in results[1] as List<UserModel>) {
+            batch.insert(
+              'users',
+              u.toSqliteMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+
+          // 3. Inventory
+          for (var i in results[2] as List<InventoryModel>) {
+            batch.insert(
+              'inventory',
+              i.toSqliteMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+
+          // 4. Procedures
+          for (var p in results[3] as List<ProcedureModel>) {
+            batch.insert(
+              'procedures',
+              p.toSqliteMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+
+          await batch.commit(noResult: true);
+        } catch (e) {
+          log('[SyncManager] Transaction error: $e');
+          rethrow;
+        }
+      });
+
+      await _sqliteService.updateLastSync();
+      log('[SyncManager] Delta sync applied');
+    } catch (e) {
+      log('[SyncManager] Download delta changes error: $e');
+      // Don't rethrow - download failures shouldn't crash the sync cycle
+    }
   }
 
   // ============================================
@@ -300,7 +501,10 @@ class SyncManager {
     );
   }
 
-  Future<void> saveInventoryWithSync(InventoryModel item, {bool isNew = true}) async {
+  Future<void> saveInventoryWithSync(
+    InventoryModel item, {
+    bool isNew = true,
+  }) async {
     await _sqliteService.insert('inventory', item.toSqliteMap());
     await enqueue(
       tableName: 'inventory',

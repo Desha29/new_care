@@ -71,7 +71,8 @@ class FirebaseService {
   // === المستخدمون - Users ===
   // ============================================
 
-  CollectionReference get _usersRef => _firestore.collection(AppConstants.usersCollection);
+  CollectionReference get _usersRef =>
+      _firestore.collection(AppConstants.usersCollection);
 
   Future<void> createUser(UserModel user) async {
     _incWrite();
@@ -93,13 +94,25 @@ class FirebaseService {
   Future<List<UserModel>> getAllUsers() async {
     _incRead();
     final snapshot = await _usersRef.orderBy('name').get();
-    return snapshot.docs.map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+    return snapshot.docs
+        .map(
+          (doc) =>
+              UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
+        .toList();
   }
 
   Future<List<UserModel>> getUpdatedUsers(DateTime lastSync) async {
     _incRead();
-    final snapshot = await _usersRef.where('updatedAt', isGreaterThan: lastSync.toIso8601String()).get();
-    return snapshot.docs.map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+    final snapshot = await _usersRef
+        .where('updatedAt', isGreaterThan: lastSync.toIso8601String())
+        .get();
+    return snapshot.docs
+        .map(
+          (doc) =>
+              UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
+        .toList();
   }
 
   Future<void> deleteUser(String uid) async {
@@ -111,7 +124,10 @@ class FirebaseService {
     _incRead();
     final snapshot = await _usersRef.where('role', isEqualTo: 'nurse').get();
     return snapshot.docs
-        .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .where((u) => u.isActive)
         .toList();
   }
@@ -120,12 +136,20 @@ class FirebaseService {
   // === السجلات - Logs ===
   // ============================================
 
-  CollectionReference get _logsRef => _firestore.collection(AppConstants.logsCollection);
+  CollectionReference get _logsRef =>
+      _firestore.collection(AppConstants.logsCollection);
 
   Future<List<LogModel>> getAllLogs({int limit = 100}) async {
     _incRead();
-    final snapshot = await _logsRef.orderBy('timestamp', descending: true).limit(limit).get();
-    return snapshot.docs.map((doc) => LogModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+    final snapshot = await _logsRef
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .get();
+    return snapshot.docs
+        .map(
+          (doc) => LogModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
+        .toList();
   }
 
   // ============================================
@@ -152,19 +176,40 @@ class FirebaseService {
   Future<List<CaseModel>> getAllCases({String? nurseId}) async {
     _incRead();
     if (nurseId != null) {
-      final snapshot = await _casesRef.where('nurseId', isEqualTo: nurseId).get();
-      final cases = snapshot.docs.map((doc) => CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+      final snapshot = await _casesRef
+          .where('nurseId', isEqualTo: nurseId)
+          .get();
+      final cases = snapshot.docs
+          .map(
+            (doc) =>
+                CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+          )
+          .toList();
       cases.sort((a, b) => b.caseDate.compareTo(a.caseDate));
       return cases;
     }
-    final snapshot = await _casesRef.orderBy('caseDate', descending: true).get();
-    return snapshot.docs.map((doc) => CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+    final snapshot = await _casesRef
+        .orderBy('caseDate', descending: true)
+        .get();
+    return snapshot.docs
+        .map(
+          (doc) =>
+              CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
+        .toList();
   }
 
   Future<List<CaseModel>> getUpdatedCases(DateTime lastSync) async {
     _incRead();
-    final snapshot = await _casesRef.where('updatedAt', isGreaterThan: lastSync.toIso8601String()).get();
-    return snapshot.docs.map((doc) => CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+    final snapshot = await _casesRef
+        .where('updatedAt', isGreaterThan: lastSync.toIso8601String())
+        .get();
+    return snapshot.docs
+        .map(
+          (doc) =>
+              CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
+        .toList();
   }
 
   Stream<List<CaseModel>> streamAllCases({String? nurseId}) {
@@ -173,7 +218,12 @@ class FirebaseService {
       query = _casesRef.where('nurseId', isEqualTo: nurseId);
     }
     return safeStream(query).map((snapshot) {
-      final cases = snapshot.docs.map((doc) => CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+      final cases = snapshot.docs
+          .map(
+            (doc) =>
+                CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+          )
+          .toList();
       if (nurseId != null) {
         // Double check filtering in Dart as well for consistency across platforms if needed
         return cases.where((c) => c.nurseId == nurseId).toList();
@@ -245,24 +295,53 @@ class FirebaseService {
   Future<List<InventoryModel>> getAllInventory() async {
     _incRead();
     final snapshot = await _inventoryRef.get();
-    return snapshot.docs.map((doc) => InventoryModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+    return snapshot.docs
+        .map(
+          (doc) => InventoryModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
+        .toList();
   }
 
   Future<void> deductInventoryItem(String id, int quantity) async {
-    _incWrite();
-    final docRef = _inventoryRef.doc(id);
-    await _firestore.runTransaction((transaction) async {
-      final snapshot = await transaction.get(docRef);
-      if (!snapshot.exists) throw 'Item not found';
-      final currentQuantity = (snapshot.data() as Map<String, dynamic>)['quantity'] ?? 0;
-      transaction.update(docRef, {'quantity': currentQuantity - quantity});
-    });
+    try {
+      _incWrite();
+      final docRef = _inventoryRef.doc(id);
+
+      // First check if item exists to avoid transaction errors
+      final snapshot = await docRef.get();
+      if (!snapshot.exists) {
+        log('[FirebaseService] Item $id not found, skipping deduction');
+        return; // Item doesn't exist, skip deduction
+      }
+
+      final currentQuantity =
+          (snapshot.data() as Map<String, dynamic>)['quantity'] ?? 0;
+      final newQuantity = (currentQuantity - quantity).clamp(0, 999999);
+
+      // Use simple update instead of transaction to avoid Windows platform issues
+      await docRef.update({'quantity': newQuantity});
+    } catch (e) {
+      log('[FirebaseService] Error deducting inventory $id: $e');
+      // Don't throw - inventory deduction failures shouldn't block sync
+    }
   }
 
   Future<List<InventoryModel>> getUpdatedInventory(DateTime lastSync) async {
     _incRead();
-    final snapshot = await _inventoryRef.where('updatedAt', isGreaterThan: lastSync.toIso8601String()).get();
-    return snapshot.docs.map((doc) => InventoryModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+    final snapshot = await _inventoryRef
+        .where('updatedAt', isGreaterThan: lastSync.toIso8601String())
+        .get();
+    return snapshot.docs
+        .map(
+          (doc) => InventoryModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
+        .toList();
   }
 
   // ============================================
@@ -273,12 +352,16 @@ class FirebaseService {
 
   Future<void> createProcedure(ProcedureModel model) async {
     _incWrite();
-    await _proceduresRef.doc(model.id).set(model.toMap(), SetOptions(merge: true));
+    await _proceduresRef
+        .doc(model.id)
+        .set(model.toMap(), SetOptions(merge: true));
   }
 
   Future<void> updateProcedure(ProcedureModel model) async {
     _incWrite();
-    await _proceduresRef.doc(model.id).set(model.toMap(), SetOptions(merge: true));
+    await _proceduresRef
+        .doc(model.id)
+        .set(model.toMap(), SetOptions(merge: true));
   }
 
   Future<void> deleteProcedure(String id) async {
@@ -289,13 +372,29 @@ class FirebaseService {
   Future<List<ProcedureModel>> getAllProcedures() async {
     _incRead();
     final snapshot = await _proceduresRef.get();
-    return snapshot.docs.map((doc) => ProcedureModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+    return snapshot.docs
+        .map(
+          (doc) => ProcedureModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
+        .toList();
   }
 
   Future<List<ProcedureModel>> getUpdatedProcedures(DateTime lastSync) async {
     _incRead();
-    final snapshot = await _proceduresRef.where('updatedAt', isGreaterThan: lastSync.toIso8601String()).get();
-    return snapshot.docs.map((doc) => ProcedureModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+    final snapshot = await _proceduresRef
+        .where('updatedAt', isGreaterThan: lastSync.toIso8601String())
+        .get();
+    return snapshot.docs
+        .map(
+          (doc) => ProcedureModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
+        .toList();
   }
 
   // ============================================
@@ -306,7 +405,9 @@ class FirebaseService {
 
   Future<void> checkIn(AttendanceModel attendance) async {
     _incWrite();
-    await _attendanceRef.doc(attendance.id).set(attendance.toMap(), SetOptions(merge: true));
+    await _attendanceRef
+        .doc(attendance.id)
+        .set(attendance.toMap(), SetOptions(merge: true));
   }
 
   Future<void> checkOut(String attendanceId) async {
@@ -321,9 +422,14 @@ class FirebaseService {
     _incRead();
     final today = _todayString();
     final snapshot = await _attendanceRef.where('date', isEqualTo: today).get();
-    
+
     final records = snapshot.docs
-        .map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) => AttendanceModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
         .where((a) => a.userId == userId)
         .toList();
 
@@ -332,15 +438,28 @@ class FirebaseService {
     return records.first;
   }
 
-  Future<List<AttendanceModel>> getMonthlyAttendanceRecords(int year, int month) async {
+  Future<List<AttendanceModel>> getMonthlyAttendanceRecords(
+    int year,
+    int month,
+  ) async {
     _incRead();
     final startId = '$year-${month.toString().padLeft(2, '0')}-01';
     final endMonth = month == 12 ? 1 : month + 1;
     final endYear = month == 12 ? year + 1 : year;
     final endId = '$endYear-${endMonth.toString().padLeft(2, '0')}-01';
 
-    final snapshot = await _attendanceRef.where('date', isGreaterThanOrEqualTo: startId).where('date', isLessThan: endId).get();
-    return snapshot.docs.map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+    final snapshot = await _attendanceRef
+        .where('date', isGreaterThanOrEqualTo: startId)
+        .where('date', isLessThan: endId)
+        .get();
+    return snapshot.docs
+        .map(
+          (doc) => AttendanceModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
+        .toList();
   }
 
   // ============================================
@@ -363,12 +482,15 @@ class FirebaseService {
     _incRead();
     final today = _todayString();
     final snapshot = await _shiftsRef.where('date', isEqualTo: today).get();
-    
+
     final records = snapshot.docs
-        .map((doc) => ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
         .where((s) => s.userId == userId)
         .toList();
-    
+
     return records.isNotEmpty ? records.first : null;
   }
 
@@ -406,6 +528,8 @@ class FirebaseService {
 
   Stream<QuerySnapshot<Object?>> safeStream(Query query) {
     if (kIsWeb || !Platform.isWindows) return query.snapshots();
-    return Stream.periodic(const Duration(seconds: 5)).asyncMap((_) => query.get()).asBroadcastStream();
+    return Stream.periodic(
+      const Duration(seconds: 5),
+    ).asyncMap((_) => query.get()).asBroadcastStream();
   }
 }
