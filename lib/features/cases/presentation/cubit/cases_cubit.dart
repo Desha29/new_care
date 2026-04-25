@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/local/local_log_service.dart';
 import '../../../../core/services/network/connectivity_service.dart';
 import '../../../../core/services/sync/sync_manager.dart';
+import '../../../../core/services/notifications/case_change_notifier.dart';
 import '../../data/models/case_model.dart';
 import '../../domain/repositories/cases_repository.dart';
 import 'cases_state.dart';
@@ -114,7 +115,10 @@ class CasesCubit extends Cubit<CasesState> {
       // 5. Brief delay to ensure local DB write completes
       await Future.delayed(const Duration(milliseconds: 200));
 
-      // 6. إعادة تحميل
+      // 6. Notify all screens about case addition (dashboard, reports, financials, etc)
+      CaseChangeNotifier().notifyCaseAdded(newCase.id);
+
+      // 7. Reload cases
       loadCases(force: true);
     } catch (e) {
       emit(CasesError('خطأ: ${e.toString()}'));
@@ -143,6 +147,9 @@ class CasesCubit extends Cubit<CasesState> {
 
       // Brief delay to ensure local DB write completes
       await Future.delayed(const Duration(milliseconds: 200));
+
+      // Notify all screens about case update
+      CaseChangeNotifier().notifyCaseUpdated(updatedCase.id);
 
       loadCases(force: true);
     } catch (e) {
@@ -182,6 +189,9 @@ class CasesCubit extends Cubit<CasesState> {
 
       // Brief delay to ensure local DB write completes
       await Future.delayed(const Duration(milliseconds: 200));
+
+      // Notify all screens about case deletion
+      CaseChangeNotifier().notifyCaseDeleted(c.id);
 
       loadCases(force: true);
     } catch (e) {

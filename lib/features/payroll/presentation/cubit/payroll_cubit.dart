@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/enums/case_status.dart';
+import '../../../../core/services/notifications/case_change_notifier.dart';
 import '../../domain/repositories/payroll_repository.dart';
 import '../../data/models/payroll_model.dart';
 import 'payroll_state.dart';
@@ -10,10 +12,36 @@ import 'package:uuid/uuid.dart';
 class PayrollCubit extends Cubit<PayrollState> {
   final IPayrollRepository _payrollRepository;
   List<PayrollModel> _currentPayrolls = [];
+  StreamSubscription? _caseChangeSubscription;
 
   PayrollCubit({required IPayrollRepository payrollRepository})
     : _payrollRepository = payrollRepository,
-      super(PayrollInitial());
+      super(PayrollInitial()) {
+    _setupCaseChangeListener();
+  }
+
+  /// Listen to case changes and reload payroll automatically
+  void _setupCaseChangeListener() {
+    _caseChangeSubscription = CaseChangeNotifier().onCaseChanged.listen((
+      event,
+    ) {
+      // Reload payroll when any case is added, updated, or deleted
+      if (state is PayrollLoaded) {
+        final currentState = state as PayrollLoaded;
+        loadPayroll(
+          year: currentState.selectedYear,
+          month: currentState.selectedMonth,
+          force: true,
+        );
+      }
+    });
+  }
+
+  @override
+  Future<void> close() {
+    _caseChangeSubscription?.cancel();
+    return super.close();
+  }
 
   /// تحميل رواتب شهر معين - Load payroll for month
   Future<void> loadPayroll({int? year, int? month, bool force = false}) async {
