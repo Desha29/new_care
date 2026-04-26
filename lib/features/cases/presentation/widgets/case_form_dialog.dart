@@ -21,6 +21,7 @@ import '../../../financials/presentation/cubit/financials_cubit.dart';
 import '../../../payroll/presentation/cubit/payroll_cubit.dart';
 import '../../data/models/case_model.dart';
 import '../cubit/cases_cubit.dart';
+import '../cubit/cases_state.dart';
 import 'package:uuid/uuid.dart' as uuid;
 
 class CaseFormDialog extends StatefulWidget {
@@ -716,7 +717,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
     );
   }
 
-  void _handleSave(BuildContext context, InvoiceState state) {
+  Future<void> _handleSave(BuildContext context, InvoiceState state) async {
     if (_formKey.currentState!.validate()) {
       if (state.services.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -748,9 +749,25 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
         createdBy: _isEdit ? widget.caseData!.createdBy : 'desktop_admin',
       );
       if (_isEdit) {
-        context.read<CasesCubit>().updateCase(newCase);
+        await context.read<CasesCubit>().updateCase(newCase);
       } else {
-        context.read<CasesCubit>().addCase(newCase);
+        await context.read<CasesCubit>().addCase(newCase);
+      }
+
+      // Check if the cubit emitted an error (e.g. insufficient stock)
+      final casesState = context.read<CasesCubit>().state;
+      if (casesState is CasesError) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(casesState.message, style: const TextStyle(fontFamily: 'Cairo')),
+              backgroundColor: Colors.red,
+            ),
+          );
+          // Restore cases state so the screen doesn't break
+          context.read<CasesCubit>().loadCases(force: true);
+        }
+        return;
       }
       
       // Refresh all connected features based on user role

@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/local/local_log_service.dart';
+import '../../../../core/services/local/sqlite_service.dart';
 import '../../../../core/services/network/connectivity_service.dart';
 import '../../../../core/services/sync/sync_manager.dart';
 import '../../../../core/services/notifications/case_change_notifier.dart';
@@ -51,27 +52,31 @@ class CasesCubit extends Cubit<CasesState> {
       final uid = currentUser?.uid ?? '';
       final uName = currentUser?.displayName ?? 'مستخدم';
 
-      // 2. خصم المخزون أولاً
-      final isConnected = await ConnectivityService.instance.checkConnection();
+      // 2. التحقق من توفر المخزون قبل الخصم - Validate stock availability
+      for (var supply in newCase.suppliesUsed) {
+        final itemMap = await SqliteService.instance.getById('inventory', supply.inventoryId);
+        if (itemMap == null) {
+          emit(CasesError('المستلزم "${supply.name}" غير موجود في المخزون'));
+          return;
+        }
+        final currentQty = (itemMap['quantity'] ?? 0) as int;
+        if (supply.quantity > currentQty) {
+          emit(CasesError(
+            'الكمية المطلوبة من "${supply.name}" (${supply.quantity}) أكبر من المتوفر في المخزون ($currentQty)',
+          ));
+          return;
+        }
+      }
 
+      // 3. خصم المخزون - Deduct inventory (validated)
       for (var supply in newCase.suppliesUsed) {
         try {
-          if (isConnected) {
-            // Use repository for inventory operations via sync manager
-            await _syncManager.addPendingOperation(
-              tableName: 'inventory',
-              operation: 'deduct',
-              docId: supply.inventoryId,
-              data: {'quantity': supply.quantity},
-            );
-          } else {
-            await _syncManager.addPendingOperation(
-              tableName: 'inventory',
-              operation: 'deduct',
-              docId: supply.inventoryId,
-              data: {'quantity': supply.quantity},
-            );
-          }
+          await _syncManager.addPendingOperation(
+            tableName: 'inventory',
+            operation: 'deduct',
+            docId: supply.inventoryId,
+            data: {'quantity': supply.quantity},
+          );
         } catch (e) {
           log('[InventoryDeduction] Error: $e');
           rethrow;
@@ -93,10 +98,7 @@ class CasesCubit extends Cubit<CasesState> {
             'تم إضافة حالة جديدة بنجاح للمريض ${newCase.patientName} - المبلغ: ${newCase.totalPrice}',
       );
 
-      // 5. Notify all screens about case addition (dashboard, reports, financials, etc)
-      CaseChangeNotifier().notifyCaseAdded(newCase.id);
-
-      // 6. Update local state directly (no re-fetch from Firestore)
+      // 5. Update local cases state directly
       if (state is CasesLoaded) {
         final currentState = state as CasesLoaded;
         final updatedCases = [newCase, ...currentState.cases];
@@ -104,6 +106,9 @@ class CasesCubit extends Cubit<CasesState> {
       } else {
         emit(CasesLoaded(cases: [newCase]));
       }
+
+      // 6. Notify all screens AFTER deductions and state updates are done
+      CaseChangeNotifier().notifyCaseAdded(newCase.id);
     } catch (e) {
       emit(CasesError('خطأ: ${e.toString()}'));
     }
