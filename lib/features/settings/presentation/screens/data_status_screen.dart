@@ -425,49 +425,112 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
   }
 
   Widget _buildSyncButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: PrimaryButton(
-        label: 'مزامنة إجبارية شاملة',
-        icon: Icons.sync_rounded,
-        onPressed: _isLoading
-            ? null
-            : () async {
-                try {
-                  setState(() => _isLoading = true);
-                  await SyncManager.instance.syncAll();
-                  await _loadData();
+    return Row(
+      children: [
+        // زر رفع البيانات للسحابة - Upload to Cloud
+        Expanded(
+          child: PrimaryButton(
+            label: 'مزامنة إجبارية شاملة',
+            icon: Icons.cloud_upload_rounded,
+            onPressed: _isLoading
+                ? null
+                : () async {
+                    try {
+                      setState(() => _isLoading = true);
+                      await SyncManager.instance.syncAll();
+                      await _loadData();
 
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'تمت المزامنة بنجاح',
-                          style: TextStyle(fontFamily: 'Cairo'),
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'خطأ في المزامنة: $e',
-                          style: const TextStyle(fontFamily: 'Cairo'),
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                } finally {
-                  if (mounted) {
-                    setState(() => _isLoading = false);
-                  }
-                }
-              },
-      ),
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'تمت المزامنة بنجاح',
+                              style: TextStyle(fontFamily: 'Cairo'),
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'خطأ في المزامنة: $e',
+                              style: const TextStyle(fontFamily: 'Cairo'),
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() => _isLoading = false);
+                      }
+                    }
+                  },
+          ),
+        ),
+        const SizedBox(width: 16),
+        // زر تحميل من السحابة - Download from Cloud
+        Expanded(
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.cloud_download_rounded, color: Colors.white),
+            label: const Text(
+              'تحميل من السحابة',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondary,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: _isLoading
+                ? null
+                : () async {
+                    try {
+                      setState(() => _isLoading = true);
+                      await SyncManager.instance.downloadFromCloud();
+                      await _loadData();
+
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'تم تحميل البيانات من السحابة بنجاح',
+                              style: TextStyle(fontFamily: 'Cairo'),
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'خطأ في التحميل: $e',
+                              style: const TextStyle(fontFamily: 'Cairo'),
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() => _isLoading = false);
+                      }
+                    }
+                  },
+          ),
+        ),
+      ],
     );
   }
 }

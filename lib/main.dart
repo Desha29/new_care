@@ -12,6 +12,7 @@ import 'core/app_bloc_observer.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'firebase_options.dart';
 import 'core/di/injection.dart';
+import 'core/services/sync/sync_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,6 +43,10 @@ void main() async {
   await ConnectivityService.instance.initialize();
   await NotificationService.instance.initialize();
   Bloc.observer = AppBlocObserver();
+
+  // تحميل البيانات من السحابة مرة واحدة عند فتح التطبيق
+  // Download data from cloud once on app startup
+  SyncManager.instance.downloadFromCloud(); // fire-and-forget, don't await
 
   runApp(const NewCareApp());
 }

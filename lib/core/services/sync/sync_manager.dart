@@ -37,21 +37,21 @@ class SyncManager {
   }
 
   void _initAutoSync() {
-    // Attempt sync every 5 minutes automatically
-    _autoSyncTimer = Timer.periodic(
-      const Duration(minutes: 5),
-      (_) => syncAll(),
-    );
-
-    // Attempt sync when connectivity is restored
-    _connectivitySub = _connectivityService.connectivityStream.listen((
-      isConnected,
-    ) {
-      if (isConnected) {
-        log('[SyncManager] Connection restored, triggering sync');
-        syncAll();
-      }
-    });
+    // المزامنة التلقائية معطلة - كل العمليات محلية فقط
+    // Auto-sync disabled: all operations are local-only.
+    // Firebase sync only happens via manual "مزامنة إجبارية شاملة" button.
+    // _autoSyncTimer = Timer.periodic(
+    //   const Duration(minutes: 5),
+    //   (_) => syncAll(),
+    // );
+    // _connectivitySub = _connectivityService.connectivityStream.listen((
+    //   isConnected,
+    // ) {
+    //   if (isConnected) {
+    //     log('[SyncManager] Connection restored, triggering sync');
+    //     syncAll();
+    //   }
+    // });
   }
 
   void dispose() {
@@ -94,8 +94,8 @@ class SyncManager {
 
       log('[SyncManager] Enqueued: $operation on $tableName/$docId');
 
-      // Trigger sync in background without blocking
-      unawaited(syncAll());
+      // المزامنة التلقائية معطلة - العمليات تتراكم محلياً حتى المزامنة اليدوية
+      // Auto-sync disabled: operations accumulate locally until manual sync
     } catch (e) {
       log('[SyncManager] Failed to enqueue operation: $e');
     }
@@ -157,6 +157,24 @@ class SyncManager {
   /// Alias for high-level services
   Future<void> processQueue() async {
     await _uploadPendingChanges();
+  }
+
+  /// تحميل كل البيانات من السحابة - Download all data from Firestore to local SQLite
+  /// Used for initial app sync and manual "تحميل من السحابة" button
+  Future<void> downloadFromCloud() async {
+    final isConnected = await _connectivityService.checkConnection();
+    if (!isConnected) {
+      log('[SyncManager] No connection, skipping cloud download');
+      return;
+    }
+
+    log('[SyncManager] Downloading all data from cloud...');
+    try {
+      await _downloadDeltaChanges();
+      log('[SyncManager] Cloud download completed');
+    } catch (e) {
+      log('[SyncManager] Cloud download error: $e');
+    }
   }
 
   /// رفع التغييرات المحلية - Upload pending changes to Firebase

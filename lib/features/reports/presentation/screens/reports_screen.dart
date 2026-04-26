@@ -10,6 +10,7 @@ import 'package:new_care/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:new_care/features/auth/presentation/cubit/auth_state.dart';
 import 'package:new_care/features/cases/data/models/case_model.dart';
 import 'package:new_care/features/invoice/presentation/screens/invoice_preview_screen.dart';
+import 'package:new_care/core/services/local/sqlite_service.dart';
 import 'package:new_care/core/services/firebase/firebase_service.dart';
 import 'package:new_care/core/services/pdf/report_service.dart';
 import 'package:new_care/core/services/notifications/case_change_notifier.dart';
@@ -55,9 +56,18 @@ class _ReportsScreenState extends State<ReportsScreen>
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final cases = await FirebaseService.instance.getAllCases();
-      final attendance = await FirebaseService.instance
-          .getMonthlyAttendanceRecords(_selectedDate.year, _selectedDate.month);
+      // Read cases from local SQLite (offline-first)
+      final localCases = await SqliteService.instance.getAllCases();
+      final cases = localCases
+          .map((m) => CaseModel.fromMap(m, m['id'] as String))
+          .toList();
+
+      // Attendance still from Firestore (no local monthly query)
+      List<AttendanceModel> attendance = [];
+      try {
+        attendance = await FirebaseService.instance
+            .getMonthlyAttendanceRecords(_selectedDate.year, _selectedDate.month);
+      } catch (_) {}
 
       if (mounted) {
         setState(() {
