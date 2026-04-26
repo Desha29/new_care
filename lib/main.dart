@@ -13,6 +13,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'firebase_options.dart';
 import 'core/di/injection.dart';
 import 'core/services/sync/sync_manager.dart';
+import 'core/services/sync/outside_cases_listener.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,7 +47,11 @@ void main() async {
 
   // تحميل البيانات من السحابة مرة واحدة عند فتح التطبيق
   // Download data from cloud once on app startup
-  SyncManager.instance.downloadFromCloud(); // fire-and-forget, don't await
+  SyncManager.instance.downloadFromCloud(); // fire-and-forget
+
+  // بدء الاستماع لحالات الممرضين الخارجيين
+  // Start listening for outside nurse cases
+  OutsideCasesListener.instance.startListening();
 
   runApp(const NewCareApp());
 }

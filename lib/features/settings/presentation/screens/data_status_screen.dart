@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/services/firebase/firebase_service.dart';
 import '../../../../core/services/local/sqlite_service.dart';
 import '../../../../core/services/sync/sync_manager.dart';
+import '../../../../core/services/sync/outside_cases_listener.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/buttons/primary_button.dart';
 
@@ -159,6 +160,8 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                   ),
                   const SizedBox(height: 32),
                   _buildSyncButton(),
+                  const SizedBox(height: 16),
+                  _buildTestOutsideCaseButton(),
                 ],
               ),
             ),
@@ -531,6 +534,60 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildTestOutsideCaseButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.science_rounded, color: Colors.white),
+        label: const Text(
+          'إضافة حالة تجريبية خارجية (outside_cases)',
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.deepOrange,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: _isLoading
+            ? null
+            : () async {
+                try {
+                  await OutsideCasesListener.instance.addFakeTestCase();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'تم إضافة حالة تجريبية في outside_cases — سيتم استيرادها تلقائياً',
+                          style: TextStyle(fontFamily: 'Cairo'),
+                        ),
+                        backgroundColor: Colors.deepOrange,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'خطأ: $e',
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+      ),
     );
   }
 }

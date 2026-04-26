@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/services/firebase/firebase_service.dart';
 import '../../data/models/inventory_model.dart';
 
 class InventoryFormDialog extends StatefulWidget {
@@ -160,7 +160,7 @@ class _InventoryFormDialogState extends State<InventoryFormDialog> {
                         onPressed: () {
                           if (_formKey.currentState?.validate() ?? false) {
                             final newItem = InventoryModel(
-                              id: widget.item?.id ?? FirebaseService.instance.generateId(),
+                              id: widget.item?.id ?? const Uuid().v4(),
                               name: _nameCtrl.text.trim(),
                               category: _categoryCtrl.text.trim(),
                               unit: _unitCtrl.text.trim(),

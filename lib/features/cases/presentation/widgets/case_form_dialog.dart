@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/enums/case_status.dart'; // Desktop stores CaseType here
-import '../../../../core/services/firebase/firebase_service.dart';
+import '../../../../core/services/local/sqlite_service.dart';
 import '../../../../core/widgets/buttons/primary_button.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../inventory/data/models/inventory_model.dart';
@@ -82,7 +82,11 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
   }
 
   Future<void> _loadData() async {
-    _nurses = await FirebaseService.instance.getActiveNurses();
+    // Load nurses from local SQLite (via users table)
+    final db = await SqliteService.instance.database;
+    final usersResult = await db.query('users', where: "role = ? AND isActive = ?", whereArgs: ['nurse', 1], orderBy: 'name');
+    _nurses = usersResult.map((m) => UserModel.fromMap(m, m['id'] as String)).toList();
+    
     if (_isEdit && _selNurseName != null) {
       final n = _nurses.where((e) => e.name == _selNurseName).firstOrNull ?? (_nurses.isNotEmpty ? _nurses.first : null);
       if (n != null) {
@@ -91,16 +95,26 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
     }
 
     if (!mounted) return;
+    // Load procedures from Cubit (already local)
     final procState = context.read<ProceduresCubit>().state;
-    _procedures = procState is ProceduresLoaded
-        ? procState.procedures
-        : await FirebaseService.instance.getAllProcedures();
+    if (procState is ProceduresLoaded) {
+      _procedures = procState.procedures;
+    } else {
+      // Fallback: load from local SQLite
+      final procResults = await db.query('procedures', orderBy: 'name');
+      _procedures = procResults.map((m) => ProcedureModel.fromMap(m, m['id'] as String)).toList();
+    }
 
     if (!mounted) return;
+    // Load inventory from Cubit (already local)
     final invState = context.read<InventoryCubit>().state;
-    _inventory = invState is InventoryLoaded
-        ? invState.items
-        : await FirebaseService.instance.getAllInventory();
+    if (invState is InventoryLoaded) {
+      _inventory = invState.items;
+    } else {
+      // Fallback: load from local SQLite
+      final invResults = await db.query('inventory', orderBy: 'name');
+      _inventory = invResults.map((m) => InventoryModel.fromMap(m, m['id'] as String)).toList();
+    }
 
     if (mounted) setState(() {});
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -14,13 +15,25 @@ import 'package:firebase_auth/firebase_auth.dart';
 class CasesCubit extends Cubit<CasesState> {
   final ICasesRepository _casesRepository;
   final SyncManager _syncManager;
+  StreamSubscription? _caseChangeSub;
 
   CasesCubit({
     required ICasesRepository casesRepository,
     SyncManager? syncManager,
   }) : _casesRepository = casesRepository,
        _syncManager = syncManager ?? SyncManager.instance,
-       super(CasesInitial());
+       super(CasesInitial()) {
+    // Listen for external case changes (e.g. outside_cases from nurse app)
+    _caseChangeSub = CaseChangeNotifier().onCaseChanged.listen((event) {
+      loadCases(force: true);
+    });
+  }
+
+  @override
+  Future<void> close() {
+    _caseChangeSub?.cancel();
+    return super.close();
+  }
 
   /// تحميل الحالات مرة واحدة بدون stream
   Future<void> loadCases({String? nurseId, bool force = false}) async {
