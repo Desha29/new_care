@@ -16,8 +16,20 @@ class InvoiceCubit extends Cubit<InvoiceState> {
 
   // Add Procedure (Service)
   void addProcedure(ServiceItem service) {
-    final updatedServices = List<ServiceItem>.from(state.services)
-      ..add(service);
+    final updatedServices = List<ServiceItem>.from(state.services);
+    final existingIndex = updatedServices.indexWhere((s) => s.name == service.name);
+
+    if (existingIndex != -1) {
+      final existing = updatedServices[existingIndex];
+      updatedServices[existingIndex] = ServiceItem(
+        name: existing.name,
+        price: existing.price,
+        quantity: existing.quantity + service.quantity,
+        notes: existing.notes,
+      );
+    } else {
+      updatedServices.add(service);
+    }
     _updatePrices(updatedServices, state.supplies);
   }
 
@@ -30,7 +42,20 @@ class InvoiceCubit extends Cubit<InvoiceState> {
 
   // Add Supply (المستلزمات)
   void addSupply(SupplyUsed supply) {
-    final updatedSupplies = List<SupplyUsed>.from(state.supplies)..add(supply);
+    final updatedSupplies = List<SupplyUsed>.from(state.supplies);
+    final existingIndex = updatedSupplies.indexWhere((s) => s.inventoryId == supply.inventoryId);
+
+    if (existingIndex != -1) {
+      final existing = updatedSupplies[existingIndex];
+      updatedSupplies[existingIndex] = SupplyUsed(
+        inventoryId: existing.inventoryId,
+        name: existing.name,
+        quantity: existing.quantity + supply.quantity,
+        unitPrice: existing.unitPrice,
+      );
+    } else {
+      updatedSupplies.add(supply);
+    }
     _updatePrices(state.services, updatedSupplies);
   }
 
