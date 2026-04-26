@@ -27,7 +27,7 @@ class SqliteService {
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 12, // Fixed procedures table NOT NULL constraints
+        version: 13, // Added services & suppliesUsed JSON columns to cases
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -83,7 +83,9 @@ class SqliteService {
         notes TEXT DEFAULT '',
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
-        createdBy TEXT DEFAULT ''
+        createdBy TEXT DEFAULT '',
+        services TEXT DEFAULT '[]',
+        suppliesUsed TEXT DEFAULT '[]'
       )
     ''');
 
@@ -253,6 +255,14 @@ class SqliteService {
       } catch (e) {
         // Ignore
       }
+    }
+    if (oldVersion < 13) {
+      try {
+        await db.execute("ALTER TABLE cases ADD COLUMN services TEXT DEFAULT '[]'");
+      } catch (e) { /* column may already exist */ }
+      try {
+        await db.execute("ALTER TABLE cases ADD COLUMN suppliesUsed TEXT DEFAULT '[]'");
+      } catch (e) { /* column may already exist */ }
     }
   }
 

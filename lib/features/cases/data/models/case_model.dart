@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:equatable/equatable.dart';
 import 'package:new_care/core/enums/case_status.dart';
 
@@ -131,8 +132,40 @@ class CaseModel extends Equatable {
   /// الجنس بالعربية
   String get patientGenderLabel => patientGender == 'male' ? 'ذكر' : 'أنثى';
 
-  /// من Firestore Map
+  /// من Firestore Map أو SQLite Map
   factory CaseModel.fromMap(Map<String, dynamic> map, String id) {
+    // Handle services: could be List (Firestore) or JSON String (SQLite)
+    List<ServiceItem> parsedServices = [];
+    final rawServices = map['services'];
+    if (rawServices is List) {
+      parsedServices = rawServices
+          .map((e) => ServiceItem.fromMap(e as Map<String, dynamic>))
+          .toList();
+    } else if (rawServices is String && rawServices.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawServices) as List;
+        parsedServices = decoded
+            .map((e) => ServiceItem.fromMap(Map<String, dynamic>.from(e)))
+            .toList();
+      } catch (_) {}
+    }
+
+    // Handle suppliesUsed: could be List (Firestore) or JSON String (SQLite)
+    List<SupplyUsed> parsedSupplies = [];
+    final rawSupplies = map['suppliesUsed'];
+    if (rawSupplies is List) {
+      parsedSupplies = rawSupplies
+          .map((e) => SupplyUsed.fromMap(e as Map<String, dynamic>))
+          .toList();
+    } else if (rawSupplies is String && rawSupplies.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawSupplies) as List;
+        parsedSupplies = decoded
+            .map((e) => SupplyUsed.fromMap(Map<String, dynamic>.from(e)))
+            .toList();
+      } catch (_) {}
+    }
+
     return CaseModel(
       id: id,
       patientName: map['patientName'] ?? '',
@@ -144,16 +177,8 @@ class CaseModel extends Equatable {
       nurseId: map['nurseId'] ?? '',
       nurseName: map['nurseName'] ?? '',
       caseType: CaseType.fromString(map['caseType'] ?? 'in_center'),
-      services:
-          (map['services'] as List<dynamic>?)
-              ?.map((e) => ServiceItem.fromMap(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      suppliesUsed:
-          (map['suppliesUsed'] as List<dynamic>?)
-              ?.map((e) => SupplyUsed.fromMap(e as Map<String, dynamic>))
-              .toList() ??
-          [],
+      services: parsedServices,
+      suppliesUsed: parsedSupplies,
       totalPrice: (map['totalPrice'] ?? 0).toDouble(),
       discount: (map['discount'] ?? 0).toDouble(),
       caseDate: DateTime.tryParse(map['caseDate'] ?? '') ?? DateTime.now(),
@@ -188,7 +213,7 @@ class CaseModel extends Equatable {
     };
   }
 
-  /// إلى SQLite Map (بدون القوائم المتداخلة)
+  /// إلى SQLite Map (مع الخدمات والمستلزمات كـ JSON)
   Map<String, dynamic> toSqliteMap() {
     return {
       'id': id,
@@ -208,6 +233,8 @@ class CaseModel extends Equatable {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'createdBy': createdBy,
+      'services': jsonEncode(services.map((e) => e.toMap()).toList()),
+      'suppliesUsed': jsonEncode(suppliesUsed.map((e) => e.toMap()).toList()),
     };
   }
 

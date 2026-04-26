@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:new_care/core/constants/app_colors.dart';
@@ -11,6 +12,7 @@ import 'package:new_care/features/cases/data/models/case_model.dart';
 import 'package:new_care/features/invoice/presentation/screens/invoice_preview_screen.dart';
 import 'package:new_care/core/services/firebase/firebase_service.dart';
 import 'package:new_care/core/services/pdf/report_service.dart';
+import 'package:new_care/core/services/notifications/case_change_notifier.dart';
 import 'package:new_care/features/attendance/data/models/attendance_model.dart';
 import 'report_preview_screen.dart';
 import 'package:intl/intl.dart';
@@ -29,12 +31,25 @@ class _ReportsScreenState extends State<ReportsScreen>
   List<CaseModel> _cases = [];
   List<AttendanceModel> _attendance = [];
   DateTime _selectedDate = DateTime.now();
+  StreamSubscription? _caseChangeSub;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadData();
+
+    // Listen for case changes (add/update/delete) to auto-refresh
+    _caseChangeSub = CaseChangeNotifier().onCaseChanged.listen((_) {
+      _loadData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _caseChangeSub?.cancel();
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -44,18 +59,20 @@ class _ReportsScreenState extends State<ReportsScreen>
       final attendance = await FirebaseService.instance
           .getMonthlyAttendanceRecords(_selectedDate.year, _selectedDate.month);
 
-      setState(() {
-        _cases = cases..sort((a, b) => b.caseDate.compareTo(a.caseDate));
-        _attendance = attendance;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _cases = cases..sort((a, b) => b.caseDate.compareTo(a.caseDate));
+          _attendance = attendance;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('خطأ في تحميل البيانات: $e')));
+        setState(() => _isLoading = false);
       }
-      setState(() => _isLoading = false);
     }
   }
 
