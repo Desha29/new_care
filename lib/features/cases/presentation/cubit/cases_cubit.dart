@@ -1,5 +1,4 @@
 import 'dart:developer';
-import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/local/local_log_service.dart';
@@ -22,37 +21,19 @@ class CasesCubit extends Cubit<CasesState> {
        _syncManager = syncManager ?? SyncManager.instance,
        super(CasesInitial());
 
-  StreamSubscription? _casesSub;
-
-  @override
-  Future<void> close() {
-    _casesSub?.cancel();
-    return super.close();
-  }
-
+  /// تحميل الحالات مرة واحدة بدون stream
   Future<void> loadCases({String? nurseId, bool force = false}) async {
     if (!force && state is CasesLoaded) return;
 
     emit(CasesLoading());
-    _casesSub?.cancel();
-    _casesSub = _casesRepository
-        .streamAllCases(nurseId: nurseId)
-        .listen(
-          (cases) {
-            final sortedCases = List<CaseModel>.from(cases)
-              ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-            if (state is CasesLoaded) {
-              final s = state as CasesLoaded;
-              emit(s.copyWith(cases: sortedCases));
-            } else {
-              emit(CasesLoaded(cases: sortedCases));
-            }
-          },
-          onError: (e) {
-            emit(CasesError('خطأ في تحميل الحالات: ${e.toString()}'));
-          },
-        );
+    try {
+      final cases = await _casesRepository.getAllCases(nurseId: nurseId);
+      final sortedCases = List<CaseModel>.from(cases)
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      emit(CasesLoaded(cases: sortedCases));
+    } catch (e) {
+      emit(CasesError('خطأ في تحميل الحالات: ${e.toString()}'));
+    }
   }
 
   void searchCases(String query) {
@@ -112,14 +93,17 @@ class CasesCubit extends Cubit<CasesState> {
             'تم إضافة حالة جديدة بنجاح للمريض ${newCase.patientName} - المبلغ: ${newCase.totalPrice}',
       );
 
-      // 5. Brief delay to ensure local DB write completes
-      await Future.delayed(const Duration(milliseconds: 200));
-
-      // 6. Notify all screens about case addition (dashboard, reports, financials, etc)
+      // 5. Notify all screens about case addition (dashboard, reports, financials, etc)
       CaseChangeNotifier().notifyCaseAdded(newCase.id);
 
-      // 7. Reload cases
-      loadCases(force: true);
+      // 6. Update local state directly (no re-fetch from Firestore)
+      if (state is CasesLoaded) {
+        final currentState = state as CasesLoaded;
+        final updatedCases = [newCase, ...currentState.cases];
+        emit(currentState.copyWith(cases: updatedCases));
+      } else {
+        emit(CasesLoaded(cases: [newCase]));
+      }
     } catch (e) {
       emit(CasesError('خطأ: ${e.toString()}'));
     }
@@ -145,13 +129,17 @@ class CasesCubit extends Cubit<CasesState> {
         details: 'تم تعديل حالة المريض ${updatedCase.patientName}',
       );
 
-      // Brief delay to ensure local DB write completes
-      await Future.delayed(const Duration(milliseconds: 200));
-
       // Notify all screens about case update
       CaseChangeNotifier().notifyCaseUpdated(updatedCase.id);
 
-      loadCases(force: true);
+      // Update local state directly (no re-fetch from Firestore)
+      if (state is CasesLoaded) {
+        final currentState = state as CasesLoaded;
+        final updatedCases = currentState.cases.map((c) {
+          return c.id == updatedCase.id ? updatedCase : c;
+        }).toList();
+        emit(currentState.copyWith(cases: updatedCases));
+      }
     } catch (e) {
       emit(CasesError('خطأ في تعديل الحالة: ${e.toString()}'));
     }
@@ -187,13 +175,15 @@ class CasesCubit extends Cubit<CasesState> {
         details: 'تم حذف حالة ${c.patientName}',
       );
 
-      // Brief delay to ensure local DB write completes
-      await Future.delayed(const Duration(milliseconds: 200));
-
       // Notify all screens about case deletion
       CaseChangeNotifier().notifyCaseDeleted(c.id);
 
-      loadCases(force: true);
+      // Update local state directly (no re-fetch from Firestore)
+      if (state is CasesLoaded) {
+        final currentState = state as CasesLoaded;
+        final updatedCases = currentState.cases.where((cs) => cs.id != c.id).toList();
+        emit(currentState.copyWith(cases: updatedCases));
+      }
     } catch (e) {
       emit(CasesError('خطأ في حذف الحالة: ${e.toString()}'));
     }
