@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/enums/case_status.dart';
 import '../../../cases/data/models/case_model.dart';
+import '../../../procedures/data/models/procedure_model.dart';
 import '../../domain/repositories/invoice_repository.dart';
 import 'package:uuid/uuid.dart';
 
@@ -38,6 +39,26 @@ class InvoiceCubit extends Cubit<InvoiceState> {
     final updatedSupplies = List<SupplyUsed>.from(state.supplies)
       ..remove(supply);
     _updatePrices(state.services, updatedSupplies);
+  }
+
+  // Update all service prices when case type changes (داخل المركز / زيارة منزلية)
+  void updateServicePrices(List<ProcedureModel> procedures, CaseType caseType) {
+    final updatedServices = state.services.map((s) {
+      final proc = procedures.where((p) => p.name == s.name).firstOrNull;
+      if (proc != null) {
+        final newPrice = caseType == CaseType.inCenter
+            ? proc.priceInside
+            : proc.priceOutside;
+        return ServiceItem(
+          name: s.name,
+          price: newPrice,
+          quantity: s.quantity,
+          notes: s.notes,
+        );
+      }
+      return s;
+    }).toList();
+    _updatePrices(updatedServices, state.supplies);
   }
 
   // Auto-calculate Total Price immediately

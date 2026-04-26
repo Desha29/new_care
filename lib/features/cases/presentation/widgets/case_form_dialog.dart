@@ -195,7 +195,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
                           children: [
                             Expanded(child: _buildPatientInfoSection()),
                             const SizedBox(width: 32),
-                            Expanded(child: _buildCaseDetailsSection()),
+                            Expanded(child: _buildCaseDetailsSection(context)),
                           ],
                         ),
                         const Divider(height: 48),
@@ -294,7 +294,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
     );
   }
 
-  Widget _buildCaseDetailsSection() {
+  Widget _buildCaseDetailsSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -308,7 +308,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
           ),
         ),
         const SizedBox(height: 16),
-        _buildTypeSelector(),
+        _buildTypeSelector(context),
         const SizedBox(height: 16),
         _buildNurseDropdown(),
         const SizedBox(height: 16),
@@ -322,27 +322,41 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
     );
   }
 
-  Widget _buildTypeSelector() {
+  Widget _buildTypeSelector(BuildContext context) {
     return Row(
       children: [
         _typeChip(
           'داخل المركز',
           CaseType.inCenter,
           Icons.local_hospital_rounded,
+          context,
         ),
         const SizedBox(width: 12),
-        _typeChip('زيارة منزلية', CaseType.homeVisit, Icons.home_rounded),
+        _typeChip('زيارة منزلية', CaseType.homeVisit, Icons.home_rounded, context),
       ],
     );
   }
 
-  Widget _typeChip(String label, CaseType type, IconData icon) {
+  Widget _typeChip(String label, CaseType type, IconData icon, BuildContext context) {
     final isSel = _selType == type;
     return Expanded(
       child: InkWell(
         onTap: () {
-          setState(() => _selType = type);
+          setState(() {
+            _selType = type;
+            // Update the temp dropdown price if a service is selected
+            if (_tmpServiceName != null) {
+              final p = _procedures.where((e) => e.name == _tmpServiceName).firstOrNull;
+              if (p != null) {
+                _tmpServicePriceCtrl.text =
+                    (type == CaseType.inCenter ? p.priceInside : p.priceOutside)
+                        .toStringAsFixed(0);
+              }
+            }
+          });
           _markChanged();
+          // Update all already-added service prices for the new case type
+          context.read<InvoiceCubit>().updateServicePrices(_procedures, type);
         },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -434,13 +448,15 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
               Expanded(
                 flex: 3,
                 child: DropdownButtonFormField<String>(
+                  key: ValueKey('svc_${_selType.name}'),
                   initialValue: _tmpServiceName,
                   hint: const Text(
                     'اختر الإجراء الطبي',
                     style: TextStyle(fontFamily: 'Cairo'),
                   ),
                   decoration: _inputDecoration(null),
-                  items: _procedures
+                  items: {for (var p in _procedures) p.name: p}
+                      .values
                       .map(
                         (p) => DropdownMenuItem(
                           value: p.name,
