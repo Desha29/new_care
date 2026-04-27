@@ -104,9 +104,7 @@ class FirebaseService {
 
   Future<List<UserModel>> getUpdatedUsers(DateTime lastSync) async {
     _incRead();
-    final snapshot = await _usersRef
-        .where('updatedAt', isGreaterThan: lastSync.toIso8601String())
-        .get();
+    final snapshot = await _usersRef.get();
     return snapshot.docs
         .map(
           (doc) =>
@@ -201,9 +199,7 @@ class FirebaseService {
 
   Future<List<CaseModel>> getUpdatedCases(DateTime lastSync) async {
     _incRead();
-    final snapshot = await _casesRef
-        .where('updatedAt', isGreaterThan: lastSync.toIso8601String())
-        .get();
+    final snapshot = await _casesRef.get();
     return snapshot.docs
         .map(
           (doc) =>
@@ -331,9 +327,7 @@ class FirebaseService {
 
   Future<List<InventoryModel>> getUpdatedInventory(DateTime lastSync) async {
     _incRead();
-    final snapshot = await _inventoryRef
-        .where('updatedAt', isGreaterThan: lastSync.toIso8601String())
-        .get();
+    final snapshot = await _inventoryRef.get();
     return snapshot.docs
         .map(
           (doc) => InventoryModel.fromMap(
@@ -384,9 +378,7 @@ class FirebaseService {
 
   Future<List<ProcedureModel>> getUpdatedProcedures(DateTime lastSync) async {
     _incRead();
-    final snapshot = await _proceduresRef
-        .where('updatedAt', isGreaterThan: lastSync.toIso8601String())
-        .get();
+    final snapshot = await _proceduresRef.get();
     return snapshot.docs
         .map(
           (doc) => ProcedureModel.fromMap(

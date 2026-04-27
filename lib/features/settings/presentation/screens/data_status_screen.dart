@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/firebase/firebase_service.dart';
 import '../../../../core/services/local/sqlite_service.dart';
 import '../../../../core/services/sync/sync_manager.dart';
 import '../../../../core/services/sync/outside_cases_listener.dart';
+import '../../../../core/services/notifications/case_change_notifier.dart';
+import '../../../../core/services/notifications/data_change_notifier.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/buttons/primary_button.dart';
+import '../../../cases/presentation/cubit/cases_cubit.dart';
+import '../../../inventory/presentation/cubit/inventory_cubit.dart';
+import '../../../procedures/presentation/cubit/procedures_cubit.dart';
+import '../../../financials/presentation/cubit/financials_cubit.dart';
+import '../../../dashboard/presentation/cubit/dashboard_cubit.dart';
 
 class DataStatusScreen extends StatefulWidget {
   const DataStatusScreen({super.key});
@@ -501,6 +509,22 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                       setState(() => _isLoading = true);
                       await SyncManager.instance.downloadFromCloud();
                       await _loadData();
+
+                      // === تحديث جميع الشاشات بعد التحميل من السحابة ===
+                      // Refresh all cubits so screens show updated data
+                      if (mounted) {
+                        context.read<CasesCubit>().loadCases(force: true);
+                        context.read<InventoryCubit>().loadInventory(force: true);
+                        context.read<ProceduresCubit>().loadProcedures(force: true);
+                        context.read<FinancialsCubit>().loadFinancials(force: true);
+                        context.read<DashboardCubit>().loadDashboardData(force: true);
+                      }
+
+                      // Fire CaseChangeNotifier to refresh ReportsScreen
+                      CaseChangeNotifier().notifyCaseUpdated('cloud_download');
+
+                      // Fire DataChangeNotifier to refresh UsersScreen and any other listeners
+                      DataChangeNotifier().notifyCloudDownloadCompleted();
 
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

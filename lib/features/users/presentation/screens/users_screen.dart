@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/services/network/connectivity_service.dart';
+import '../../../../core/services/notifications/data_change_notifier.dart';
 import '../../../../core/di/injection.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
@@ -25,15 +27,26 @@ class UsersScreen extends StatefulWidget {
 class _UsersScreenState extends State<UsersScreen> {
   final _searchController = TextEditingController();
   bool _isOffline = false;
+  StreamSubscription? _dataChangeSub;
+  // Key to force-rebuild the BlocProvider when data changes from cloud
+  Key _blocKey = UniqueKey();
 
   @override
   void initState() {
     super.initState();
     _loadConnectionStatus();
+
+    // Listen for cloud download to auto-refresh users
+    _dataChangeSub = DataChangeNotifier().onDataChanged.listen((_) {
+      if (mounted) {
+        setState(() => _blocKey = UniqueKey());
+      }
+    });
   }
 
   @override
   void dispose() {
+    _dataChangeSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -107,6 +120,7 @@ class _UsersScreenState extends State<UsersScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
+      key: _blocKey,
       create: (context) => sl<UsersCubit>()..loadUsers(),
       child: BlocConsumer<UsersCubit, UsersState>(
         listener: (context, state) {
