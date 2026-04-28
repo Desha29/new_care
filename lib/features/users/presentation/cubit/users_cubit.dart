@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/services/notifications/data_change_notifier.dart';
 import '../../domain/repositories/users_repository.dart';
 import '../../../auth/data/models/user_model.dart';
 import 'users_state.dart';
@@ -48,6 +49,7 @@ class UsersCubit extends Cubit<UsersState> {
     try {
       await _repository.updateUser(updatedUser);
       emit(UserOperationSuccess('تم ${newStatus ? "تفعيل" : "تعطيل"} المستخدم ${user.name}'));
+      DataChangeNotifier().notifyLocalDataChanged();
       loadUsers(force: true);
     } catch (e) {
       emit(UsersError('خطأ في تغيير حالة المستخدم: ${e.toString()}'));
@@ -58,6 +60,7 @@ class UsersCubit extends Cubit<UsersState> {
     try {
       await _repository.deleteUser(userId);
       emit(UserOperationSuccess('تم حذف المستخدم $userName بنجاح'));
+      DataChangeNotifier().notifyLocalDataChanged();
       loadUsers(force: true);
     } catch (e) {
       emit(UsersError('خطأ في حذف المستخدم: ${e.toString()}'));

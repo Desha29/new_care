@@ -5,6 +5,7 @@ import '../../../../core/enums/user_role.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/services/notifications/data_change_notifier.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../domain/repositories/users_repository.dart';
 
@@ -98,6 +99,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
         if (mounted) {
           Navigator.pop(context);
           widget.onSaved();
+          DataChangeNotifier().notifyLocalDataChanged();
           UIFeedback.showSuccess(
             context,
             _isEdit ? 'تم تحديث بيانات المستخدم بنجاح' : 'تم إضافة المستخدم بنجاح',

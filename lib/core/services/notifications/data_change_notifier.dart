@@ -1,9 +1,8 @@
 import 'dart:async';
 
-/// Notifies all screens when a bulk data operation happens (e.g. cloud download)
-/// This is separate from CaseChangeNotifier which only fires for individual case CRUD.
-/// DataChangeNotifier fires when the entire local database has been refreshed from
-/// the cloud, so ALL screens need to reload their data.
+/// Notifies all screens when data changes happen (cloud download, local CRUD, etc.)
+/// Used by DataStatusScreen to auto-refresh counts, and by UsersScreen to reload
+/// after cloud downloads.
 class DataChangeNotifier {
   static final DataChangeNotifier _instance = DataChangeNotifier._internal();
 
@@ -36,12 +35,23 @@ class DataChangeNotifier {
     );
   }
 
+  /// Notify all listeners that local data was modified (add/update/delete)
+  /// Used to refresh DataStatusScreen counts in real-time
+  void notifyLocalDataChanged() {
+    _controller.add(
+      DataChangeEvent(
+        type: DataChangeType.localChange,
+        timestamp: DateTime.now(),
+      ),
+    );
+  }
+
   void dispose() {
     _controller.close();
   }
 }
 
-enum DataChangeType { cloudDownload, fullSync }
+enum DataChangeType { cloudDownload, fullSync, localChange }
 
 class DataChangeEvent {
   final DataChangeType type;

@@ -7,6 +7,7 @@ import '../../../../core/services/local/sqlite_service.dart';
 import '../../../../core/services/network/connectivity_service.dart';
 import '../../../../core/services/sync/sync_manager.dart';
 import '../../../../core/services/notifications/case_change_notifier.dart';
+import '../../../../core/services/notifications/data_change_notifier.dart';
 import '../../data/models/case_model.dart';
 import '../../domain/repositories/cases_repository.dart';
 import 'cases_state.dart';
@@ -122,6 +123,7 @@ class CasesCubit extends Cubit<CasesState> {
 
       // 6. Notify all screens AFTER deductions and state updates are done
       CaseChangeNotifier().notifyCaseAdded(newCase.id);
+      DataChangeNotifier().notifyLocalDataChanged();
     } catch (e) {
       emit(CasesError('خطأ: ${e.toString()}'));
     }
@@ -149,6 +151,7 @@ class CasesCubit extends Cubit<CasesState> {
 
       // Notify all screens about case update
       CaseChangeNotifier().notifyCaseUpdated(updatedCase.id);
+      DataChangeNotifier().notifyLocalDataChanged();
 
       // Update local state directly (no re-fetch from Firestore)
       if (state is CasesLoaded) {
@@ -195,6 +198,7 @@ class CasesCubit extends Cubit<CasesState> {
 
       // Notify all screens about case deletion
       CaseChangeNotifier().notifyCaseDeleted(c.id);
+      DataChangeNotifier().notifyLocalDataChanged();
 
       // Update local state directly (no re-fetch from Firestore)
       if (state is CasesLoaded) {

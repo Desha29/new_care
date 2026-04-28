@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/firebase/firebase_service.dart';
@@ -41,10 +42,31 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
   int _fbRead = 0;
   int _fbWrite = 0;
 
+  // Subscriptions for auto-refresh
+  StreamSubscription? _caseChangeSub;
+  StreamSubscription? _dataChangeSub;
+
   @override
   void initState() {
     super.initState();
     _loadData();
+
+    // الاستماع لتغييرات الحالات - Listen for case changes
+    _caseChangeSub = CaseChangeNotifier().onCaseChanged.listen((_) {
+      _loadLocalCounts();
+    });
+
+    // الاستماع لتغييرات البيانات (مستخدمين، مخزون، إجراءات) - Listen for data changes
+    _dataChangeSub = DataChangeNotifier().onDataChanged.listen((_) {
+      _loadLocalCounts();
+    });
+  }
+
+  @override
+  void dispose() {
+    _caseChangeSub?.cancel();
+    _dataChangeSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -91,6 +113,34 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
         ).showSnackBar(SnackBar(content: Text('خطأ في جلب البيانات: $e')));
       }
       setState(() => _isLoading = false);
+    }
+  }
+
+  /// تحديث الأعداد المحلية فقط (بدون إعادة جلب بيانات السحابة)
+  /// Fast refresh of local SQLite counts + pending count only
+  Future<void> _loadLocalCounts() async {
+    try {
+      final futures = await Future.wait([
+        SqliteService.instance.getUsersCount(),
+        SqliteService.instance.getPatientsCount(),
+        SqliteService.instance.getShiftsCount(),
+        SqliteService.instance.getInventoryCount(),
+        SqliteService.instance.getProceduresCount(),
+        SyncManager.instance.getPendingCount(),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _sqliteUsers = futures[0];
+          _sqlitePatients = futures[1];
+          _sqliteShifts = futures[2];
+          _sqliteInventory = futures[3];
+          _sqliteProcedures = futures[4];
+          _pendingCount = futures[5];
+        });
+      }
+    } catch (e) {
+      // Silent fail for background refresh
     }
   }
 
