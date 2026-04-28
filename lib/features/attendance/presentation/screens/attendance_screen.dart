@@ -31,15 +31,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   void _loadData() {
     final authState = context.read<AuthCubit>().state;
     if (authState is AuthAuthenticated) {
+      print("Loading attendance for user: ${authState.user.id}");
+      print("User role: ${authState.user.role}");
       context.read<AttendanceCubit>().checkTodayStatus(authState.user.id);
       context.read<AttendanceCubit>().loadTodayAttendance();
+      print("Attendance loaded successfully");
     }
   }
 
   Future<void> _generateMonthlyReport() async {
     final now = DateTime.now();
     LoadingDialog.show(context, message: 'جاري إعداد التقرير...');
-    await context.read<AttendanceCubit>().generateMonthlyReport(now.year, now.month);
+    await context.read<AttendanceCubit>().generateMonthlyReport(
+      now.year,
+      now.month,
+    );
     if (mounted) LoadingDialog.hide(context);
   }
 
@@ -47,7 +53,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Widget build(BuildContext context) {
     final padding = ResponsiveHelper.getScreenPadding(context);
     final authState = context.watch<AuthCubit>().state;
-    final isAdmin = authState is AuthAuthenticated && authState.user.role.isAdmin;
+    final isAdmin =
+        authState is AuthAuthenticated && authState.user.role.isAdmin;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -75,4 +82,3 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 }
-

@@ -50,17 +50,22 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
     // Check local first
     final db = await _local.database;
     final today = DateTime.now();
-    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-    
-    final results = await db.query('attendance', 
-      where: 'userId = ? AND date = ?', 
+    final todayStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+    final results = await db.query(
+      'attendance',
+      where: 'userId = ? AND date = ?',
       whereArgs: [userId, todayStr],
       orderBy: 'checkInTime DESC',
       limit: 1,
     );
 
     if (results.isNotEmpty) {
-      return AttendanceModel.fromMap(results.first, results.first['id'] as String);
+      return AttendanceModel.fromMap(
+        results.first,
+        results.first['id'] as String,
+      );
     }
 
     // Fallback to remote if online
@@ -78,7 +83,10 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
   }
 
   @override
-  Future<List<AttendanceModel>> getMonthlyAttendanceRecords(int year, int month) async {
+  Future<List<AttendanceModel>> getMonthlyAttendanceRecords(
+    int year,
+    int month,
+  ) async {
     // For reports, we might want to fetch from remote to ensure full data
     return await _remote.getMonthlyAttendanceRecords(year, month);
   }
@@ -87,47 +95,72 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
   Future<List<AttendanceModel>> getTodayAttendanceRecords() async {
     final db = await _local.database;
     final today = DateTime.now();
-    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-    
-    final results = await db.query('attendance', where: 'date = ?', whereArgs: [todayStr]);
-    return results.map((m) => AttendanceModel.fromMap(m, m['id'] as String)).toList();
+    final todayStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+    final results = await db.query(
+      'attendance',
+      where: 'date = ?',
+      whereArgs: [todayStr],
+    );
+    return results
+        .map((m) => AttendanceModel.fromMap(m, m['id'] as String))
+        .toList();
   }
 
   @override
-  Future<List<AttendanceModel>> getUserAttendance(String userId, {int limit = 30}) async {
+  Future<List<AttendanceModel>> getUserAttendance(
+    String userId, {
+    int limit = 30,
+  }) async {
     final db = await _local.database;
-    final results = await db.query('attendance', 
-      where: 'userId = ?', 
+    final results = await db.query(
+      'attendance',
+      where: 'userId = ?',
       whereArgs: [userId],
       orderBy: 'date DESC',
       limit: limit,
     );
-    return results.map((m) => AttendanceModel.fromMap(m, m['id'] as String)).toList();
+    return results
+        .map((m) => AttendanceModel.fromMap(m, m['id'] as String))
+        .toList();
   }
 
   @override
   Stream<List<AttendanceModel>> streamTodayAttendanceRecords() {
-    final todayStr = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
-    final query = FirebaseFirestore.instance.collection('attendance').where('date', isEqualTo: todayStr);
+    final query = FirebaseFirestore.instance
+        .collection('attendance')
+        .orderBy('checkInTime', descending: true);
+    
     return _remote.safeStream(query).map((snapshot) {
-      return snapshot.docs.map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+      return snapshot.docs
+          .map(
+            (doc) => AttendanceModel.fromMap(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
+          )
+          .toList();
     });
   }
 
   @override
-  Stream<AttendanceModel?> streamTodayAttendance(String userId) {
-    final todayStr = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
-    final query = FirebaseFirestore.instance.collection('attendance').where('date', isEqualTo: todayStr);
-    
+  Stream<List<AttendanceModel>> streamTodayAttendance(String userId) {
+    final query = FirebaseFirestore.instance
+        .collection('attendance')
+        .where('userId', isEqualTo: userId);
+
     return _remote.safeStream(query).map((snapshot) {
       final records = snapshot.docs
-          .map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-          .where((a) => a.userId == userId)
+          .map(
+            (doc) => AttendanceModel.fromMap(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
+          )
           .toList();
-      
-      if (records.isEmpty) return null;
       records.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
-      return records.first;
+      return records;
     });
   }
 }

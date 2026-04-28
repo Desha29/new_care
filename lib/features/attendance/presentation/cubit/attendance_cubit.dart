@@ -24,11 +24,11 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     required IShiftsRepository shiftsRepository,
     DeviceService? deviceService,
     SyncManager? syncManager,
-  })  : _attendanceRepository = attendanceRepository,
-        _shiftsRepository = shiftsRepository,
-        _deviceService = deviceService ?? DeviceService.instance,
-        _syncManager = syncManager ?? SyncManager.instance,
-        super(AttendanceInitial());
+  }) : _attendanceRepository = attendanceRepository,
+       _shiftsRepository = shiftsRepository,
+       _deviceService = deviceService ?? DeviceService.instance,
+       _syncManager = syncManager ?? SyncManager.instance,
+       super(AttendanceInitial());
 
   StreamSubscription? _todayAttendanceSub;
   StreamSubscription? _currentStatusSub;
@@ -42,51 +42,73 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
   /// تحميل سجلات حضور اليوم بشكل تفاعلي - Reactive Load today's attendance records
   void loadTodayAttendance() {
+    print("Loading attendance records...");
     emit(AttendanceLoading());
     _todayAttendanceSub?.cancel();
-    _todayAttendanceSub = _attendanceRepository.streamTodayAttendanceRecords().listen(
-      (records) {
-        if (state is AttendanceLoaded) {
-          final s = state as AttendanceLoaded;
-          emit(s.copyWith(records: records));
-        } else {
-          emit(AttendanceLoaded(records: records));
-        }
-      },
-      onError: (e) {
-        emit(AttendanceError('خطأ في تحميل سجلات الحضور: ${e.toString()}'));
-      },
-    );
+    _todayAttendanceSub = _attendanceRepository
+        .streamTodayAttendanceRecords()
+        .listen(
+          (records) {
+            print("Attendance records loaded: ${records.length}");
+            if (state is AttendanceLoaded) {
+              final s = state as AttendanceLoaded;
+              print("Attendance records loaded: ${records.length}");
+              emit(s.copyWith(records: records));
+            } else {
+              print("Attendance records loaded: ${records.length}");
+              emit(AttendanceLoaded(records: records));
+            }
+          },
+          onError: (e) {
+            emit(AttendanceError('خطأ في تحميل سجلات الحضور: ${e.toString()}'));
+          },
+        );
   }
 
   void checkTodayStatus(String userId) {
     _currentStatusSub?.cancel();
-    _currentStatusSub = _attendanceRepository.streamTodayAttendance(userId).listen(
-      (attendance) async {
-        if (state is AttendanceLoaded) {
-          final s = state as AttendanceLoaded;
-          emit(s.copyWith(
-            todayRecord: attendance,
-            isCheckedIn: attendance != null && attendance.isCheckedIn,
-          ));
-        } else {
-          final records = await _attendanceRepository.getTodayAttendanceRecords();
-          emit(AttendanceLoaded(
-            records: records,
-            todayRecord: attendance,
-            isCheckedIn: attendance != null && attendance.isCheckedIn,
-          ));
-        }
-      },
-    );
+    _currentStatusSub = _attendanceRepository
+        .streamTodayAttendance(userId)
+        .listen((attendanceList) async {
+          final now = DateTime.now();
+          final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+          
+          // Find the record for today specifically
+          final attendance = attendanceList.isNotEmpty && attendanceList.first.date == todayStr 
+              ? attendanceList.first 
+              : null;
+
+          if (state is AttendanceLoaded) {
+            final s = state as AttendanceLoaded;
+            emit(
+              s.copyWith(
+                todayRecord: attendance,
+                isCheckedIn: attendance != null && attendance.isCheckedIn,
+              ),
+            );
+          } else {
+            final records = await _attendanceRepository
+                .getTodayAttendanceRecords();
+            emit(
+              AttendanceLoaded(
+                records: records,
+                todayRecord: attendance,
+                isCheckedIn: attendance != null && attendance.isCheckedIn,
+              ),
+            );
+          }
+        });
   }
 
   /// توليد تقرير الحضور الشهري - Generate Monthly Attendance Report
   Future<void> generateMonthlyReport(int year, int month) async {
     try {
-      final records = await _attendanceRepository.getMonthlyAttendanceRecords(year, month);
+      final records = await _attendanceRepository.getMonthlyAttendanceRecords(
+        year,
+        month,
+      );
       final shifts = await _shiftsRepository.getMonthlyShifts(year, month);
-      
+
       await ReportService.instance.generateAttendanceReport(
         records: records,
         shifts: shifts,
@@ -108,7 +130,9 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   }) async {
     emit(AttendanceLoading());
     try {
-      final existing = await _attendanceRepository.getTodayAttendance(targetUserId);
+      final existing = await _attendanceRepository.getTodayAttendance(
+        targetUserId,
+      );
       if (existing != null && !existing.isCheckedOut) {
         emit(const AttendanceError('الموظف لديه وردية نشطة حالياً مسبقاً'));
         loadTodayAttendance();
@@ -116,7 +140,8 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       }
 
       final now = DateTime.now();
-      final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final today =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
       final attendance = AttendanceModel(
         id: const Uuid().v4(),
@@ -155,7 +180,9 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   }) async {
     emit(AttendanceLoading());
     try {
-      final latest = await _attendanceRepository.getTodayAttendance(targetUserId);
+      final latest = await _attendanceRepository.getTodayAttendance(
+        targetUserId,
+      );
       if (latest == null || latest.isCheckedOut) {
         await checkInByUserId(
           targetUserId: targetUserId,
@@ -180,8 +207,10 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     emit(AttendanceLoading());
     try {
       final latest = await _attendanceRepository.getTodayAttendance(userId);
-      
-      if (qrCode == 'NEWCARE_ATTENDANCE' || qrCode == 'NEWCARE_DEPARTURE' || qrCode == 'NEWCARE_UNIFIED') {
+
+      if (qrCode == 'NEWCARE_ATTENDANCE' ||
+          qrCode == 'NEWCARE_DEPARTURE' ||
+          qrCode == 'NEWCARE_UNIFIED') {
         if (latest == null || latest.isCheckedOut) {
           await checkIn(userId: userId, userName: userName);
         } else {
@@ -210,7 +239,8 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
       final deviceId = await _deviceService.getDeviceId();
       final now = DateTime.now();
-      final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final today =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
       final attendance = AttendanceModel(
         id: const Uuid().v4(),
@@ -219,7 +249,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         date: today,
         checkInTime: now,
         deviceId: deviceId,
-        location: '', 
+        location: '',
         status: AttendanceStatus.checkedIn,
       );
 
@@ -321,12 +351,15 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       }
 
       // 2. التحقق من الحضور
-      final attendance = await _attendanceRepository.getTodayAttendance(user.id);
+      final attendance = await _attendanceRepository.getTodayAttendance(
+        user.id,
+      );
       final isCheckedIn = attendance != null && attendance.isCheckedIn;
 
       // 3. التحقق من الجهاز
       final currentDeviceId = await _deviceService.getDeviceId();
-      final isCorrectDevice = user.allowedDeviceIds.isEmpty ||
+      final isCorrectDevice =
+          user.allowedDeviceIds.isEmpty ||
           user.allowedDeviceIds.contains(currentDeviceId);
 
       if (!hasShift) {
@@ -377,4 +410,3 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     }
   }
 }
-

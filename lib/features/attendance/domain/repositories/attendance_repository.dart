@@ -27,5 +27,5 @@ abstract class IAttendanceRepository {
   Stream<List<AttendanceModel>> streamTodayAttendanceRecords();
 
   /// بث حالة حضور مستخدم معين لليوم - Stream user's today attendance
-  Stream<AttendanceModel?> streamTodayAttendance(String userId);
+  Stream<List<AttendanceModel>> streamTodayAttendance(String userId);
 }
