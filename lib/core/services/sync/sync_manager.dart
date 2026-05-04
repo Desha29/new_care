@@ -11,6 +11,8 @@ import 'package:new_care/features/cases/data/models/case_model.dart';
 import 'package:new_care/features/inventory/data/models/inventory_model.dart';
 import 'package:new_care/features/procedures/data/models/procedure_model.dart';
 import 'package:new_care/features/auth/data/models/user_model.dart';
+import 'package:new_care/features/payroll/data/models/payroll_model.dart';
+import 'package:new_care/features/financials/data/models/expense_model.dart';
 
 /// خدمة المزامنة الشاملة (الجيل الثاني) - SyncManager v2
 /// Robust, queue-based, offline-first sync orchestrator.
@@ -398,6 +400,36 @@ class SyncManager {
             rethrow;
           }
           break;
+        case 'payroll':
+          try {
+            final model = PayrollModel.fromMap(data, id);
+            if (op == 'delete') {
+              await _firebaseService.deletePayroll(id);
+            } else {
+              await _firebaseService.updatePayroll(model);
+            }
+            log('[SyncManager] Payroll operation completed: $op on $id');
+          } catch (e, st) {
+            log('[SyncManager] Payroll operation error: $e');
+            log('[SyncManager] Payroll stack: $st');
+            rethrow;
+          }
+          break;
+        case 'expenses':
+          try {
+            final model = ExpenseModel.fromMap(data, id);
+            if (op == 'delete') {
+              await _firebaseService.deleteExpense(id);
+            } else {
+              await _firebaseService.updateExpense(model);
+            }
+            log('[SyncManager] Expense operation completed: $op on $id');
+          } catch (e, st) {
+            log('[SyncManager] Expense operation error: $e');
+            log('[SyncManager] Expense stack: $st');
+            rethrow;
+          }
+          break;
         default:
           throw Exception('Unknown table: $table');
       }
@@ -444,6 +476,20 @@ class SyncManager {
               log('[SyncManager] Failed to fetch procedures: $e');
               return <ProcedureModel>[];
             }),
+        _firebaseService
+            .getUpdatedPayroll(lastSync)
+            .timeout(const Duration(seconds: 30))
+            .catchError((e) {
+              log('[SyncManager] Failed to fetch payroll: $e');
+              return <PayrollModel>[];
+            }),
+        _firebaseService
+            .getUpdatedExpenses(lastSync)
+            .timeout(const Duration(seconds: 30))
+            .catchError((e) {
+              log('[SyncManager] Failed to fetch expenses: $e');
+              return <ExpenseModel>[];
+            }),
       ]);
 
       // Small delay between download and write to avoid rapid operations
@@ -485,6 +531,24 @@ class SyncManager {
             batch.insert(
               'procedures',
               p.toSqliteMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+
+          // 5. Payroll
+          for (var p in results[4] as List<PayrollModel>) {
+            batch.insert(
+              'payroll',
+              p.toSqliteMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+
+          // 6. Expenses
+          for (var e in results[5] as List<ExpenseModel>) {
+            batch.insert(
+              'expenses',
+              e.toSqliteMap(),
               conflictAlgorithm: ConflictAlgorithm.replace,
             );
           }
@@ -549,6 +613,26 @@ class SyncManager {
       operation: isNew ? 'create' : 'update',
       docId: shift.id,
       data: shift.toMap(),
+    );
+  }
+
+  Future<void> savePayrollWithSync(PayrollModel payroll, {bool isNew = true}) async {
+    await _sqliteService.insert('payroll', payroll.toSqliteMap());
+    await enqueue(
+      tableName: 'payroll',
+      operation: isNew ? 'create' : 'update',
+      docId: payroll.id,
+      data: payroll.toMap(),
+    );
+  }
+
+  Future<void> saveExpenseWithSync(ExpenseModel expense, {bool isNew = true}) async {
+    await _sqliteService.insert('expenses', expense.toSqliteMap());
+    await enqueue(
+      tableName: 'expenses',
+      operation: isNew ? 'create' : 'update',
+      docId: expense.id,
+      data: expense.toMap(),
     );
   }
 

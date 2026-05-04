@@ -27,7 +27,7 @@ class SqliteService {
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 13, // Added services & suppliesUsed JSON columns to cases
+        version: 14, // Added payroll & salary_slips tables
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -209,6 +209,62 @@ class SqliteService {
         updatedAt TEXT NOT NULL
       )
     ''');
+
+    // جدول الرواتب - Payroll table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS payroll (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        userName TEXT DEFAULT '',
+        year INTEGER NOT NULL,
+        month INTEGER NOT NULL,
+        totalHours REAL DEFAULT 0,
+        hourlyRate REAL DEFAULT 0,
+        baseSalary REAL DEFAULT 0,
+        bonus REAL DEFAULT 0,
+        outsideCasesFees REAL DEFAULT 0,
+        deductions REAL DEFAULT 0,
+        netSalary REAL DEFAULT 0,
+        totalDays INTEGER DEFAULT 0,
+        absentDays INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'draft',
+        notes TEXT DEFAULT '',
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        createdBy TEXT DEFAULT ''
+      )
+    ''');
+
+    // جدول قسائم الراتب - Salary Slips table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS salary_slips (
+        id TEXT PRIMARY KEY,
+        payrollId TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        userName TEXT DEFAULT '',
+        userRole TEXT DEFAULT '',
+        period TEXT DEFAULT '',
+        year INTEGER NOT NULL,
+        month INTEGER NOT NULL,
+        workingDays INTEGER DEFAULT 0,
+        presentDays INTEGER DEFAULT 0,
+        absentDays INTEGER DEFAULT 0,
+        totalHoursWorked REAL DEFAULT 0,
+        hourlyRate REAL DEFAULT 0,
+        baseSalary REAL DEFAULT 0,
+        overtimeHours REAL DEFAULT 0,
+        overtimeAmount REAL DEFAULT 0,
+        bonus REAL DEFAULT 0,
+        allowances REAL DEFAULT 0,
+        deductions REAL DEFAULT 0,
+        penalties REAL DEFAULT 0,
+        grossSalary REAL DEFAULT 0,
+        netSalary REAL DEFAULT 0,
+        notes TEXT DEFAULT '',
+        generatedAt TEXT NOT NULL,
+        generatedBy TEXT DEFAULT ''
+      )
+    ''');
   }
 
   /// ترقية قاعدة البيانات - Upgrade database
@@ -263,6 +319,62 @@ class SqliteService {
       try {
         await db.execute("ALTER TABLE cases ADD COLUMN suppliesUsed TEXT DEFAULT '[]'");
       } catch (e) { /* column may already exist */ }
+    }
+    if (oldVersion < 14) {
+      // إضافة جدول الرواتب - Add payroll table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS payroll (
+          id TEXT PRIMARY KEY,
+          userId TEXT NOT NULL,
+          userName TEXT DEFAULT '',
+          year INTEGER NOT NULL,
+          month INTEGER NOT NULL,
+          totalHours REAL DEFAULT 0,
+          hourlyRate REAL DEFAULT 0,
+          baseSalary REAL DEFAULT 0,
+          bonus REAL DEFAULT 0,
+          outsideCasesFees REAL DEFAULT 0,
+          deductions REAL DEFAULT 0,
+          netSalary REAL DEFAULT 0,
+          totalDays INTEGER DEFAULT 0,
+          absentDays INTEGER DEFAULT 0,
+          status TEXT DEFAULT 'draft',
+          notes TEXT DEFAULT '',
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL,
+          createdBy TEXT DEFAULT ''
+        )
+      ''');
+      // إضافة جدول قسائم الراتب - Add salary slips table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS salary_slips (
+          id TEXT PRIMARY KEY,
+          payrollId TEXT NOT NULL,
+          userId TEXT NOT NULL,
+          userName TEXT DEFAULT '',
+          userRole TEXT DEFAULT '',
+          period TEXT DEFAULT '',
+          year INTEGER NOT NULL,
+          month INTEGER NOT NULL,
+          workingDays INTEGER DEFAULT 0,
+          presentDays INTEGER DEFAULT 0,
+          absentDays INTEGER DEFAULT 0,
+          totalHoursWorked REAL DEFAULT 0,
+          hourlyRate REAL DEFAULT 0,
+          baseSalary REAL DEFAULT 0,
+          overtimeHours REAL DEFAULT 0,
+          overtimeAmount REAL DEFAULT 0,
+          bonus REAL DEFAULT 0,
+          allowances REAL DEFAULT 0,
+          deductions REAL DEFAULT 0,
+          penalties REAL DEFAULT 0,
+          grossSalary REAL DEFAULT 0,
+          netSalary REAL DEFAULT 0,
+          notes TEXT DEFAULT '',
+          generatedAt TEXT NOT NULL,
+          generatedBy TEXT DEFAULT ''
+        )
+      ''');
     }
   }
 
@@ -431,6 +543,20 @@ class SqliteService {
   Future<int> getPendingCount() async {
     final db = await database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM pending_sync');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// جلب عدد سجلات الرواتب - Get payroll records count
+  Future<int> getPayrollCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM payroll');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// جلب عدد المصاريف - Get expenses count
+  Future<int> getExpensesCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM expenses');
     return Sqflite.firstIntValue(result) ?? 0;
   }
 

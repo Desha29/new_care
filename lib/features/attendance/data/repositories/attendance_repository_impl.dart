@@ -128,12 +128,13 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
 
   @override
   Stream<List<AttendanceModel>> streamTodayAttendanceRecords() {
+    final today = _getTodayString();
     final query = FirebaseFirestore.instance
         .collection('attendance')
-        .orderBy('checkInTime', descending: true);
-    
-    return _remote.safeStream(query).map((snapshot) {
-      return snapshot.docs
+        .where('date', isEqualTo: today);
+
+    return query.snapshots().map((snapshot) {
+      final records = snapshot.docs
           .map(
             (doc) => AttendanceModel.fromMap(
               doc.data() as Map<String, dynamic>,
@@ -141,7 +142,16 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
             ),
           )
           .toList();
+      // Sort in code instead of Firestore
+      records.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
+      return records;
     });
+  }
+
+  /// Helper method to get today's date as yyyy-MM-dd format
+  String _getTodayString() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
   @override

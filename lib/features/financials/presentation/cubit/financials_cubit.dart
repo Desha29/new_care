@@ -59,6 +59,36 @@ class FinancialsCubit extends Cubit<FinancialsState> {
     }
   }
 
+  /// تحميل البيانات المالية بحسب فترة زمنية - Load financials by date range
+  Future<void> loadFinancialsByMonth({
+    required int year,
+    required int month,
+  }) async {
+    emit(FinancialsLoading());
+    try {
+      final isConnected = await ConnectivityService.instance.checkConnection();
+      final start = DateTime(year, month, 1);
+      final end = DateTime(year, month + 1, 0, 23, 59, 59);
+
+      final allCases = await _financialsRepository.getAllCases();
+      final filteredCases = allCases.where((c) =>
+          c.caseDate.isAfter(start.subtract(const Duration(seconds: 1))) &&
+          c.caseDate.isBefore(end.add(const Duration(seconds: 1)))).toList();
+
+      final expenses = await _financialsRepository.getExpensesByRange(start, end);
+
+      emit(
+        FinancialsLoaded(
+          cases: filteredCases,
+          expenses: expenses,
+          isOffline: !isConnected,
+        ),
+      );
+    } catch (e) {
+      emit(FinancialsError('خطأ في تحميل البيانات المالية: $e'));
+    }
+  }
+
   Future<void> addExpense({
     required String label,
     required double amount,
@@ -78,16 +108,44 @@ class FinancialsCubit extends Cubit<FinancialsState> {
         notes: notes ?? '',
       );
       await _financialsRepository.createExpense(expense);
-      loadFinancials();
+      loadFinancials(force: true);
     } catch (e) {
       emit(FinancialsError('خطأ في إضافة المصروف: $e'));
     }
   }
 
+  /// تحديث مصروف - Update expense
+  Future<void> updateExpense(ExpenseModel expense) async {
+    try {
+      await _financialsRepository.updateExpense(expense);
+      loadFinancials(force: true);
+    } catch (e) {
+      emit(FinancialsError('خطأ في تحديث المصروف: $e'));
+    }
+  }
+
   Future<void> deleteExpense(String expenseId) async {
     try {
+      // 1. حذف من SQLite + طابور المزامنة
       await _financialsRepository.deleteExpense(expenseId);
-      loadFinancials();
+
+      // 2. تحديث الحالة فوراً بدون إعادة تحميل (لسرعة الاستجابة)
+      if (state is FinancialsLoaded) {
+        final currentState = state as FinancialsLoaded;
+        final updatedExpenses = currentState.expenses
+            .where((e) => e.id != expenseId)
+            .toList();
+        emit(
+          FinancialsLoaded(
+            cases: currentState.cases,
+            expenses: updatedExpenses,
+            isOffline: currentState.isOffline,
+          ),
+        );
+      } else {
+        // Fallback: إعادة تحميل كامل
+        await loadFinancials(force: true);
+      }
     } catch (e) {
       emit(FinancialsError('خطأ في حذف المصروف: $e'));
     }

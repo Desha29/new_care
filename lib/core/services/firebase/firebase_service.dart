@@ -13,6 +13,8 @@ import 'package:new_care/features/activity_logs/data/models/log_model.dart';
 import 'package:new_care/features/procedures/data/models/procedure_model.dart';
 import 'package:new_care/features/shifts/data/models/shift_model.dart';
 import 'package:new_care/features/attendance/data/models/attendance_model.dart';
+import 'package:new_care/features/payroll/data/models/payroll_model.dart';
+import 'package:new_care/features/financials/data/models/expense_model.dart';
 import 'package:new_care/core/constants/app_constants.dart';
 
 /// خدمة Firebase Firestore المحدثة - Optimized FirebaseService
@@ -501,6 +503,87 @@ class FirebaseService {
 
     return snapshot.docs
         .map((doc) => ShiftModel.fromMap(doc.data(), doc.id))
+        .toList();
+  }
+
+  // ============================================
+  // === الرواتب - Payroll ===
+  // ============================================
+
+  CollectionReference get _payrollRef => _firestore.collection('payroll');
+
+  Future<void> createPayroll(PayrollModel model) async {
+    _incWrite();
+    await _payrollRef.doc(model.id).set(model.toMap(), SetOptions(merge: true));
+  }
+
+  Future<void> updatePayroll(PayrollModel model) async {
+    _incWrite();
+    await _payrollRef.doc(model.id).set(model.toMap(), SetOptions(merge: true));
+  }
+
+  Future<void> deletePayroll(String id) async {
+    _incWrite();
+    await _payrollRef.doc(id).delete();
+  }
+
+  Future<List<PayrollModel>> getUpdatedPayroll(DateTime lastSync) async {
+    _incRead();
+    final snapshot = await _payrollRef.get();
+    return snapshot.docs
+        .map(
+          (doc) => PayrollModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
+        .toList();
+  }
+
+  // ============================================
+  // === المصاريف - Expenses ===
+  // ============================================
+
+  CollectionReference get _expensesRef => _firestore.collection('expenses');
+
+  Future<void> createExpense(ExpenseModel model) async {
+    _incWrite();
+    await _expensesRef.doc(model.id).set(model.toMap(), SetOptions(merge: true));
+  }
+
+  Future<void> updateExpense(ExpenseModel model) async {
+    _incWrite();
+    await _expensesRef.doc(model.id).set(model.toMap(), SetOptions(merge: true));
+  }
+
+  Future<void> deleteExpense(String id) async {
+    _incWrite();
+    await _expensesRef.doc(id).delete();
+  }
+
+  Future<List<ExpenseModel>> getAllExpenses() async {
+    _incRead();
+    final snapshot = await _expensesRef.orderBy('date', descending: true).get();
+    return snapshot.docs
+        .map(
+          (doc) => ExpenseModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
+        .toList();
+  }
+
+  Future<List<ExpenseModel>> getUpdatedExpenses(DateTime lastSync) async {
+    _incRead();
+    final snapshot = await _expensesRef.get();
+    return snapshot.docs
+        .map(
+          (doc) => ExpenseModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
         .toList();
   }
 

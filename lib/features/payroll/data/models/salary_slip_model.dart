@@ -127,4 +127,12 @@ class SalarySlipModel {
       generatedBy: map['generatedBy'] ?? '',
     );
   }
+
+  /// تحويل إلى خريطة SQLite - To SQLite map
+  Map<String, dynamic> toSqliteMap() {
+    return {
+      'id': id,
+      ...toMap(),
+    };
+  }
 }

@@ -35,6 +35,24 @@ class PayrollLoaded extends PayrollState {
   double get totalHours =>
       payrolls.fold(0, (sum, p) => sum + p.totalHours);
 
+  /// إجمالي الخصومات - Total deductions
+  double get totalDeductions =>
+      payrolls.fold(0, (sum, p) => sum + p.deductions);
+
+  /// إجمالي الإضافي (ساعات إضافية) - Total overtime bonus
+  double get totalBonus =>
+      payrolls.fold(0, (sum, p) => sum + p.bonus);
+
+  /// إجمالي العمليات الخارجية - Total outside case fees
+  double get totalOutsideFees =>
+      payrolls.fold(0, (sum, p) => sum + p.outsideCasesFees);
+
+  /// متوسط سعر الساعة - Average hourly rate
+  double get averageHourlyRate {
+    if (payrolls.isEmpty) return 0;
+    return payrolls.fold(0.0, (sum, p) => sum + p.hourlyRate) / payrolls.length;
+  }
+
   @override
   List<Object?> get props => [payrolls, selectedYear, selectedMonth];
 }

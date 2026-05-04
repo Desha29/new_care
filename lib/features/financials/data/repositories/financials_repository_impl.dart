@@ -50,13 +50,7 @@ class FinancialsRepositoryImpl implements IFinancialsRepository {
   @override
   Future<List<ExpenseModel>> getAllExpenses() async {
     final results = await _local.database.then((db) => db.query('expenses', orderBy: 'date DESC'));
-    if (results.isNotEmpty) {
-      return results.map((m) => ExpenseModel.fromMap(m, m['id'] as String)).toList();
-    }
-    
-    // Fallback to remote (Note: getAllExpenses not yet in FirebaseService, I'll assume it's legacy or add it)
-    // For now I'll use remote logic directly or keep it simple
-    return await _remote.getAllInventory().then((_) => []); // Placeholder if method missing
+    return results.map((m) => ExpenseModel.fromMap(m, m['id'] as String)).toList();
   }
 
   @override

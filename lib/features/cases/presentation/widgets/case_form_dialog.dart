@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:new_care/features/cases/presentation/cubit/cases_state.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/enums/case_status.dart'; // Desktop stores CaseType here
-import '../../../../core/services/local/sqlite_service.dart';
+import '../../../../core/services/firebase/firebase_service.dart';
 import '../../../../core/widgets/buttons/primary_button.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../inventory/data/models/inventory_model.dart';
@@ -21,7 +22,6 @@ import '../../../financials/presentation/cubit/financials_cubit.dart';
 import '../../../payroll/presentation/cubit/payroll_cubit.dart';
 import '../../data/models/case_model.dart';
 import '../cubit/cases_cubit.dart';
-import '../cubit/cases_state.dart';
 import 'package:uuid/uuid.dart' as uuid;
 
 class CaseFormDialog extends StatefulWidget {
@@ -82,39 +82,27 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
   }
 
   Future<void> _loadData() async {
-    // Load nurses from local SQLite (via users table)
-    final db = await SqliteService.instance.database;
-    final usersResult = await db.query('users', where: "role = ? AND isActive = ?", whereArgs: ['nurse', 1], orderBy: 'name');
-    _nurses = usersResult.map((m) => UserModel.fromMap(m, m['id'] as String)).toList();
-    
+    _nurses = await FirebaseService.instance.getActiveNurses();
     if (_isEdit && _selNurseName != null) {
-      final n = _nurses.where((e) => e.name == _selNurseName).firstOrNull ?? (_nurses.isNotEmpty ? _nurses.first : null);
+      final n =
+          _nurses.where((e) => e.name == _selNurseName).firstOrNull ??
+          (_nurses.isNotEmpty ? _nurses.first : null);
       if (n != null) {
         _selNurseId = n.id;
       }
     }
 
     if (!mounted) return;
-    // Load procedures from Cubit (already local)
     final procState = context.read<ProceduresCubit>().state;
-    if (procState is ProceduresLoaded) {
-      _procedures = procState.procedures;
-    } else {
-      // Fallback: load from local SQLite
-      final procResults = await db.query('procedures', orderBy: 'name');
-      _procedures = procResults.map((m) => ProcedureModel.fromMap(m, m['id'] as String)).toList();
-    }
+    _procedures = procState is ProceduresLoaded
+        ? procState.procedures
+        : await FirebaseService.instance.getAllProcedures();
 
     if (!mounted) return;
-    // Load inventory from Cubit (already local)
     final invState = context.read<InventoryCubit>().state;
-    if (invState is InventoryLoaded) {
-      _inventory = invState.items;
-    } else {
-      // Fallback: load from local SQLite
-      final invResults = await db.query('inventory', orderBy: 'name');
-      _inventory = invResults.map((m) => InventoryModel.fromMap(m, m['id'] as String)).toList();
-    }
+    _inventory = invState is InventoryLoaded
+        ? invState.items
+        : await FirebaseService.instance.getAllInventory();
 
     if (mounted) setState(() {});
   }
@@ -173,7 +161,10 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => InvoiceCubit(invoiceRepository: sl<IInvoiceRepository>(), initialCase: widget.caseData),
+      create: (context) => InvoiceCubit(
+        invoiceRepository: sl<IInvoiceRepository>(),
+        initialCase: widget.caseData,
+      ),
       child: PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, result) async {
@@ -347,12 +338,22 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
           context,
         ),
         const SizedBox(width: 12),
-        _typeChip('زيارة منزلية', CaseType.homeVisit, Icons.home_rounded, context),
+        _typeChip(
+          'زيارة منزلية',
+          CaseType.homeVisit,
+          Icons.home_rounded,
+          context,
+        ),
       ],
     );
   }
 
-  Widget _typeChip(String label, CaseType type, IconData icon, BuildContext context) {
+  Widget _typeChip(
+    String label,
+    CaseType type,
+    IconData icon,
+    BuildContext context,
+  ) {
     final isSel = _selType == type;
     return Expanded(
       child: InkWell(
@@ -361,7 +362,9 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
             _selType = type;
             // Update the temp dropdown price if a service is selected
             if (_tmpServiceName != null) {
-              final p = _procedures.where((e) => e.name == _tmpServiceName).firstOrNull;
+              final p = _procedures
+                  .where((e) => e.name == _tmpServiceName)
+                  .firstOrNull;
               if (p != null) {
                 _tmpServicePriceCtrl.text =
                     (type == CaseType.inCenter ? p.priceInside : p.priceOutside)
@@ -470,8 +473,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
                     style: TextStyle(fontFamily: 'Cairo'),
                   ),
                   decoration: _inputDecoration(null),
-                  items: {for (var p in _procedures) p.name: p}
-                      .values
+                  items: {for (var p in _procedures) p.name: p}.values
                       .map(
                         (p) => DropdownMenuItem(
                           value: p.name,
@@ -485,7 +487,9 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
                   onChanged: (v) {
                     setState(() => _tmpServiceName = v);
                     if (v != null) {
-                      final p = _procedures.where((e) => e.name == v).firstOrNull;
+                      final p = _procedures
+                          .where((e) => e.name == v)
+                          .firstOrNull;
                       if (p != null) {
                         _tmpServicePriceCtrl.text =
                             (_selType == CaseType.inCenter
@@ -628,7 +632,9 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
               ElevatedButton.icon(
                 onPressed: () {
                   if (_tmpSupplyId != null) {
-                    final item = _inventory.where((e) => e.id == _tmpSupplyId).firstOrNull;
+                    final item = _inventory
+                        .where((e) => e.id == _tmpSupplyId)
+                        .firstOrNull;
                     if (item != null) {
                       context.read<InvoiceCubit>().addSupply(
                         SupplyUsed(
@@ -774,7 +780,10 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(casesState.message, style: const TextStyle(fontFamily: 'Cairo')),
+              content: Text(
+                casesState.message,
+                style: const TextStyle(fontFamily: 'Cairo'),
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -783,20 +792,23 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
         }
         return;
       }
-      
+
       // Refresh all connected features based on user role
-      final user = context.read<AuthCubit>().state is AuthAuthenticated 
-          ? (context.read<AuthCubit>().state as AuthAuthenticated).user 
+      final user = context.read<AuthCubit>().state is AuthAuthenticated
+          ? (context.read<AuthCubit>().state as AuthAuthenticated).user
           : null;
-          
+
       if (user != null) {
         if (user.role.isAdmin) {
           context.read<DashboardCubit>().loadDashboardData(force: true);
         } else {
-          context.read<DashboardCubit>().loadNurseDashboardData(user.id, force: true);
+          context.read<DashboardCubit>().loadNurseDashboardData(
+            user.id,
+            force: true,
+          );
         }
       }
-      
+
       context.read<FinancialsCubit>().loadFinancials(force: true);
       context.read<InventoryCubit>().loadInventory(force: true);
       context.read<PayrollCubit>().loadPayroll(force: true);
@@ -849,4 +861,3 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
     );
   }
 }
-
