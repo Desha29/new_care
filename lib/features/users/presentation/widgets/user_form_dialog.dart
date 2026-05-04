@@ -35,6 +35,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
   late final TextEditingController _emailCtrl;
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _passCtrl;
+  late final TextEditingController _salaryCtrl;
   late UserRole _role;
 
   bool get _isEdit => widget.user != null;
@@ -46,6 +47,9 @@ class _UserFormDialogState extends State<UserFormDialog> {
     _emailCtrl = TextEditingController(text: widget.user?.email.replaceFirst('@newcare.com', '') ?? '');
     _phoneCtrl = TextEditingController(text: widget.user?.phone ?? '');
     _passCtrl = TextEditingController();
+    _salaryCtrl = TextEditingController(
+      text: widget.user != null ? widget.user!.salary.toStringAsFixed(0) : '3000',
+    );
     _role = widget.user?.role ?? UserRole.nurse;
   }
 
@@ -55,6 +59,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _passCtrl.dispose();
+    _salaryCtrl.dispose();
     super.dispose();
   }
 
@@ -69,11 +74,15 @@ class _UserFormDialogState extends State<UserFormDialog> {
         final repo = sl<IUsersRepository>();
 
         if (_isEdit) {
+          final salary = _role == UserRole.nurse
+              ? (double.tryParse(_salaryCtrl.text.trim()) ?? 3000.0)
+              : widget.user!.salary;
           final updatedUser = widget.user!.copyWith(
             name: _nameCtrl.text.trim(),
             email: email,
             phone: _phoneCtrl.text.trim(),
             role: _role,
+            salary: salary,
             updatedAt: DateTime.now(),
           );
           await repo.updateUser(updatedUser);
@@ -83,12 +92,16 @@ class _UserFormDialogState extends State<UserFormDialog> {
             _passCtrl.text.trim(),
           );
 
+          final salary = _role == UserRole.nurse
+              ? (double.tryParse(_salaryCtrl.text.trim()) ?? 3000.0)
+              : 0.0;
           final newUser = UserModel(
             id: uid,
             name: _nameCtrl.text.trim(),
             email: email,
             phone: _phoneCtrl.text.trim(),
             role: _role,
+            salary: salary,
             isActive: true,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
@@ -203,6 +216,27 @@ class _UserFormDialogState extends State<UserFormDialog> {
                           _roleChip('مشرف', UserRole.admin),
                         ],
                       ),
+                      // حقل المرتب - يظهر فقط عندما يكون الدور ممرض
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        child: _role == UserRole.nurse
+                            ? Column(
+                                children: [
+                                  const SizedBox(height: 12),
+                                  _field(
+                                    'المرتب الأساسي (جنيه)',
+                                    _salaryCtrl,
+                                    Icons.payments_rounded,
+                                    dir: TextDirection.ltr,
+                                    isRequired: true,
+                                    hint: 'مثال: 3000',
+                                    isNumber: true,
+                                  ),
+                                ],
+                              )
+                            : const SizedBox.shrink(),
+                      ),
                       const SizedBox(height: 24),
                       Row(
                         children: [
@@ -243,6 +277,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
     bool isRequired = false,
     String? suffixText,
     String? hint,
+    bool isNumber = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,6 +300,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
         TextFormField(
           controller: ctrl,
           textDirection: dir,
+          keyboardType: isNumber ? TextInputType.number : TextInputType.text,
           style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
           validator: isRequired ? Validators.required : null,
           decoration: InputDecoration(

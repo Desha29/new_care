@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/enums/case_status.dart';
 import '../../../../core/services/notifications/case_change_notifier.dart';
+import '../../../../core/services/notifications/data_change_notifier.dart';
 import '../../domain/repositories/payroll_repository.dart';
 import '../../data/models/payroll_model.dart';
 import 'payroll_state.dart';
@@ -14,6 +15,7 @@ class PayrollCubit extends Cubit<PayrollState> {
   final IPayrollRepository _payrollRepository;
   List<PayrollModel> _currentPayrolls = [];
   StreamSubscription? _caseChangeSubscription;
+  StreamSubscription? _dataChangeSubscription;
 
   /// عدد ساعات العمل اليومية المتوقعة - Expected daily work hours
   static const double _expectedDailyHours = 8.0;
@@ -31,6 +33,7 @@ class PayrollCubit extends Cubit<PayrollState> {
     : _payrollRepository = payrollRepository,
       super(PayrollInitial()) {
     _setupCaseChangeListener();
+    _setupDataChangeListener();
   }
 
   /// Listen to case changes and reload payroll automatically
@@ -50,9 +53,27 @@ class PayrollCubit extends Cubit<PayrollState> {
     });
   }
 
+  /// Listen to data changes (user salary updates, etc.) and reload payroll
+  void _setupDataChangeListener() {
+    _dataChangeSubscription = DataChangeNotifier().onDataChanged.listen((
+      event,
+    ) {
+      // إعادة حساب الرواتب عند تغيير بيانات المستخدم (مثل المرتب)
+      if (state is PayrollLoaded) {
+        final currentState = state as PayrollLoaded;
+        loadPayroll(
+          year: currentState.selectedYear,
+          month: currentState.selectedMonth,
+          force: true,
+        );
+      }
+    });
+  }
+
   @override
   Future<void> close() {
     _caseChangeSubscription?.cancel();
+    _dataChangeSubscription?.cancel();
     return super.close();
   }
 
@@ -72,30 +93,25 @@ class PayrollCubit extends Cubit<PayrollState> {
 
     emit(PayrollLoading());
     try {
-      // 1. محاولة تحميل من SQLite أولاً
+      // 1. حذف الرواتب القديمة لهذا الشهر دائماً لتجنب التكرار
       final savedPayrolls = await _payrollRepository.getPayrolls(
         targetYear,
         targetMonth,
       );
+      for (final old in savedPayrolls) {
+        await _payrollRepository.deletePayroll(old.id);
+      }
 
-      if (savedPayrolls.isNotEmpty && !force) {
-        _currentPayrolls = savedPayrolls;
-      } else {
-        // 2. إذا لم يوجد أو force، نحسب من البيانات
-        final payrolls = await _generateCalculatedPayrolls(
-          targetYear,
-          targetMonth,
-        );
-        _currentPayrolls = payrolls;
+      // 2. إعادة الحساب من البيانات الفعلية
+      final payrolls = await _generateCalculatedPayrolls(
+        targetYear,
+        targetMonth,
+      );
+      _currentPayrolls = payrolls;
 
-        // 3. حفظ النتائج محلياً
-        if (payrolls.isNotEmpty) {
-          // حذف القديم أولاً ثم حفظ الجديد
-          for (final old in savedPayrolls) {
-            await _payrollRepository.deletePayroll(old.id);
-          }
-          await _payrollRepository.savePayrollBatch(payrolls);
-        }
+      // 3. حفظ النتائج محلياً
+      if (payrolls.isNotEmpty) {
+        await _payrollRepository.savePayrollBatch(payrolls);
       }
 
       emit(

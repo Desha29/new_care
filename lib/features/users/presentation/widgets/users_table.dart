@@ -4,6 +4,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../../core/enums/user_role.dart';
+import '../../../../core/utils/number_formatter.dart';
 import '../../../auth/data/models/user_model.dart';
 
 class UsersTable extends StatelessWidget {
@@ -54,6 +55,7 @@ class UsersTable extends StatelessWidget {
                         _hc('البريد', 2),
                         _hc('الهاتف', 2),
                         _hc('الصلاحية', 2),
+                        _hc('المرتب', 2),
                         _hc('الحالة', 1),
                         _hc('إجراءات', 2),
                       ],
@@ -149,6 +151,20 @@ class UsersTable extends StatelessWidget {
                             Expanded(
                               flex: 2,
                               child: RoleBadge(role: u.role.name, fontSize: 11),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                u.role == UserRole.nurse
+                                    ? NumberFormatter.currency(u.salary)
+                                    : '-',
+                                style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontSize: 12,
+                                  fontWeight: u.role == UserRole.nurse ? FontWeight.w600 : FontWeight.w400,
+                                  color: u.role == UserRole.nurse ? AppColors.primary : AppColors.textHint,
+                                ),
+                              ),
                             ),
                             Expanded(
                               flex: 1,

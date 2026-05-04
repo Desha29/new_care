@@ -18,12 +18,10 @@ class PayrollRepositoryImpl implements IPayrollRepository {
     final results = await _local.database.then((db) => db.query('users', where: 'isActive = 1'));
     if (results.isEmpty) return [];
 
+    // فقط الممرضين لهم رواتب - Only nurses have payroll
     return results
         .map((m) => UserModel.fromMap(m, m['id'] as String))
-        .where((u) =>
-            u.role == UserRole.nurse ||
-            u.role == UserRole.admin ||
-            u.role == UserRole.superAdmin)
+        .where((u) => u.role == UserRole.nurse)
         .toList();
   }
 
