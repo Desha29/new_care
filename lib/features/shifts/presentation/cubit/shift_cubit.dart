@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/sync/sync_manager.dart';
 import '../../../../core/services/network/connectivity_service.dart';
+import '../../../../core/services/local/sqlite_service.dart';
+import '../../../../core/services/notifications/case_change_notifier.dart';
 import '../../domain/repositories/shifts_repository.dart';
 import '../../data/models/shift_model.dart';
 import 'shift_state.dart';
@@ -8,20 +11,60 @@ import 'shift_state.dart';
 class ShiftCubit extends Cubit<ShiftState> {
   final IShiftsRepository _shiftsRepository;
   final SyncManager _syncManager;
+  StreamSubscription? _caseChangeSub;
 
   ShiftCubit({
     required IShiftsRepository shiftsRepository,
     SyncManager? syncManager,
   })  : _shiftsRepository = shiftsRepository,
         _syncManager = syncManager ?? SyncManager.instance,
-        super(ShiftInitial());
+        super(ShiftInitial()) {
+    // الاستماع لتغييرات الحالات لتحديث عدد الحالات تلقائياً
+    // Listen for case changes to auto-refresh case counts
+    _caseChangeSub = CaseChangeNotifier().onCaseChanged.listen((_) {
+      _refreshCaseCounts();
+    });
+  }
+
+  @override
+  Future<void> close() {
+    _caseChangeSub?.cancel();
+    return super.close();
+  }
+
+  /// تحديث عدد الحالات فقط بدون إعادة تحميل الورديات
+  /// Refresh only case counts without reloading shifts
+  Future<void> _refreshCaseCounts() async {
+    if (state is ShiftLoaded) {
+      try {
+        final currentState = state as ShiftLoaded;
+        final date = currentState.selectedDate.isNotEmpty
+            ? currentState.selectedDate
+            : _todayStr();
+        final caseCounts = await SqliteService.instance.getCaseCountsByDate(date);
+        emit(ShiftLoaded(
+          shifts: currentState.shifts,
+          todayShift: currentState.todayShift,
+          searchQuery: currentState.searchQuery,
+          selectedDate: currentState.selectedDate,
+          caseCounts: caseCounts,
+        ));
+      } catch (_) {}
+    }
+  }
+
+  String _todayStr() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
 
   /// تحميل ورديات اليوم - Load today's shifts
   Future<void> loadTodayShifts() async {
     emit(ShiftLoading());
     try {
       final shifts = await _shiftsRepository.getTodayShifts();
-      emit(ShiftLoaded(shifts: shifts));
+      final caseCounts = await SqliteService.instance.getCaseCountsByDate(_todayStr());
+      emit(ShiftLoaded(shifts: shifts, caseCounts: caseCounts));
     } catch (e) {
       emit(ShiftError('خطأ في تحميل الورديات: ${e.toString()}'));
     }
@@ -32,7 +75,8 @@ class ShiftCubit extends Cubit<ShiftState> {
     emit(ShiftLoading());
     try {
       final shifts = await _shiftsRepository.getShiftsByDate(date);
-      emit(ShiftLoaded(shifts: shifts, selectedDate: date));
+      final caseCounts = await SqliteService.instance.getCaseCountsByDate(date);
+      emit(ShiftLoaded(shifts: shifts, selectedDate: date, caseCounts: caseCounts));
     } catch (e) {
       emit(ShiftError('خطأ في تحميل الورديات: ${e.toString()}'));
     }
@@ -118,6 +162,7 @@ class ShiftCubit extends Cubit<ShiftState> {
         todayShift: currentState.todayShift,
         searchQuery: query,
         selectedDate: currentState.selectedDate,
+        caseCounts: currentState.caseCounts,
       ));
     }
   }

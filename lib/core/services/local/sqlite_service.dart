@@ -560,6 +560,37 @@ class SqliteService {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
+  /// جلب عدد الحالات لكل ممرض في تاريخ معين - Get case counts per nurse for a date
+  Future<Map<String, int>> getCaseCountsByDate(String date) async {
+    final db = await database;
+    // caseDate is stored as ISO8601 string, so we match the date portion
+    final results = await db.rawQuery(
+      "SELECT nurseId, COUNT(*) as cnt FROM cases WHERE caseDate LIKE ? AND nurseId != '' GROUP BY nurseId",
+      ['$date%'],
+    );
+    final Map<String, int> counts = {};
+    for (final row in results) {
+      final nurseId = row['nurseId'] as String?;
+      final cnt = row['cnt'] as int? ?? 0;
+      if (nurseId != null && nurseId.isNotEmpty) {
+        counts[nurseId] = cnt;
+      }
+    }
+    return counts;
+  }
+
+  /// جلب حالات ممرض في تاريخ معين - Get cases for a nurse on a specific date
+  Future<List<Map<String, dynamic>>> getCasesByNurseAndDate(String nurseId, String date) async {
+    final db = await database;
+    final results = await db.query(
+      'cases',
+      where: "nurseId = ? AND caseDate LIKE ?",
+      whereArgs: [nurseId, '$date%'],
+      orderBy: 'caseDate DESC',
+    );
+    return results;
+  }
+
   /// إنشاء نسخة احتياطية - Create backup
   Future<String> createBackup() async {
     final dbPath = await _getDatabasePath();

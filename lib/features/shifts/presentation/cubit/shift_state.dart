@@ -16,12 +16,14 @@ class ShiftLoaded extends ShiftState {
   final ShiftModel? todayShift; // وردية المستخدم الحالي اليوم
   final String searchQuery;
   final String selectedDate;
+  final Map<String, int> caseCounts; // عدد الحالات لكل ممرض - case count per nurse
 
   const ShiftLoaded({
     required this.shifts,
     this.todayShift,
     this.searchQuery = '',
     this.selectedDate = '',
+    this.caseCounts = const {},
   });
 
   List<ShiftModel> get filteredShifts {
@@ -34,7 +36,7 @@ class ShiftLoaded extends ShiftState {
   }
 
   @override
-  List<Object?> get props => [shifts, todayShift, searchQuery, selectedDate];
+  List<Object?> get props => [shifts, todayShift, searchQuery, selectedDate, caseCounts];
 }
 
 class ShiftError extends ShiftState {
