@@ -21,18 +21,17 @@ class SyncService {
   /// مزامنة كاملة (تراكمية) - Full incremental sync
   Future<void> syncFromFirebase() async {
     if (!await isOnline()) return;
-
+    print(2632);
     try {
       // Use SyncManager's delta sync to avoid heavy downloads
       await _sync.syncAll();
-      
+
       await _sqlite.insert('settings', {
         'id': 'lastSyncTime', // Ensure id is set for getById compatibility
         'key': 'lastSyncTime',
         'value': DateTime.now().toIso8601String(),
         'updatedAt': DateTime.now().toIso8601String(),
       }, overwrite: true);
-      
     } catch (e) {
       sl<ErrorCubit>().showError('فشلت عملية المزامنة: $e');
       rethrow;
@@ -50,12 +49,12 @@ class SyncService {
   Future<String> backupWithSync() async {
     // 1. Sync pending operations first
     await _sync.processQueue();
-    
+
     // 2. Refresh local data if online
     if (await isOnline()) {
       await syncFromFirebase();
     }
-    
+
     // 3. Create backup file
     return await _sqlite.createBackup();
   }

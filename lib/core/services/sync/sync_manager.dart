@@ -186,7 +186,7 @@ class SyncManager {
       'pending_sync',
       orderBy: 'createdAt ASC',
       limit:
-          10, // Process max 10 operations per cycle to prevent overwhelming the API
+          50, // Process max 10 operations per cycle to prevent overwhelming the API
     );
 
     if (pending.isEmpty) return;
@@ -616,7 +616,10 @@ class SyncManager {
     );
   }
 
-  Future<void> savePayrollWithSync(PayrollModel payroll, {bool isNew = true}) async {
+  Future<void> savePayrollWithSync(
+    PayrollModel payroll, {
+    bool isNew = true,
+  }) async {
     await _sqliteService.insert('payroll', payroll.toSqliteMap());
     await enqueue(
       tableName: 'payroll',
@@ -626,7 +629,10 @@ class SyncManager {
     );
   }
 
-  Future<void> saveExpenseWithSync(ExpenseModel expense, {bool isNew = true}) async {
+  Future<void> saveExpenseWithSync(
+    ExpenseModel expense, {
+    bool isNew = true,
+  }) async {
     await _sqliteService.insert('expenses', expense.toSqliteMap());
     await enqueue(
       tableName: 'expenses',
