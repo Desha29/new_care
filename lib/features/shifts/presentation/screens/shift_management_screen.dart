@@ -766,9 +766,10 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                                     _caseInfoChip(Icons.phone_rounded, c.patientPhone.isNotEmpty ? c.patientPhone : '-'),
                                     _caseInfoChip(Icons.person_rounded, '${c.patientAge} سنة - ${c.patientGenderLabel}'),
                                     _caseInfoChip(
-                                      c.caseType.value == 'outside' ? Icons.directions_car_rounded : Icons.local_hospital_rounded,
-                                      c.caseType.value == 'outside' ? 'زيارة خارجية' : 'داخل المركز',
+                                      c.caseType.icon,
+                                      c.caseType.label,
                                     ),
+
                                   ],
                                 ),
 
