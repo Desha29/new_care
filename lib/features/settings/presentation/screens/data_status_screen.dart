@@ -14,6 +14,8 @@ import '../../../inventory/presentation/cubit/inventory_cubit.dart';
 import '../../../procedures/presentation/cubit/procedures_cubit.dart';
 import '../../../financials/presentation/cubit/financials_cubit.dart';
 import '../../../dashboard/presentation/cubit/dashboard_cubit.dart';
+import '../../../../core/widgets/sync_progress_dialog.dart';
+
 
 class DataStatusScreen extends StatefulWidget {
   const DataStatusScreen({super.key});
@@ -293,10 +295,11 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
             PrimaryButton(
               label: 'مزامنة الآن',
               onPressed: () async {
-                setState(() => _isLoading = true);
+                SyncProgressDialog.show(context, title: 'مزامنة شاملة');
                 await SyncManager.instance.syncAll();
                 _loadData();
               },
+
             ),
         ],
       ),
@@ -310,10 +313,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
         color: AppColors.primaryDark,
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
-          colors: [
-            AppColors.primaryDark,
-            AppColors.primary.withOpacity(0.8),
-          ],
+          colors: [AppColors.primaryDark, AppColors.primary.withOpacity(0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -497,9 +497,11 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                 ? null
                 : () async {
                     try {
-                      setState(() => _isLoading = true);
+                      // عرض ديالوج التقدم
+                      SyncProgressDialog.show(context, title: 'مزامنة شاملة');
                       await SyncManager.instance.syncAll();
                       await _loadData();
+
 
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -514,6 +516,10 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                       }
                     } catch (e) {
                       if (mounted) {
+                        // Close dialog if still open
+                        if (Navigator.of(context).canPop()) {
+                          Navigator.of(context).pop();
+                        }
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -523,10 +529,6 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                             backgroundColor: Colors.red,
                           ),
                         );
-                      }
-                    } finally {
-                      if (mounted) {
-                        setState(() => _isLoading = false);
                       }
                     }
                   },
@@ -556,24 +558,30 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                 ? null
                 : () async {
                     try {
-                      setState(() => _isLoading = true);
+                      // عرض ديالوج التقدم
+                      SyncProgressDialog.show(context, title: 'تحميل من السحابة');
                       await SyncManager.instance.downloadFromCloud();
                       await _loadData();
 
+
                       // === تحديث جميع الشاشات بعد التحميل من السحابة ===
-                      // Refresh all cubits so screens show updated data
                       if (mounted) {
                         context.read<CasesCubit>().loadCases(force: true);
-                        context.read<InventoryCubit>().loadInventory(force: true);
-                        context.read<ProceduresCubit>().loadProcedures(force: true);
-                        context.read<FinancialsCubit>().loadFinancials(force: true);
-                        context.read<DashboardCubit>().loadDashboardData(force: true);
+                        context.read<InventoryCubit>().loadInventory(
+                          force: true,
+                        );
+                        context.read<ProceduresCubit>().loadProcedures(
+                          force: true,
+                        );
+                        context.read<FinancialsCubit>().loadFinancials(
+                          force: true,
+                        );
+                        context.read<DashboardCubit>().loadDashboardData(
+                          force: true,
+                        );
                       }
 
-                      // Fire CaseChangeNotifier to refresh ReportsScreen
                       CaseChangeNotifier().notifyCaseUpdated('cloud_download');
-
-                      // Fire DataChangeNotifier to refresh UsersScreen and any other listeners
                       DataChangeNotifier().notifyCloudDownloadCompleted();
 
                       if (mounted) {
@@ -589,6 +597,9 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                       }
                     } catch (e) {
                       if (mounted) {
+                        if (Navigator.of(context).canPop()) {
+                          Navigator.of(context).pop();
+                        }
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -598,10 +609,6 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                             backgroundColor: Colors.red,
                           ),
                         );
-                      }
-                    } finally {
-                      if (mounted) {
-                        setState(() => _isLoading = false);
                       }
                     }
                   },
@@ -665,4 +672,3 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
     );
   }
 }
-

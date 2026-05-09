@@ -456,6 +456,20 @@ class FirebaseService {
         .toList();
   }
 
+  /// جلب جميع سجلات الحضور - Get all attendance records
+  Future<List<AttendanceModel>> getAllAttendance() async {
+    _incRead();
+    final snapshot = await _attendanceRef.get();
+    return snapshot.docs
+        .map(
+          (doc) => AttendanceModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
+        .toList();
+  }
+
   // ============================================
   // === الورديات - Shifts ===
   // ============================================
@@ -506,6 +520,18 @@ class FirebaseService {
         .toList();
   }
 
+  /// جلب جميع الورديات - Get all shifts
+  Future<List<ShiftModel>> getAllShifts() async {
+    _incRead();
+    final snapshot = await _shiftsRef.get();
+    return snapshot.docs
+        .map(
+          (doc) =>
+              ShiftModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+        )
+        .toList();
+  }
+
   // ============================================
   // === الرواتب - Payroll ===
   // ============================================
@@ -528,6 +554,20 @@ class FirebaseService {
   }
 
   Future<List<PayrollModel>> getUpdatedPayroll(DateTime lastSync) async {
+    _incRead();
+    final snapshot = await _payrollRef.get();
+    return snapshot.docs
+        .map(
+          (doc) => PayrollModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
+        .toList();
+  }
+
+  /// جلب جميع سجلات الرواتب - Get all payroll records
+  Future<List<PayrollModel>> getAllPayroll() async {
     _incRead();
     final snapshot = await _payrollRef.get();
     return snapshot.docs
@@ -585,6 +625,38 @@ class FirebaseService {
           ),
         )
         .toList();
+  }
+
+  // ============================================
+  // === مسح البيانات - Clear Data ===
+  // ============================================
+
+  /// مسح كل documents في collection معين
+  /// Delete all documents in a specific collection
+  Future<void> clearCollection(CollectionReference collection) async {
+    final snapshots = await collection.get();
+    final batch = _firestore.batch();
+    for (final doc in snapshots.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+    _incWrite();
+    log('[FirebaseService] Cleared ${snapshots.docs.length} docs from ${collection.path}');
+  }
+
+  /// مسح كل البيانات من جميع الـ collections
+  /// Clear all data from all collections
+  Future<void> clearAllCollections() async {
+    log('[FirebaseService] Clearing all Firestore collections...');
+    await clearCollection(_usersRef);
+    await clearCollection(_casesRef);
+    await clearCollection(_inventoryRef);
+    await clearCollection(_proceduresRef);
+    await clearCollection(_shiftsRef);
+    await clearCollection(_attendanceRef);
+    await clearCollection(_payrollRef);
+    await clearCollection(_expensesRef);
+    log('[FirebaseService] ✓ All collections cleared');
   }
 
   // ============================================

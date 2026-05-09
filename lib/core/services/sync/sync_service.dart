@@ -18,31 +18,17 @@ class SyncService {
     return _connectivity.isOnline;
   }
 
-  /// مزامنة كاملة (تراكمية) - Full incremental sync
+  /// مزامنة شاملة - رفع كل البيانات المحلية إلى Firestore
   Future<void> syncFromFirebase() async {
     if (!await isOnline()) return;
     print(2632);
     try {
-      // Use SyncManager's delta sync to avoid heavy downloads
+      // رفع كل البيانات من SQLite إلى Firestore (كل حاجة مش بس الجديد)
       await _sync.syncAll();
-
-      await _sqlite.insert('settings', {
-        'id': 'lastSyncTime', // Ensure id is set for getById compatibility
-        'key': 'lastSyncTime',
-        'value': DateTime.now().toIso8601String(),
-        'updatedAt': DateTime.now().toIso8601String(),
-      }, overwrite: true);
     } catch (e) {
       sl<ErrorCubit>().showError('فشلت عملية المزامنة: $e');
       rethrow;
     }
-  }
-
-  /// جلب وقت آخر مزامنة - Get last sync time
-  Future<DateTime?> getLastSyncTime() async {
-    final result = await _sqlite.getById('settings', 'lastSyncTime');
-    if (result == null) return null;
-    return DateTime.tryParse(result['value'] ?? '');
   }
 
   /// نسخ احتياطي مع مزامنة - Backup with sync

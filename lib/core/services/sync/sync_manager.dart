@@ -13,6 +13,11 @@ import 'package:new_care/features/procedures/data/models/procedure_model.dart';
 import 'package:new_care/features/auth/data/models/user_model.dart';
 import 'package:new_care/features/payroll/data/models/payroll_model.dart';
 import 'package:new_care/features/financials/data/models/expense_model.dart';
+import 'package:new_care/core/services/sync/sync_progress.dart';
+
+
+
+
 
 /// خدمة المزامنة الشاملة (الجيل الثاني) - SyncManager v2
 /// Robust, queue-based, offline-first sync orchestrator.
@@ -25,6 +30,10 @@ class SyncManager {
   bool _isSyncing = false;
   Timer? _autoSyncTimer;
   StreamSubscription? _connectivitySub;
+
+  // بث تقدم المزامنة - Sync progress stream
+  final _progressController = StreamController<SyncProgress>.broadcast();
+  Stream<SyncProgress> get progressStream => _progressController.stream;
 
   SyncManager._()
     : _firebaseService = FirebaseService.instance,
@@ -59,6 +68,19 @@ class SyncManager {
   void dispose() {
     _autoSyncTimer?.cancel();
     _connectivitySub?.cancel();
+    _progressController.close();
+  }
+
+  /// بث تقدم المزامنة للواجهة - Emit progress to UI
+  void _emitProgress(String message, {String icon = '🔄', int step = 0, int total = 1, bool isDone = false, bool isError = false}) {
+    _progressController.add(SyncProgress(
+      message: message,
+      icon: icon,
+      currentStep: step,
+      totalSteps: total,
+      isDone: isDone,
+      isError: isError,
+    ));
   }
 
   // ============================================
@@ -122,7 +144,8 @@ class SyncManager {
   // === المزامنة - Synchronization ===
   // ============================================
 
-  /// مزامنة كاملة - Full Sync Orchestration
+  /// مزامنة شاملة - رفع كل البيانات المحلية إلى Firestore
+  /// Full Sync: Upload ALL local database records to Firestore (not just pending)
   Future<void> syncAll() async {
     if (_isSyncing) return;
 
@@ -130,27 +153,15 @@ class SyncManager {
     if (!isConnected) return;
 
     _isSyncing = true;
-    log('[SyncManager] Starting sync cycle...');
+    log('[SyncManager] Starting FULL sync (uploading all local data)...');
 
     try {
-      // 1. Process local changes -> Firebase (Upload)
-      try {
-        await _uploadPendingChanges();
-      } catch (e) {
-        log('[SyncManager] Upload phase error (continuing): $e');
-        // Continue to download phase even if upload fails
-      }
+      // رفع كل البيانات من قاعدة البيانات المحلية إلى Firestore
+      await _uploadAllLocalData();
 
-      // 2. Process remote changes -> Local (Download)
-      try {
-        await _downloadDeltaChanges();
-      } catch (e) {
-        log('[SyncManager] Download phase error: $e');
-      }
-
-      log('[SyncManager] Sync cycle completed successfully');
+      log('[SyncManager] Full sync completed successfully');
     } catch (e) {
-      log('[SyncManager] Sync cycle failed: $e');
+      log('[SyncManager] Full sync failed: $e');
     } finally {
       _isSyncing = false;
     }
@@ -162,7 +173,8 @@ class SyncManager {
   }
 
   /// تحميل كل البيانات من السحابة - Download all data from Firestore to local SQLite
-  /// Used for initial app sync and manual "تحميل من السحابة" button
+  /// يضيف الجديد فقط بدون حذف البيانات الموجودة
+  /// Downloads ALL Firestore data and merges into local DB (no deletes, only add/update)
   Future<void> downloadFromCloud() async {
     final isConnected = await _connectivityService.checkConnection();
     if (!isConnected) {
@@ -170,9 +182,9 @@ class SyncManager {
       return;
     }
 
-    log('[SyncManager] Downloading all data from cloud...');
+    log('[SyncManager] Downloading ALL data from cloud (merge mode)...');
     try {
-      await _downloadDeltaChanges();
+      await _downloadAllFromCloud();
       log('[SyncManager] Cloud download completed');
     } catch (e) {
       log('[SyncManager] Cloud download error: $e');
@@ -440,117 +452,218 @@ class SyncManager {
     }
   }
 
-  /// تنزيل التغييرات الجديدة - Download only what changed since last sync
-  Future<void> _downloadDeltaChanges() async {
-    try {
-      final lastSync = await _sqliteService.getLastSync();
-      log('[SyncManager] Fetching delta since $lastSync');
+  /// استبدال كل البيانات في Firestore بالبيانات المحلية
+  /// Replace ALL Firestore data with local SQLite data
+  Future<void> _uploadAllLocalData() async {
+    final db = await _sqliteService.database;
+    const totalSteps = 10; // clear + 8 tables + done
 
-      // Run downloads with timeout protection and error handling
+    try {
+      // 0. مسح كل البيانات من Firestore
+      _emitProgress('مسح البيانات القديمة...', icon: '🗑️', step: 0, total: totalSteps);
+      log('[SyncManager] Clearing all Firestore data...');
+      await _firebaseService.clearAllCollections();
+
+      // 1. رفع المستخدمين
+      final users = await db.query('users');
+      _emitProgress('الموظفين — ${users.length} سجل', icon: '👥', step: 1, total: totalSteps);
+      log('[SyncManager] Uploading ${users.length} users...');
+      for (var u in users) {
+        try {
+          final model = UserModel.fromMap(u, u['id'] as String);
+          await _firebaseService.updateUser(model).timeout(const Duration(seconds: 30));
+          await Future.delayed(const Duration(milliseconds: 100));
+        } catch (e) {
+          log('[SyncManager] ❌ Failed to upload user ${u['id']}: $e');
+        }
+      }
+
+      // 2. رفع الحالات
+      final cases = await db.query('cases');
+      _emitProgress('الحالات — ${cases.length} سجل', icon: '🏥', step: 2, total: totalSteps);
+      log('[SyncManager] Uploading ${cases.length} cases...');
+      for (var c in cases) {
+        try {
+          final model = CaseModel.fromMap(c, c['id'] as String);
+          await _firebaseService.updateCase(model).timeout(const Duration(seconds: 30));
+          await Future.delayed(const Duration(milliseconds: 100));
+        } catch (e) {
+          log('[SyncManager] ❌ Failed to upload case ${c['id']}: $e');
+        }
+      }
+
+      // 3. رفع المخزون
+      final inventory = await db.query('inventory');
+      _emitProgress('المخزون — ${inventory.length} صنف', icon: '📦', step: 3, total: totalSteps);
+      log('[SyncManager] Uploading ${inventory.length} inventory items...');
+      for (var i in inventory) {
+        try {
+          final model = InventoryModel.fromMap(i, i['id'] as String);
+          await _firebaseService.updateInventoryItem(model).timeout(const Duration(seconds: 30));
+          await Future.delayed(const Duration(milliseconds: 100));
+        } catch (e) {
+          log('[SyncManager] ❌ Failed to upload inventory ${i['id']}: $e');
+        }
+      }
+
+      // 4. رفع الإجراءات
+      final procedures = await db.query('procedures');
+      _emitProgress('الإجراءات — ${procedures.length} إجراء', icon: '💊', step: 4, total: totalSteps);
+      log('[SyncManager] Uploading ${procedures.length} procedures...');
+      for (var p in procedures) {
+        try {
+          final model = ProcedureModel.fromMap(p, p['id'] as String);
+          await _firebaseService.updateProcedure(model).timeout(const Duration(seconds: 30));
+          await Future.delayed(const Duration(milliseconds: 100));
+        } catch (e) {
+          log('[SyncManager] ❌ Failed to upload procedure ${p['id']}: $e');
+        }
+      }
+
+      // 5. رفع الورديات
+      final shifts = await db.query('shifts');
+      _emitProgress('الورديات — ${shifts.length} وردية', icon: '📅', step: 5, total: totalSteps);
+      log('[SyncManager] Uploading ${shifts.length} shifts...');
+      for (var s in shifts) {
+        try {
+          final model = ShiftModel.fromMap(s, s['id'] as String);
+          await _firebaseService.updateShift(model).timeout(const Duration(seconds: 30));
+          await Future.delayed(const Duration(milliseconds: 100));
+        } catch (e) {
+          log('[SyncManager] ❌ Failed to upload shift ${s['id']}: $e');
+        }
+      }
+
+      // 6. رفع الحضور
+      final attendance = await db.query('attendance');
+      _emitProgress('الحضور — ${attendance.length} سجل', icon: '✅', step: 6, total: totalSteps);
+      log('[SyncManager] Uploading ${attendance.length} attendance records...');
+      for (var a in attendance) {
+        try {
+          final model = AttendanceModel.fromMap(a, a['id'] as String);
+          await _firebaseService.checkIn(model).timeout(const Duration(seconds: 30));
+          await Future.delayed(const Duration(milliseconds: 100));
+        } catch (e) {
+          log('[SyncManager] ❌ Failed to upload attendance ${a['id']}: $e');
+        }
+      }
+
+      // 7. رفع الرواتب
+      final payroll = await db.query('payroll');
+      _emitProgress('الرواتب — ${payroll.length} سجل', icon: '💰', step: 7, total: totalSteps);
+      log('[SyncManager] Uploading ${payroll.length} payroll records...');
+      for (var p in payroll) {
+        try {
+          final model = PayrollModel.fromMap(p, p['id'] as String);
+          await _firebaseService.updatePayroll(model).timeout(const Duration(seconds: 30));
+          await Future.delayed(const Duration(milliseconds: 100));
+        } catch (e) {
+          log('[SyncManager] ❌ Failed to upload payroll ${p['id']}: $e');
+        }
+      }
+
+      // 8. رفع المصاريف
+      final expenses = await db.query('expenses');
+      _emitProgress('المصاريف — ${expenses.length} سجل', icon: '💳', step: 8, total: totalSteps);
+      log('[SyncManager] Uploading ${expenses.length} expenses...');
+      for (var ex in expenses) {
+        try {
+          final model = ExpenseModel.fromMap(ex, ex['id'] as String);
+          await _firebaseService.updateExpense(model).timeout(const Duration(seconds: 30));
+          await Future.delayed(const Duration(milliseconds: 100));
+        } catch (e) {
+          log('[SyncManager] ❌ Failed to upload expense ${ex['id']}: $e');
+        }
+      }
+
+      // 9. مسح طابور المزامنة
+      _emitProgress('تنظيف الطابور...', icon: '🧹', step: 9, total: totalSteps);
+      await db.delete('pending_sync');
+      _emitProgress('تمت المزامنة بنجاح ✓', icon: '🎉', step: totalSteps, total: totalSteps, isDone: true);
+      log('[SyncManager] ✓ All local data uploaded & pending queue cleared');
+
+    } catch (e) {
+      _emitProgress('فشلت المزامنة: $e', icon: '❌', isError: true);
+      log('[SyncManager] Upload all local data error: $e');
+      rethrow;
+    }
+  }
+
+  /// تنزيل كل البيانات من Firestore إلى SQLite (بدون حذف - إضافة/تحديث فقط)
+  /// Download ALL data from Firestore and merge into SQLite (no deletes, only insert/update)
+  Future<void> _downloadAllFromCloud() async {
+    try {
+      _emitProgress('جاري تحميل البيانات من السحابة...', icon: '☁️', step: 0, total: 3);
+      log('[SyncManager] Fetching ALL data from Firestore...');
+
+      // Run all downloads in parallel with timeout protection
       final results = await Future.wait([
-        _firebaseService
-            .getUpdatedCases(lastSync)
-            .timeout(const Duration(seconds: 30))
-            .catchError((e) {
-              log('[SyncManager] Failed to fetch cases: $e');
-              return <CaseModel>[];
-            }),
-        _firebaseService
-            .getUpdatedUsers(lastSync)
-            .timeout(const Duration(seconds: 30))
-            .catchError((e) {
-              log('[SyncManager] Failed to fetch users: $e');
-              return <UserModel>[];
-            }),
-        _firebaseService
-            .getUpdatedInventory(lastSync)
-            .timeout(const Duration(seconds: 30))
-            .catchError((e) {
-              log('[SyncManager] Failed to fetch inventory: $e');
-              return <InventoryModel>[];
-            }),
-        _firebaseService
-            .getUpdatedProcedures(lastSync)
-            .timeout(const Duration(seconds: 30))
-            .catchError((e) {
-              log('[SyncManager] Failed to fetch procedures: $e');
-              return <ProcedureModel>[];
-            }),
-        _firebaseService
-            .getUpdatedPayroll(lastSync)
-            .timeout(const Duration(seconds: 30))
-            .catchError((e) {
-              log('[SyncManager] Failed to fetch payroll: $e');
-              return <PayrollModel>[];
-            }),
-        _firebaseService
-            .getUpdatedExpenses(lastSync)
-            .timeout(const Duration(seconds: 30))
-            .catchError((e) {
-              log('[SyncManager] Failed to fetch expenses: $e');
-              return <ExpenseModel>[];
-            }),
+        _firebaseService.getAllCases().timeout(const Duration(seconds: 60)).catchError((e) {
+          log('[SyncManager] Failed to fetch cases: $e');
+          return <CaseModel>[];
+        }),
+        _firebaseService.getAllUsers().timeout(const Duration(seconds: 60)).catchError((e) {
+          log('[SyncManager] Failed to fetch users: $e');
+          return <UserModel>[];
+        }),
+        _firebaseService.getAllInventory().timeout(const Duration(seconds: 60)).catchError((e) {
+          log('[SyncManager] Failed to fetch inventory: $e');
+          return <InventoryModel>[];
+        }),
+        _firebaseService.getAllProcedures().timeout(const Duration(seconds: 60)).catchError((e) {
+          log('[SyncManager] Failed to fetch procedures: $e');
+          return <ProcedureModel>[];
+        }),
+        _firebaseService.getAllShifts().timeout(const Duration(seconds: 60)).catchError((e) {
+          log('[SyncManager] Failed to fetch shifts: $e');
+          return <ShiftModel>[];
+        }),
+        _firebaseService.getAllAttendance().timeout(const Duration(seconds: 60)).catchError((e) {
+          log('[SyncManager] Failed to fetch attendance: $e');
+          return <AttendanceModel>[];
+        }),
+        _firebaseService.getAllPayroll().timeout(const Duration(seconds: 60)).catchError((e) {
+          log('[SyncManager] Failed to fetch payroll: $e');
+          return <PayrollModel>[];
+        }),
+        _firebaseService.getAllExpenses().timeout(const Duration(seconds: 60)).catchError((e) {
+          log('[SyncManager] Failed to fetch expenses: $e');
+          return <ExpenseModel>[];
+        }),
       ]);
 
-      // Small delay between download and write to avoid rapid operations
       await Future.delayed(const Duration(milliseconds: 200));
 
+      _emitProgress('حفظ البيانات محلياً...', icon: '💾', step: 1, total: 3);
+
+      // إدراج البيانات في SQLite بدون حذف أي شيء (INSERT OR REPLACE)
       await _sqliteService.runTransaction((txn) async {
         try {
           final batch = txn.batch();
 
-          // 1. Cases
           for (var c in results[0] as List<CaseModel>) {
-            batch.insert(
-              'cases',
-              c.toSqliteMap(),
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
+            batch.insert('cases', c.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
           }
-
-          // 2. Users
           for (var u in results[1] as List<UserModel>) {
-            batch.insert(
-              'users',
-              u.toSqliteMap(),
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
+            batch.insert('users', u.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
           }
-
-          // 3. Inventory
           for (var i in results[2] as List<InventoryModel>) {
-            batch.insert(
-              'inventory',
-              i.toSqliteMap(),
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
+            batch.insert('inventory', i.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
           }
-
-          // 4. Procedures
           for (var p in results[3] as List<ProcedureModel>) {
-            batch.insert(
-              'procedures',
-              p.toSqliteMap(),
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
+            batch.insert('procedures', p.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
           }
-
-          // 5. Payroll
-          for (var p in results[4] as List<PayrollModel>) {
-            batch.insert(
-              'payroll',
-              p.toSqliteMap(),
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
+          for (var s in results[4] as List<ShiftModel>) {
+            batch.insert('shifts', s.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
           }
-
-          // 6. Expenses
-          for (var e in results[5] as List<ExpenseModel>) {
-            batch.insert(
-              'expenses',
-              e.toSqliteMap(),
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
+          for (var a in results[5] as List<AttendanceModel>) {
+            batch.insert('attendance', a.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+          for (var p in results[6] as List<PayrollModel>) {
+            batch.insert('payroll', p.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+          for (var e in results[7] as List<ExpenseModel>) {
+            batch.insert('expenses', e.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
           }
 
           await batch.commit(noResult: true);
@@ -560,11 +673,13 @@ class SyncManager {
         }
       });
 
-      await _sqliteService.updateLastSync();
-      log('[SyncManager] Delta sync applied');
+      final totalRecords = results.fold<int>(0, (sum, list) => sum + (list as List).length);
+      _emitProgress('تم تحميل $totalRecords سجل بنجاح ✓', icon: '🎉', step: 3, total: 3, isDone: true);
+      log('[SyncManager] ✓ Downloaded & merged $totalRecords records from cloud');
     } catch (e) {
-      log('[SyncManager] Download delta changes error: $e');
-      // Don't rethrow - download failures shouldn't crash the sync cycle
+      _emitProgress('فشل التحميل: $e', icon: '❌', isError: true);
+      log('[SyncManager] Download all from cloud error: $e');
+      // Don't rethrow - download failures shouldn't crash the app
     }
   }
 

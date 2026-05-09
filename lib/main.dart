@@ -45,6 +45,19 @@ void main() async {
   await NotificationService.instance.initialize();
   Bloc.observer = AppBlocObserver();
 
+  // تجاهل أخطاء Flutter المعروفة على Windows (مشاكل لوحة المفاتيح)
+  // Suppress known Flutter Windows keyboard event bugs
+  FlutterError.onError = (FlutterErrorDetails details) {
+    final error = details.exceptionAsString();
+    if (error.contains('physicalKey is already pressed') ||
+        error.contains('is not currently pressed')) {
+      // Known Flutter Windows bug - safe to ignore
+      return;
+    }
+    // For all other errors, use the default handler
+    FlutterError.presentError(details);
+  };
+
   runApp(const NewCareApp());
 
   // تحميل البيانات من السحابة وبدء المستمعين بعد استقرار الواجهة
