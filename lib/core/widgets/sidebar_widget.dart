@@ -14,6 +14,11 @@ import '../../features/inventory/presentation/cubit/inventory_cubit.dart';
 import '../../features/inventory/presentation/cubit/inventory_state.dart';
 import '../../features/users/presentation/cubit/users_cubit.dart';
 import '../../features/users/presentation/cubit/users_state.dart';
+import '../../features/shifts/presentation/cubit/shift_cubit.dart';
+import '../../features/shifts/presentation/cubit/shift_state.dart';
+import '../../features/financials/presentation/cubit/financials_cubit.dart';
+import '../../features/payroll/presentation/cubit/payroll_cubit.dart';
+import '../../features/payroll/presentation/cubit/payroll_state.dart';
 
 /// نموذج عنصر الشريط الجانبي
 class _SidebarItem {
@@ -313,6 +318,12 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                           _buildInventoryCounter()
                         else if (item.label == AppStrings.users)
                           _buildUsersCounter()
+                        else if (item.label == 'إدارة الورديات')
+                          _buildShiftsCounter()
+                        else if (item.label == 'المالية')
+                          _buildFinancialsCounter()
+                        else if (item.label == 'الرواتب')
+                          _buildPayrollCounter()
                         else if (isSelected)
                           Container(
                             width: 6,
@@ -387,6 +398,42 @@ class _SidebarWidgetState extends State<SidebarWidget> {
     );
   }
 
+  /// Shifts counter badge
+  Widget _buildShiftsCounter() {
+    return BlocBuilder<ShiftCubit, ShiftState>(
+      builder: (context, state) {
+        if (state is ShiftLoaded && state.shifts.isNotEmpty) {
+          return _buildBadge(state.shifts.length);
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  /// Financials total income badge
+  Widget _buildFinancialsCounter() {
+    return BlocBuilder<FinancialsCubit, FinancialsState>(
+      builder: (context, state) {
+        if (state is FinancialsLoaded && state.totalIncome > 0) {
+          return _buildAmountBadge(state.totalIncome);
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  /// Payroll total salaries badge
+  Widget _buildPayrollCounter() {
+    return BlocBuilder<PayrollCubit, PayrollState>(
+      builder: (context, state) {
+        if (state is PayrollLoaded && state.payrolls.isNotEmpty) {
+          return _buildAmountBadge(state.totalSalaries);
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
   Widget _buildBadge(int count) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -406,6 +453,39 @@ class _SidebarWidgetState extends State<SidebarWidget> {
         style: const TextStyle(
           color: Colors.white,
           fontSize: 10,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Cairo',
+        ),
+      ),
+    );
+  }
+
+  /// Badge for monetary amounts (formatted with K for thousands)
+  Widget _buildAmountBadge(double amount) {
+    String formatted;
+    if (amount >= 1000) {
+      formatted = '${(amount / 1000).toStringAsFixed(1)}K';
+    } else {
+      formatted = amount.toStringAsFixed(0);
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.success.withValues(alpha: 0.3),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        formatted,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
           fontWeight: FontWeight.bold,
           fontFamily: 'Cairo',
         ),
