@@ -19,6 +19,7 @@ class CasesCubit extends Cubit<CasesState> {
   StreamSubscription? _caseChangeSub;
   String? _activeNurseId; // حفظ فلتر الممرض - Store nurse filter for reloads
 
+
   CasesCubit({
     required ICasesRepository casesRepository,
     SyncManager? syncManager,
@@ -27,7 +28,8 @@ class CasesCubit extends Cubit<CasesState> {
        super(CasesInitial()) {
     // Listen for external case changes (e.g. outside_cases from nurse app)
     _caseChangeSub = CaseChangeNotifier().onCaseChanged.listen((event) {
-      loadCases(force: true);
+      // إعادة تحميل بنفس الفلتر المحفوظ - Reload with the stored filter
+      _reloadCases();
     });
   }
 
@@ -37,14 +39,21 @@ class CasesCubit extends Cubit<CasesState> {
     return super.close();
   }
 
-  /// تحميل الحالات مرة واحدة بدون stream
-  Future<void> loadCases({String? nurseId, bool force = false}) async {
-    // حفظ الفلتر لاستخدامه في إعادة التحميل التلقائي
-    // Store the filter; only update if explicitly provided
-    if (nurseId != null) {
-      _activeNurseId = nurseId;
-    }
+  /// إعادة تحميل داخلي بنفس الفلتر - Internal reload with stored filter
+  void _reloadCases() {
+    _loadCasesInternal(force: true);
+  }
 
+  /// تحميل الحالات من الشاشة - Load cases from screen (sets/resets filter)
+  Future<void> loadCases({String? nurseId, bool force = false}) async {
+    // دايماً حدّث الفلتر لما الشاشة تستدعي - Always update filter from screen
+    _activeNurseId = nurseId;
+    await _loadCasesInternal(force: force);
+
+  }
+
+  /// تحميل الحالات الفعلي - Actual case loading
+  Future<void> _loadCasesInternal({bool force = false}) async {
     if (!force && state is CasesLoaded) return;
 
     emit(CasesLoading());
@@ -57,6 +66,7 @@ class CasesCubit extends Cubit<CasesState> {
       emit(CasesError('خطأ في تحميل الحالات: ${e.toString()}'));
     }
   }
+
 
 
   void searchCases(String query) {

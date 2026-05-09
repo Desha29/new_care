@@ -82,7 +82,24 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
   }
 
   Future<void> _loadData() async {
-    _nurses = await FirebaseService.instance.getActiveNurses();
+    final allNurses = await FirebaseService.instance.getActiveNurses();
+
+    // إذا كان المستخدم ممرض، يظهر فقط هو في القائمة
+    // If logged-in user is a nurse, only show themselves
+    if (!mounted) return;
+    final authState = context.read<AuthCubit>().state;
+    if (authState is AuthAuthenticated && !authState.user.role.isAdmin) {
+      final me = allNurses.where((n) => n.id == authState.user.id).toList();
+      _nurses = me.isNotEmpty ? me : allNurses;
+      // تحديد الممرض تلقائياً - Auto-select the nurse
+      if (me.isNotEmpty && !_isEdit) {
+        _selNurseId = me.first.id;
+        _selNurseName = me.first.name;
+      }
+    } else {
+      _nurses = allNurses;
+    }
+
     if (_isEdit && _selNurseName != null) {
       final n =
           _nurses.where((e) => e.name == _selNurseName).firstOrNull ??
@@ -91,6 +108,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
         _selNurseId = n.id;
       }
     }
+
 
     if (!mounted) return;
     final procState = context.read<ProceduresCubit>().state;
