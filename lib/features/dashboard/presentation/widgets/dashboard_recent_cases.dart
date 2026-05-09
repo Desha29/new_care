@@ -65,7 +65,7 @@ class DashboardRecentCases extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 18,
-            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+            backgroundColor: AppColors.primary.withOpacity(0.1),
             child: const Icon(
               Icons.person_rounded,
               color: AppColors.primary,
@@ -104,3 +104,4 @@ class DashboardRecentCases extends StatelessWidget {
     );
   }
 }
+

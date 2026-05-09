@@ -101,6 +101,25 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   }
 
   /// توليد تقرير الحضور الشهري - Generate Monthly Attendance Report
+  /// Returns the report data (records + shifts) for preview usage
+  Future<Map<String, dynamic>?> getMonthlyReportData(int year, int month) async {
+    try {
+      final records = await _attendanceRepository.getMonthlyAttendanceRecords(
+        year,
+        month,
+      );
+      final shifts = await _shiftsRepository.getMonthlyShifts(year, month);
+      return {
+        'records': records,
+        'shifts': shifts,
+      };
+    } catch (e) {
+      emit(AttendanceError('خطأ في تحميل بيانات التقرير: ${e.toString()}'));
+      return null;
+    }
+  }
+
+  /// Legacy: Generate and print directly (kept for backward compat)
   Future<void> generateMonthlyReport(int year, int month) async {
     try {
       final records = await _attendanceRepository.getMonthlyAttendanceRecords(

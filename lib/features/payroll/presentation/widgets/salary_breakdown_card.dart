@@ -9,10 +9,14 @@ import '../../data/models/payroll_model.dart';
 /// تعرض تفاصيل راتب موظف واحد
 class SalaryBreakdownCard extends StatelessWidget {
   final PayrollModel payroll;
+  final VoidCallback? onClose;
+  final Function(double? bonus, double? deductions, String? notes)? onEdit;
 
   const SalaryBreakdownCard({
     super.key,
     required this.payroll,
+    this.onClose,
+    this.onEdit,
   });
 
   @override
@@ -56,13 +60,23 @@ class SalaryBreakdownCard extends StatelessWidget {
                   // === Financial Breakdown ===
                   _buildSectionTitle('التفاصيل المالية', Icons.payments_rounded),
                   const SizedBox(height: 12),
-                  _buildFinancialRow('الراتب الأساسي', payroll.baseSalary, isPositive: true),
+                  _buildFinancialRow(context, 'الراتب الأساسي', payroll.baseSalary, isPositive: true),
                   if (payroll.outsideCasesFees > 0)
-                    _buildFinancialRow('عمليات خارجية', payroll.outsideCasesFees, isPositive: true),
-                  if (payroll.bonus > 0)
-                    _buildFinancialRow('المكافآت', payroll.bonus, isPositive: true),
-                  if (payroll.deductions > 0)
-                    _buildFinancialRow('الخصومات', payroll.deductions, isPositive: false),
+                    _buildFinancialRow(context, 'عمليات خارجية', payroll.outsideCasesFees, isPositive: true),
+                  _buildFinancialRow(
+                    context, 
+                    'المكافآت والزيادات', 
+                    payroll.bonus, 
+                    isPositive: true,
+                    onEdit: onEdit != null ? () => _showEditDialog(context, 'bonus') : null,
+                  ),
+                  _buildFinancialRow(
+                    context, 
+                    'الخصومات والجزاءات', 
+                    payroll.deductions, 
+                    isPositive: false,
+                    onEdit: onEdit != null ? () => _showEditDialog(context, 'deductions') : null,
+                  ),
 
                   const SizedBox(height: 16),
 
@@ -116,6 +130,16 @@ class SalaryBreakdownCard extends StatelessWidget {
             ),
           ),
           _buildStatusChip(payroll.status),
+          if (onClose != null) ...[
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: onClose,
+              icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
         ],
       ),
     );
@@ -202,7 +226,13 @@ class SalaryBreakdownCard extends StatelessWidget {
     );
   }
 
-  Widget _buildFinancialRow(String label, double amount, {required bool isPositive}) {
+  Widget _buildFinancialRow(
+    BuildContext context, 
+    String label, 
+    double amount, {
+    required bool isPositive,
+    VoidCallback? onEdit,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -223,12 +253,36 @@ class SalaryBreakdownCard extends StatelessWidget {
               Text(label, style: AppTypography.tableCell),
             ],
           ),
-          Text(
-            '${isPositive ? '+' : '-'} ${NumberFormatter.currency(amount)}',
-            style: AppTypography.tableCell.copyWith(
-              fontWeight: FontWeight.w600,
-              color: isPositive ? AppColors.success : AppColors.error,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${isPositive ? '+' : '-'} ${NumberFormatter.currency(amount)}',
+                style: AppTypography.tableCell.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: isPositive ? AppColors.success : AppColors.error,
+                ),
+              ),
+              if (onEdit != null) ...[
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: onEdit,
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: (isPositive ? AppColors.success : AppColors.error).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Icon(
+                      Icons.edit_rounded, 
+                      size: 14, 
+                      color: isPositive ? AppColors.success : AppColors.error
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),
@@ -352,4 +406,64 @@ class SalaryBreakdownCard extends StatelessWidget {
       ),
     );
   }
+  void _showEditDialog(BuildContext context, String field) {
+    final controller = TextEditingController(
+      text: (field == 'bonus' ? payroll.bonus : payroll.deductions).toStringAsFixed(0),
+    );
+    final notesController = TextEditingController(text: payroll.notes);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          field == 'bonus' ? 'تعديل المكافآت والزيادات' : 'تعديل الخصومات والجزاءات',
+          style: const TextStyle(fontFamily: 'Cairo', fontSize: 16),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'المبلغ (E.P)',
+                border: OutlineInputBorder(),
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: notesController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'ملاحظات (اختياري)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = double.tryParse(controller.text);
+              if (val != null) {
+                onEdit!(
+                  field == 'bonus' ? val : null,
+                  field == 'deductions' ? val : null,
+                  notesController.text,
+                );
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('حفظ', style: TextStyle(fontFamily: 'Cairo')),
+          ),
+        ],
+      ),
+    );
+  }
 }
+

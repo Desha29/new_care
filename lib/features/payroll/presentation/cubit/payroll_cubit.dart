@@ -26,9 +26,6 @@ class PayrollCubit extends Cubit<PayrollState> {
   /// معامل الساعات الإضافية - Overtime multiplier
   static const double _overtimeMultiplier = 1.5;
 
-  /// مبلغ العملية الخارجية - Outside case fee (EGP)
-  static const double _outsideCaseFee = 15.0;
-
   PayrollCubit({required IPayrollRepository payrollRepository})
     : _payrollRepository = payrollRepository,
       super(PayrollInitial()) {
@@ -183,13 +180,13 @@ class PayrollCubit extends Cubit<PayrollState> {
       // === حساب أيام الغياب ===
       final int absentDays = (_expectedMonthlyDays - totalDays).clamp(0, _expectedMonthlyDays);
 
-      // === حساب مكافأة العمليات الخارجية ===
       final outsideCasesCount = allCases
           .where(
             (c) => c.nurseId == user.id && c.caseType == CaseType.homeVisit,
           )
           .length;
-      final double outsideCasesFees = outsideCasesCount * _outsideCaseFee;
+      final currentFee = await _payrollRepository.getOutsideCaseFee();
+      final double outsideCasesFees = outsideCasesCount * currentFee;
 
       // === حساب صافي الراتب ===
       // الصافي = الأساسي + العمليات الخارجية + الإضافي - الخصومات
@@ -314,6 +311,51 @@ class PayrollCubit extends Cubit<PayrollState> {
       }
     } catch (e) {
       emit(PayrollError('فشل تسجيل الدفع: $e'));
+    }
+  }
+
+  /// تحديث المكافآت والخصومات يدوياً - Update rewards and deductions manually
+  Future<void> updatePayrollExtras({
+    required String payrollId,
+    double? bonus,
+    double? deductions,
+    String? notes,
+  }) async {
+    try {
+      final index = _currentPayrolls.indexWhere((p) => p.id == payrollId);
+      if (index >= 0) {
+        final current = _currentPayrolls[index];
+        final updated = current.copyWith(
+          bonus: bonus ?? current.bonus,
+          deductions: deductions ?? current.deductions,
+          notes: notes ?? current.notes,
+        );
+        
+        // إعادة حساب الصافي - Re-calculate net salary based on model logic
+        final finalNet = updated.baseSalary + updated.bonus + updated.outsideCasesFees - updated.deductions;
+        final fullyUpdated = updated.copyWith(
+          netSalary: double.parse(finalNet.toStringAsFixed(2)),
+          updatedAt: DateTime.now(),
+        );
+
+        await _payrollRepository.updatePayroll(fullyUpdated);
+        _currentPayrolls[index] = fullyUpdated;
+        
+        emit(const PayrollActionSuccess('تم تحديث تفاصيل الراتب بنجاح'));
+        
+        final currentState = state;
+        if (currentState is PayrollLoaded) {
+          emit(
+            PayrollLoaded(
+              payrolls: List.from(_currentPayrolls),
+              selectedYear: currentState.selectedYear,
+              selectedMonth: currentState.selectedMonth,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      emit(PayrollError('فشل تحديث البيانات: $e'));
     }
   }
 }

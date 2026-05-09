@@ -103,10 +103,10 @@ class PayrollTable extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.05)
+              ? AppColors.primary.withOpacity(0.05)
               : index.isEven
                   ? Colors.transparent
-                  : AppColors.surfaceVariant.withValues(alpha: 0.3),
+                  : AppColors.surfaceVariant.withOpacity(0.3),
           border: isSelected
               ? Border(right: BorderSide(color: AppColors.primary, width: 3))
               : null,
@@ -120,7 +120,7 @@ class PayrollTable extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                    backgroundColor: AppColors.primary.withOpacity(0.1),
                     child: Text(
                       payroll.userName.isNotEmpty ? payroll.userName.substring(0, 1) : '?',
                       style: const TextStyle(
@@ -277,3 +277,4 @@ class PayrollTable extends StatelessWidget {
     );
   }
 }
+

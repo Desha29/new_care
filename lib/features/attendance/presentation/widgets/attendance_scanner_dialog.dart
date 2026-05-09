@@ -117,7 +117,7 @@ class _AttendanceScannerDialogState extends State<AttendanceScannerDialog> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
+                      color: Colors.black.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Text(
@@ -131,7 +131,7 @@ class _AttendanceScannerDialogState extends State<AttendanceScannerDialog> {
             // Processing Indicator
             if (_isProcessing)
               Container(
-                color: Colors.black.withValues(alpha: 0.7),
+                color: Colors.black.withOpacity(0.7),
                 child: const Center(
                   child: CircularProgressIndicator(color: Colors.white),
                 ),
@@ -201,7 +201,7 @@ class QrScannerOverlayShape extends ShapeBorder {
     );
 
     final backgroundPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.5)
+      ..color = Colors.black.withOpacity(0.5)
       ..style = PaintingStyle.fill;
 
     canvas.drawPath(
@@ -261,3 +261,4 @@ class QrScannerOverlayShape extends ShapeBorder {
   @override
   ShapeBorder scale(double t) => this;
 }
+

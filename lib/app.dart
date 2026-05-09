@@ -21,6 +21,7 @@ import 'features/attendance/presentation/cubit/attendance_cubit.dart';
 import 'features/payroll/presentation/cubit/payroll_cubit.dart';
 import 'features/dashboard/presentation/cubit/dashboard_cubit.dart';
 import 'features/attendance/presentation/cubit/attendance_state.dart';
+import 'features/users/presentation/cubit/users_cubit.dart';
 
 class NewCareApp extends StatelessWidget {
   static final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -42,6 +43,7 @@ class NewCareApp extends StatelessWidget {
         BlocProvider(create: (_) => sl<AttendanceCubit>()),
         BlocProvider(create: (_) => sl<PayrollCubit>()),
         BlocProvider(create: (_) => sl<DashboardCubit>()),
+        BlocProvider(create: (_) => sl<UsersCubit>()..loadUsers()),
       ],
       child: MaterialApp(
         title: AppStrings.appName,
@@ -161,7 +163,7 @@ class _SplashScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
+                    color: Colors.black.withOpacity(0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -194,7 +196,7 @@ class _SplashScreen extends StatelessWidget {
               style: TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.6),
+                color: Colors.white.withOpacity(0.6),
               ),
             ),
             const SizedBox(height: 32),
@@ -212,3 +214,4 @@ class _SplashScreen extends StatelessWidget {
     );
   }
 }
+

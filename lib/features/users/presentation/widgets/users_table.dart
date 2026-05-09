@@ -89,7 +89,7 @@ class UsersTable extends StatelessWidget {
                         ),
                         color: i.isEven
                             ? Colors.transparent
-                            : AppColors.surfaceVariant.withValues(alpha: 0.3),
+                            : AppColors.surfaceVariant.withOpacity(0.3),
                         child: Row(
                           children: [
                             Expanded(
@@ -98,7 +98,7 @@ class UsersTable extends StatelessWidget {
                                 children: [
                                   CircleAvatar(
                                     radius: 16,
-                                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                                    backgroundColor: AppColors.primary.withOpacity(0.1),
                                     child: Text(
                                       u.name.isNotEmpty ? u.name.substring(0, 1) : '?',
                                       style: const TextStyle(
@@ -263,3 +263,4 @@ class UsersTable extends StatelessWidget {
         ),
       );
 }
+

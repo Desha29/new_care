@@ -119,70 +119,66 @@ class _UsersScreenState extends State<UsersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      key: _blocKey,
-      create: (context) => sl<UsersCubit>()..loadUsers(),
-      child: BlocConsumer<UsersCubit, UsersState>(
-        listener: (context, state) {
-          if (state is UsersError) {
-            UIFeedback.showError(context, state.message);
-          } else if (state is UserOperationSuccess) {
-            UIFeedback.showSuccess(context, state.message);
-            context.read<UsersCubit>().resetState();
-          }
-        },
-        builder: (context, state) {
-          return Scaffold(
-            backgroundColor: AppColors.background,
-            body: state is UsersLoading
-                ? const Center(child: CircularProgressIndicator())
-                : Padding(
-                    padding: EdgeInsets.all(ResponsiveHelper.getScreenPadding(context)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_isOffline) _buildOfflineBanner(),
-                        UsersHeader(
-                          onRefresh: () => context.read<UsersCubit>().loadUsers(force: true),
-                          onAddUser: () => _showUserDialog(context),
-                          searchController: _searchController,
-                          onSearchChanged: (v) => context.read<UsersCubit>().searchUsers(v),
-                        ),
+    return BlocConsumer<UsersCubit, UsersState>(
+      listener: (context, state) {
+        if (state is UsersError) {
+          UIFeedback.showError(context, state.message);
+        } else if (state is UserOperationSuccess) {
+          UIFeedback.showSuccess(context, state.message);
+          context.read<UsersCubit>().resetState();
+        }
+      },
+      builder: (context, state) {
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: state is UsersLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Padding(
+                  padding: EdgeInsets.all(ResponsiveHelper.getScreenPadding(context)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_isOffline) _buildOfflineBanner(),
+                      UsersHeader(
+                        onRefresh: () => context.read<UsersCubit>().loadUsers(force: true),
+                        onAddUser: () => _showUserDialog(context),
+                        searchController: _searchController,
+                        onSearchChanged: (v) => context.read<UsersCubit>().searchUsers(v),
+                      ),
+                      const SizedBox(height: 20),
+                      if (state is UsersLoaded) ...[
+                        UsersStatsGrid(users: state.users),
                         const SizedBox(height: 20),
-                        if (state is UsersLoaded) ...[
-                          UsersStatsGrid(users: state.users),
-                          const SizedBox(height: 20),
-                          Expanded(
-                            child: UsersTable(
-                              users: state.filteredUsers,
-                              onEdit: (u) => _showUserDialog(context, user: u),
-                              onResetPassword: (u) => _resetPassword(context, u),
-                              onToggleStatus: (u) => context.read<UsersCubit>().toggleUserStatus(u),
-                              onDelete: (u) => _confirmDeleteUser(context, u),
+                        Expanded(
+                          child: UsersTable(
+                            users: state.filteredUsers,
+                            onEdit: (u) => _showUserDialog(context, user: u),
+                            onResetPassword: (u) => _resetPassword(context, u),
+                            onToggleStatus: (u) => context.read<UsersCubit>().toggleUserStatus(u),
+                            onDelete: (u) => _confirmDeleteUser(context, u),
+                          ),
+                        ),
+                      ] else if (state is UsersError)
+                        Expanded(
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(state.message, style: const TextStyle(fontFamily: 'Cairo')),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: () => context.read<UsersCubit>().loadUsers(force: true),
+                                  child: const Text('إعادة المحاولة', style: TextStyle(fontFamily: 'Cairo')),
+                                ),
+                              ],
                             ),
                           ),
-                        ] else if (state is UsersError)
-                          Expanded(
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(state.message, style: const TextStyle(fontFamily: 'Cairo')),
-                                  const SizedBox(height: 16),
-                                  ElevatedButton(
-                                    onPressed: () => context.read<UsersCubit>().loadUsers(force: true),
-                                    child: const Text('إعادة المحاولة', style: TextStyle(fontFamily: 'Cairo')),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
-          );
-        },
-      ),
+                ),
+        );
+      },
     );
   }
 
@@ -191,7 +187,7 @@ class _UsersScreenState extends State<UsersScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.1),
+        color: AppColors.error.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.error),
       ),
@@ -218,3 +214,4 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 }
+

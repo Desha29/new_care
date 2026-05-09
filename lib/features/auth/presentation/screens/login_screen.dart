@@ -132,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen>
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
+                              color: Colors.black.withOpacity(0.2),
                               blurRadius: 20,
                               offset: const Offset(0, 8),
                             ),
@@ -169,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen>
                       style: TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.7),
+                        color: Colors.white.withOpacity(0.7),
                       ),
                     ),
                     2,
@@ -267,7 +267,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.2),
+                                    color: Colors.black.withOpacity(0.2),
                                     blurRadius: 40,
                                     offset: const Offset(0, 15),
                                   ),
@@ -298,7 +298,7 @@ class _LoginScreenState extends State<LoginScreen>
                               letterSpacing: 1.5,
                               shadows: [
                                 Shadow(
-                                  color: Colors.black.withValues(alpha: 0.3),
+                                  color: Colors.black.withOpacity(0.3),
                                   blurRadius: 10,
                                   offset: const Offset(0, 5),
                                 ),
@@ -317,12 +317,12 @@ class _LoginScreenState extends State<LoginScreen>
                             decoration: BoxDecoration(
                               color: const Color(
                                 0xFFF4D03F,
-                              ).withValues(alpha: 0.2),
+                              ).withOpacity(0.2),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: const Color(
                                   0xFFF4D03F,
-                                ).withValues(alpha: 0.5),
+                                ).withOpacity(0.5),
                               ),
                             ),
                             child: Text(
@@ -417,7 +417,7 @@ class _LoginScreenState extends State<LoginScreen>
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadow.withValues(alpha: 0.1),
+            color: AppColors.shadow.withOpacity(0.1),
             blurRadius: 30,
             offset: const Offset(0, 10),
           ),
@@ -480,7 +480,7 @@ class _LoginScreenState extends State<LoginScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error.withValues(alpha: 0.5)),
+            Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error.withOpacity(0.5)),
             const SizedBox(height: 12),
             const Text(
               'لا يمكن تحميل قائمة المستخدمين',
@@ -806,7 +806,7 @@ class _LoginScreenState extends State<LoginScreen>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF4D03F).withValues(alpha: 0.15),
+                  color: const Color(0xFFF4D03F).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -834,7 +834,7 @@ class _LoginScreenState extends State<LoginScreen>
                       f['text'] as String,
                       style: TextStyle(
                         fontFamily: 'Cairo',
-                        color: Colors.white.withValues(alpha: 0.7),
+                        color: Colors.white.withOpacity(0.7),
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         height: 1.4,
@@ -935,15 +935,15 @@ class _HoverUserCardState extends State<_HoverUserCard> {
             decoration: BoxDecoration(
               color: _isHovered 
                 ? AppColors.surface 
-                : AppColors.surfaceVariant.withValues(alpha: 0.5),
+                : AppColors.surfaceVariant.withOpacity(0.5),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: _isHovered ? color : AppColors.border.withValues(alpha: 0.5),
+                color: _isHovered ? color : AppColors.border.withOpacity(0.5),
                 width: _isHovered ? 2 : 1,
               ),
               boxShadow: _isHovered ? [
                 BoxShadow(
-                  color: color.withValues(alpha: 0.2),
+                  color: color.withOpacity(0.2),
                   blurRadius: 15,
                   offset: const Offset(0, 8),
                 )
@@ -988,7 +988,7 @@ class _HoverUserCardState extends State<_HoverUserCard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
+                    color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -1009,4 +1009,5 @@ class _HoverUserCardState extends State<_HoverUserCard> {
     );
   }
 }
+
 

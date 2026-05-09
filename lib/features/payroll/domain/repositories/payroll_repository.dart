@@ -29,4 +29,10 @@ abstract class IPayrollRepository {
 
   /// حذف سجل راتب - Delete payroll record
   Future<void> deletePayroll(String payrollId);
+
+  /// جلب مبلغ العملية الخارجية - Get outside case fee
+  Future<double> getOutsideCaseFee();
+
+  /// تحديث سجل راتب بالكامل - Update full payroll record
+  Future<void> updatePayroll(PayrollModel payroll);
 }

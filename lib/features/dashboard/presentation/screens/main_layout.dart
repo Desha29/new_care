@@ -82,38 +82,40 @@ class _MainLayoutState extends State<MainLayout> {
                 child: BlocBuilder<AuthCubit, AuthState>(
                   builder: (context, state) {
                     final user = context.read<AuthCubit>().currentUser;
+                      return SidebarWidget(
+                        selectedIndex: _selectedIndex,
+                        onItemSelected: (index) {
+                          setState(() => _selectedIndex = index);
+                          Navigator.pop(context); // Close drawer after selection
+                        },
+                        userName: user?.name ?? 'مستخدم',
+                        userId: user?.id ?? '',
+                        userRole: user?.role.value ?? 'nurse',
+                        userRoleLabel: user?.role.label ?? 'ممرض',
+                      );
+                    },
+                  ),
+                )
+              : null,
+          body: Row(
+            children: [
+              // === الشريط الجانبي - Sidebar (desktop only) ===
+              if (!useDrawer)
+                BlocBuilder<AuthCubit, AuthState>(
+                  builder: (context, state) {
+                    final user = context.read<AuthCubit>().currentUser;
                     return SidebarWidget(
                       selectedIndex: _selectedIndex,
                       onItemSelected: (index) {
                         setState(() => _selectedIndex = index);
-                        Navigator.pop(context); // Close drawer after selection
                       },
                       userName: user?.name ?? 'مستخدم',
+                      userId: user?.id ?? '',
                       userRole: user?.role.value ?? 'nurse',
                       userRoleLabel: user?.role.label ?? 'ممرض',
                     );
                   },
                 ),
-              )
-            : null,
-        body: Row(
-          children: [
-            // === الشريط الجانبي - Sidebar (desktop only) ===
-            if (!useDrawer)
-              BlocBuilder<AuthCubit, AuthState>(
-                builder: (context, state) {
-                  final user = context.read<AuthCubit>().currentUser;
-                  return SidebarWidget(
-                    selectedIndex: _selectedIndex,
-                    onItemSelected: (index) {
-                      setState(() => _selectedIndex = index);
-                    },
-                    userName: user?.name ?? 'مستخدم',
-                    userRole: user?.role.value ?? 'nurse',
-                    userRoleLabel: user?.role.label ?? 'ممرض',
-                  );
-                },
-              ),
 
             // === المحتوى الرئيسي - Main Content ===
             Expanded(

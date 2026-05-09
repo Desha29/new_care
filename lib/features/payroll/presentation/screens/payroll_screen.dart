@@ -12,6 +12,11 @@ import '../cubit/payroll_state.dart';
 import '../../data/models/payroll_model.dart';
 import '../widgets/payroll_table.dart';
 import '../widgets/salary_breakdown_card.dart';
+import '../../../../core/services/local/sqlite_service.dart';
+import '../../../../core/services/pdf/report_service.dart';
+import '../../../../features/auth/presentation/cubit/auth_cubit.dart';
+import '../../../../features/auth/presentation/cubit/auth_state.dart';
+import '../../../../features/reports/presentation/screens/report_preview_screen.dart';
 
 /// شاشة الرواتب - Payroll Management Screen
 class PayrollScreen extends StatefulWidget {
@@ -126,6 +131,26 @@ class _PayrollScreenState extends State<PayrollScreen> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Outside Case Fee Editor
+            FutureBuilder<double>(
+              future: SqliteService.instance.getOutsideCaseFee(),
+              builder: (context, snapshot) {
+                final fee = snapshot.data ?? 15.0;
+                return TextButton.icon(
+                  onPressed: () => _showFeeEditDialog(context, fee),
+                  icon: const Icon(Icons.edit_note_rounded, size: 18),
+                  label: Text(
+                    'بدل العملية: ${fee.toStringAsFixed(0)} E.P',
+                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 13),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.secondary,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 12),
             PrimaryButton(
               label: isMobile ? 'حساب' : 'حساب الرواتب',
               icon: Icons.calculate_rounded,
@@ -134,6 +159,14 @@ class _PayrollScreenState extends State<PayrollScreen> {
                 month: _selectedMonth,
               ),
             ),
+            if (!isMobile) ...[
+              const SizedBox(width: 12),
+              IconButton(
+                onPressed: _generatePayrollReport,
+                icon: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.error),
+                tooltip: 'طباعة التقرير الشهري',
+              ),
+            ],
           ],
         ),
       ],
@@ -345,6 +378,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
 
       // Two-panel layout: table + detail
       final isDesktop = ResponsiveHelper.isDesktop(context);
+      
       if (isDesktop && _selectedPayroll != null) {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -362,7 +396,18 @@ class _PayrollScreenState extends State<PayrollScreen> {
             const SizedBox(width: 20),
             Expanded(
               flex: 2,
-              child: SalaryBreakdownCard(payroll: _selectedPayroll!),
+              child: SalaryBreakdownCard(
+                payroll: _selectedPayroll!,
+                onClose: () => setState(() => _selectedPayroll = null),
+                onEdit: (bonus, deductions, notes) {
+                  context.read<PayrollCubit>().updatePayrollExtras(
+                    payrollId: _selectedPayroll!.id,
+                    bonus: bonus,
+                    deductions: deductions,
+                    notes: notes,
+                  );
+                },
+              ),
             ),
           ],
         );
@@ -371,11 +416,134 @@ class _PayrollScreenState extends State<PayrollScreen> {
       return PayrollTable(
         payrolls: state.payrolls,
         selectedId: _selectedPayroll?.id,
-        onSelect: (p) => setState(() => _selectedPayroll = p),
+        onSelect: (p) {
+          setState(() => _selectedPayroll = p);
+          if (!isDesktop) {
+            _showPayrollDetailSheet(context, p);
+          }
+        },
         onApprove: (p) => context.read<PayrollCubit>().approvePayroll(p.id),
         onPay: (p) => context.read<PayrollCubit>().markAsPaid(p.id),
       );
     }
     return const SizedBox.shrink();
   }
+
+  void _showPayrollDetailSheet(BuildContext context, PayrollModel payroll) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.8,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: SalaryBreakdownCard(
+                  payroll: payroll,
+                  onClose: () => Navigator.pop(context),
+                  onEdit: (bonus, deductions, notes) {
+                    context.read<PayrollCubit>().updatePayrollExtras(
+                      payrollId: payroll.id,
+                      bonus: bonus,
+                      deductions: deductions,
+                      notes: notes,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _generatePayrollReport() {
+    final state = context.read<PayrollCubit>().state;
+    if (state is! PayrollLoaded || state.payrolls.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا توجد بيانات رواتب لإصدار تقرير بها')),
+      );
+      return;
+    }
+
+    final authState = context.read<AuthCubit>().state;
+    String genBy = 'مدير النظام';
+    if (authState is AuthAuthenticated) genBy = authState.user.name;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReportPreviewScreen(
+          title: 'تقرير مسير الرواتب - ${_months[_selectedMonth - 1]} $_selectedYear',
+          fileName: 'Payroll_Report_${_selectedYear}_${_selectedMonth}',
+          buildReport: () => ReportService.instance.generatePayrollReportBytes(
+            payrolls: state.payrolls,
+            year: _selectedYear,
+            month: _selectedMonth,
+            generatedBy: genBy,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFeeEditDialog(BuildContext context, double currentFee) {
+    final controller = TextEditingController(text: currentFee.toStringAsFixed(0));
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تعديل بدل العملية الخارجية', style: TextStyle(fontFamily: 'Cairo')),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'المبلغ (E.P)',
+            hintText: 'مثلاً: 15',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newFee = double.tryParse(controller.text);
+              if (newFee != null) {
+                await SqliteService.instance.saveOutsideCaseFee(newFee);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  setState(() {}); // Refresh header
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('تم تحديث قيمة بدل العمليات الخارجية')),
+                  );
+                }
+              }
+            },
+            child: const Text('حفظ', style: TextStyle(fontFamily: 'Cairo')),
+          ),
+        ],
+      ),
+    );
+  }
 }
+

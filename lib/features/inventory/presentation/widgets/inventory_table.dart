@@ -105,7 +105,7 @@ class InventoryTable extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       color: i.isEven
           ? Colors.transparent
-          : AppColors.surfaceVariant.withValues(alpha: 0.3),
+          : AppColors.surfaceVariant.withOpacity(0.3),
       child: Row(
         children: [
           Expanded(
@@ -115,7 +115,7 @@ class InventoryTable extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.1),
+                    color: AppColors.secondary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -221,3 +221,4 @@ class InventoryTable extends StatelessWidget {
     );
   }
 }
+

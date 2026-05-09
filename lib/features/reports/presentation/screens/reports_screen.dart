@@ -34,6 +34,11 @@ class _ReportsScreenState extends State<ReportsScreen>
   DateTime _selectedDate = DateTime.now();
   StreamSubscription? _caseChangeSub;
 
+  static const _months = [
+    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -56,17 +61,31 @@ class _ReportsScreenState extends State<ReportsScreen>
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      final authState = context.read<AuthCubit>().state;
+      final user = authState is AuthAuthenticated ? authState.user : null;
+      final isAdmin = user?.role.isAdmin ?? false;
+
       // Read cases from local SQLite (offline-first)
       final localCases = await SqliteService.instance.getAllCases();
-      final cases = localCases
+      var cases = localCases
           .map((m) => CaseModel.fromMap(m, m['id'] as String))
           .toList();
+
+      // Filter cases for nurses
+      if (!isAdmin && user != null) {
+        cases = cases.where((c) => c.nurseId == user.id).toList();
+      }
 
       // Attendance still from Firestore (no local monthly query)
       List<AttendanceModel> attendance = [];
       try {
         attendance = await FirebaseService.instance
             .getMonthlyAttendanceRecords(_selectedDate.year, _selectedDate.month);
+        
+        // Filter attendance for nurses
+        if (!isAdmin && user != null) {
+          attendance = attendance.where((a) => a.userId == user.id).toList();
+        }
       } catch (_) {}
 
       if (mounted) {
@@ -274,7 +293,7 @@ class _ReportsScreenState extends State<ReportsScreen>
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.3),
+              color: AppColors.primary.withOpacity(0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -559,7 +578,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.success.withValues(alpha: 0.1),
+                              color: AppColors.success.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
@@ -590,7 +609,7 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   Future<void> _generateWorkReport(List<CaseModel> cases) async {
-    final monthName = DateFormat('MMMM yyyy', 'ar').format(_selectedDate);
+    final monthName = '${_months[_selectedDate.month - 1]} ${_selectedDate.year}';
 
     Navigator.push(
       context,
@@ -657,3 +676,4 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
   }
 }
+

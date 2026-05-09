@@ -236,7 +236,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -312,7 +312,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
         gradient: LinearGradient(
           colors: [
             AppColors.primaryDark,
-            AppColors.primary.withValues(alpha: 0.8),
+            AppColors.primary.withOpacity(0.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -462,7 +462,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
   Widget _buildDataRow(IconData icon, String label, int count, Color color) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: color.withValues(alpha: 0.7)),
+        Icon(icon, size: 18, color: color.withOpacity(0.7)),
         const SizedBox(width: 10),
         Text(
           label,
@@ -665,3 +665,4 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
     );
   }
 }
+

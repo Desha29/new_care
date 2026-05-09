@@ -102,7 +102,7 @@ class _AttendanceRecordsListState extends State<AttendanceRecordsList> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
+                          color: AppColors.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -186,7 +186,7 @@ class _AttendanceRecordsListState extends State<AttendanceRecordsList> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       color: i.isEven
           ? Colors.transparent
-          : AppColors.surfaceVariant.withValues(alpha: 0.3),
+          : AppColors.surfaceVariant.withOpacity(0.3),
       child: Row(
         children: [
           Expanded(
@@ -195,7 +195,7 @@ class _AttendanceRecordsListState extends State<AttendanceRecordsList> {
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
+                  backgroundColor: AppColors.secondary.withOpacity(0.1),
                   child: const Icon(
                     Icons.person_rounded,
                     size: 16,
@@ -245,8 +245,8 @@ class _AttendanceRecordsListState extends State<AttendanceRecordsList> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: record.isCheckedIn
-                    ? AppColors.success.withValues(alpha: 0.1)
-                    : AppColors.textHint.withValues(alpha: 0.1),
+                    ? AppColors.success.withOpacity(0.1)
+                    : AppColors.textHint.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -297,3 +297,4 @@ class _AttendanceRecordsListState extends State<AttendanceRecordsList> {
     );
   }
 }
+

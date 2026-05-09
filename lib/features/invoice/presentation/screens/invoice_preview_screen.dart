@@ -44,7 +44,7 @@ class InvoicePreviewScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
+                  color: Colors.black.withOpacity(0.1),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 ),
@@ -241,7 +241,7 @@ class InvoicePreviewScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.05),
+            color: AppColors.primary.withOpacity(0.05),
             borderRadius: BorderRadius.circular(4),
           ),
           child: _receiptRow(
@@ -295,7 +295,7 @@ class InvoicePreviewScreen extends StatelessWidget {
           child: Container(
             color: index % 2 == 0
                 ? Colors.transparent
-                : Colors.grey.withValues(alpha: 0.3),
+                : Colors.grey.withOpacity(0.3),
             height: 1,
           ),
         ),
@@ -310,7 +310,7 @@ class InvoicePreviewScreen extends StatelessWidget {
   //         Container(
   //           padding: const EdgeInsets.all(12),
   //           decoration: BoxDecoration(
-  //             border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+  //             border: Border.all(color: Colors.grey.withOpacity(0.2)),
   //             borderRadius: BorderRadius.circular(12),
   //           ),
   //           child: QrImageView(
@@ -383,7 +383,7 @@ class InvoicePreviewScreen extends StatelessWidget {
                 color: Colors.transparent,
                 border: Border(
                   top: BorderSide(
-                    color: Colors.grey.withValues(alpha: 0.1),
+                    color: Colors.grey.withOpacity(0.1),
                     width: 1,
                   ),
                 ),
@@ -415,3 +415,4 @@ class _ZigZagPainter extends CustomPainter {
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
+

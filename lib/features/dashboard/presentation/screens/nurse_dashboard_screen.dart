@@ -16,6 +16,7 @@ import '../../../cases/presentation/cubit/cases_state.dart';
 import 'package:new_care/features/attendance/presentation/widgets/attendance_scanner_dialog.dart';
 import 'package:new_care/features/attendance/presentation/cubit/attendance_cubit.dart';
 import 'package:new_care/features/attendance/presentation/cubit/attendance_state.dart';
+import '../../../../core/services/local/sqlite_service.dart';
 
 class NurseDashboardScreen extends StatefulWidget {
   const NurseDashboardScreen({super.key});
@@ -136,7 +137,7 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 16,
       crossAxisSpacing: 16,
-      childAspectRatio: isDesktop ? 1.5 : 1.3,
+      childAspectRatio: isDesktop ? 2.0 : 1.6,
       children: [
         _actionButton(
           label: 'حالة جديدة',
@@ -338,76 +339,80 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
     CasesState casesState,
     AttendanceState attState,
   ) {
-    int casesCount = 0;
+    int todayCount = 0;
+    int outsideCasesMonth = 0;
+    
+    final user = context.read<AuthCubit>().currentUser;
+    final now = DateTime.now();
+
     if (casesState is CasesLoaded) {
-      final now = DateTime.now();
-      final user = context.read<AuthCubit>().currentUser;
-      casesCount = casesState.cases.where((c) {
+      todayCount = casesState.cases.where((c) {
         return c.nurseId == user?.id &&
             c.caseDate.year == now.year &&
             c.caseDate.month == now.month &&
             c.caseDate.day == now.day;
       }).length;
-    } else {
-      casesCount = (nurseData['todayCases'] ?? 0) as int;
+
+      // Count outside cases (home visits) for the current month
+      outsideCasesMonth = casesState.cases.where((c) {
+        return c.nurseId == user?.id &&
+            c.caseType.value == 'home_visit' && // Correct check for home_visit
+            c.caseDate.year == now.year &&
+            c.caseDate.month == now.month;
+      }).length;
     }
 
-    double hours = (nurseData['monthlyHours'] ?? 0.0) as double;
-    if (attState is AttendanceLoaded &&
-        attState.todayRecord != null &&
-        !attState.todayRecord!.isCheckedOut) {
-      final diff = DateTime.now().difference(attState.todayRecord!.checkInTime);
-      hours += diff.inMinutes / 60.0;
-    }
+    // Get current fee from local settings (async handled by FutureBuilder for simplicity here)
+    return FutureBuilder<double>(
+      future: SqliteService.instance.getOutsideCaseFee(),
+      builder: (context, snapshot) {
+        final fee = snapshot.data ?? 15.0;
+        final extraIncome = outsideCasesMonth * fee;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isDesktop = constraints.maxWidth > 800;
-        final isTablet =
-            constraints.maxWidth > 500 && constraints.maxWidth <= 800;
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isDesktop = constraints.maxWidth > 800;
+            final isTablet = constraints.maxWidth > 500 && constraints.maxWidth <= 800;
 
-        return GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: isDesktop ? 4 : (isTablet ? 2 : 2),
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: isDesktop ? 1.5 : 1.2,
-          children: [
-            StatCard(
-              title: 'حالات اليوم',
-              value: '$casesCount',
-              icon: Icons.assignment_ind_rounded,
-              color: AppColors.primary,
-              subtitle: 'حالة مكلف بها',
-              onTap: () {},
-            ),
-            StatCard(
-              title: 'ساعات العمل',
-              value: '${hours.toStringAsFixed(1)} h',
-              icon: Icons.timer_rounded,
-              color: AppColors.success,
-              subtitle: 'هذا الشهر',
-              onTap: () {},
-            ),
-            StatCard(
-              title: 'الراتب التقديري',
-              value:
-                  '${(nurseData['estimatedSalary'] ?? 0.0).toStringAsFixed(0)} EGP',
-              icon: Icons.account_balance_wallet_rounded,
-              color: AppColors.secondary,
-              subtitle: 'حتى الآن',
-              onTap: () {},
-            ),
-            StatCard(
-              title: 'تقييم الأداء',
-              value: '4.8',
-              icon: Icons.star_rounded,
-              color: Colors.amber,
-              subtitle: 'بناءً على 12 تقييم',
-              onTap: () {},
-            ),
-          ],
+            return GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: isDesktop ? 4 : (isTablet ? 2 : 2),
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: isDesktop ? 1.8 : 1.4,
+              children: [
+                StatCard(
+                  title: 'حالات اليوم',
+                  value: '$todayCount',
+                  icon: Icons.assignment_ind_rounded,
+                  color: AppColors.primary,
+                  subtitle: 'إجمالي المهام اليومية',
+                ),
+                StatCard(
+                  title: 'عمليات خارجية',
+                  value: '$outsideCasesMonth',
+                  icon: Icons.home_work_rounded,
+                  color: Colors.deepPurple,
+                  subtitle: 'هذا الشهر (زيارة منزلية)',
+                ),
+                StatCard(
+                  title: 'دخل إضافي',
+                  value: '${extraIncome.toStringAsFixed(0)} E.P',
+                  icon: Icons.add_card_rounded,
+                  color: AppColors.success,
+                  subtitle: 'بواقع ${fee.toStringAsFixed(0)} للحالة',
+                ),
+                StatCard(
+                  title: 'الراتب التقديري',
+                  value: '${((nurseData['estimatedSalary'] ?? 0.0) + extraIncome).toStringAsFixed(0)} E.P',
+                  icon: Icons.account_balance_wallet_rounded,
+                  color: AppColors.secondary,
+                  subtitle: 'شامل البدلات',
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -646,3 +651,4 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
     );
   }
 }
+

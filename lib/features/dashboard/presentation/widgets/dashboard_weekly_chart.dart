@@ -172,10 +172,11 @@ class DashboardWeeklyChart extends StatelessWidget {
           backDrawRodData: BackgroundBarChartRodData(
             show: true,
             toY: maxRange,
-            color: AppColors.primary.withValues(alpha: 0.05),
+            color: AppColors.primary.withOpacity(0.05),
           ),
         ),
       ],
     );
   }
 }
+

@@ -50,7 +50,7 @@ class CheckInCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: (isCheckedIn || isAdmin ? AppColors.success : AppColors.primary)
-                .withValues(alpha: 0.3),
+                .withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -77,7 +77,7 @@ class CheckInCard extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 14,
-                    color: Colors.white.withValues(alpha: 0.8),
+                    color: Colors.white.withOpacity(0.8),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -88,7 +88,7 @@ class CheckInCard extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
@@ -107,7 +107,7 @@ class CheckInCard extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -138,7 +138,7 @@ class CheckInCard extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -167,51 +167,52 @@ class CheckInCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 20),
-          if (!isAdmin)
-            Column(
-              children: [
-                if (!isCheckedIn)
-                  _buildNurseQrTrigger(context, user)
-                else if (todayRecord != null && !todayRecord.isCheckedOut)
-                  _buildActionButton(
-                    label: 'تسجيل انصراف',
-                    icon: Icons.logout_rounded,
-                    color: Colors.white.withValues(alpha: 0.2),
-                    textColor: Colors.white,
-                    onTap: () => context.read<AttendanceCubit>().checkOut(
-                          userId: user.id,
-                          userName: user.name,
-                        ),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Column(
-                      children: [
-                        Icon(
-                          Icons.check_circle_rounded,
-                          color: Colors.white,
-                          size: 40,
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'تم الانتهاء',
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 13,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+          Column(
+            children: [
+              if (isAdmin)
+                _buildAdminScannerTrigger(context, user)
+              else if (!isCheckedIn)
+                _buildNurseQrTrigger(context, user)
+              else if (todayRecord != null && !todayRecord.isCheckedOut)
+                _buildActionButton(
+                  label: 'تسجيل انصراف',
+                  icon: Icons.logout_rounded,
+                  color: Colors.white.withOpacity(0.2),
+                  textColor: Colors.white,
+                  onTap: () => context.read<AttendanceCubit>().checkOut(
+                        userId: user.id,
+                        userName: user.name,
+                      ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-              ],
-            ),
+                  child: const Column(
+                    children: [
+                      Icon(
+                        Icons.check_circle_rounded,
+                        color: Colors.white,
+                        size: 40,
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'تم الانتهاء',
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 13,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -237,6 +238,36 @@ class CheckInCard extends StatelessWidget {
                 fontFamily: 'Cairo',
                 fontSize: 13,
                 color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdminScannerTrigger(BuildContext context, UserModel user) {
+    return InkWell(
+      onTap: () => AttendanceScannerDialog.show(context, user),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.3)),
+        ),
+        child: const Column(
+          children: [
+            Icon(Icons.person_search_rounded, color: Colors.white, size: 40),
+            SizedBox(height: 8),
+            Text(
+              'مسح الموظف',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 13,
+                color: Colors.white,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -281,3 +312,4 @@ class CheckInCard extends StatelessWidget {
     );
   }
 }
+

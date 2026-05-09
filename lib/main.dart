@@ -45,13 +45,12 @@ void main() async {
   await NotificationService.instance.initialize();
   Bloc.observer = AppBlocObserver();
 
-  // تحميل البيانات من السحابة مرة واحدة عند فتح التطبيق
-  // Download data from cloud once on app startup
-  SyncManager.instance.downloadFromCloud(); // fire-and-forget
-
-  // بدء الاستماع لحالات الممرضين الخارجيين
-  // Start listening for outside nurse cases
-  OutsideCasesListener.instance.startListening();
-
   runApp(const NewCareApp());
+
+  // تحميل البيانات من السحابة وبدء المستمعين بعد استقرار الواجهة
+  // Load data and start listeners after UI is stable to prevent threading issues
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    SyncManager.instance.downloadFromCloud();
+    OutsideCasesListener.instance.startListening();
+  });
 }

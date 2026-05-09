@@ -140,7 +140,7 @@ class _AccessGuardState extends State<AccessGuard> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.1),
+                  color: AppColors.error.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -225,8 +225,8 @@ class _AccessGuardState extends State<AccessGuard> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: isOk
-            ? AppColors.success.withValues(alpha: 0.08)
-            : AppColors.error.withValues(alpha: 0.08),
+            ? AppColors.success.withOpacity(0.08)
+            : AppColors.error.withOpacity(0.08),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -256,3 +256,4 @@ class _AccessGuardState extends State<AccessGuard> {
     );
   }
 }
+

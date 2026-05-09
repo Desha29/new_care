@@ -115,12 +115,12 @@ class ResponsiveHelper {
     final type = getDeviceType(context);
     switch (type) {
       case DeviceType.mobile:
-        return 2.5;
+        return 2.2;
       case DeviceType.tablet:
-        return 2.0;
+        return 1.8;
       case DeviceType.desktop:
       case DeviceType.wideDesktop:
-        return 1.8;
+        return 2.0;
     }
   }
 

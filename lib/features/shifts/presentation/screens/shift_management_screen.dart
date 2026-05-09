@@ -267,7 +267,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     final caseCount = caseCounts[shift.userId] ?? 0;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      color: i.isEven ? Colors.transparent : AppColors.surfaceVariant.withValues(alpha: 0.3),
+      color: i.isEven ? Colors.transparent : AppColors.surfaceVariant.withOpacity(0.3),
       child: Row(
         children: [
           Expanded(
@@ -276,7 +276,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
+                  backgroundColor: AppColors.secondary.withOpacity(0.1),
                   child: const Icon(Icons.person_rounded, size: 16, color: AppColors.secondary),
                 ),
                 const SizedBox(width: 10),
@@ -295,7 +295,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.info.withValues(alpha: 0.1),
+                color: AppColors.info.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -323,8 +323,8 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: caseCount > 0
-                        ? AppColors.success.withValues(alpha: 0.1)
-                        : AppColors.textHint.withValues(alpha: 0.1),
+                        ? AppColors.success.withOpacity(0.1)
+                        : AppColors.textHint.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -370,7 +370,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       child: Icon(
         isEnabled ? Icons.check_circle_rounded : Icons.cancel_rounded,
         size: 18,
-        color: isEnabled ? AppColors.success : AppColors.textHint.withValues(alpha: 0.4),
+        color: isEnabled ? AppColors.success : AppColors.textHint.withOpacity(0.4),
       ),
     );
   }
@@ -417,7 +417,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: AppColors.info.withValues(alpha: 0.1),
+                              color: AppColors.info.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(Icons.event_note_rounded, color: AppColors.info, size: 22),
@@ -494,7 +494,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                               decoration: BoxDecoration(
-                                color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : AppColors.surfaceVariant,
+                                color: isSelected ? AppColors.primary.withOpacity(0.1) : AppColors.surfaceVariant,
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
                                   color: isSelected ? AppColors.primary : AppColors.border,
@@ -654,7 +654,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.1),
+                      color: AppColors.success.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(Icons.medical_services_rounded, color: AppColors.success, size: 22),
@@ -706,7 +706,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                             decoration: BoxDecoration(
                               color: AppColors.surfaceVariant,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+                              border: Border.all(color: AppColors.border.withOpacity(0.5)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -716,7 +716,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                                   children: [
                                     CircleAvatar(
                                       radius: 16,
-                                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                                      backgroundColor: AppColors.primary.withOpacity(0.1),
                                       child: Text(
                                         '${index + 1}',
                                         style: const TextStyle(
@@ -741,7 +741,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                       decoration: BoxDecoration(
-                                        color: AppColors.info.withValues(alpha: 0.1),
+                                        color: AppColors.info.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
@@ -811,7 +811,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: AppColors.success.withValues(alpha: 0.08),
+                                    color: AppColors.success.withOpacity(0.08),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Row(
@@ -859,9 +859,9 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.05),
+                    color: AppColors.primary.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.2)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -915,3 +915,4 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     );
   }
 }
+

@@ -175,7 +175,7 @@ class _LogsScreenState extends State<LogsScreen> {
                                                 color: i.isEven
                                                     ? Colors.transparent
                                                     : AppColors.surfaceVariant
-                                                        .withValues(alpha: 0.3),
+                                                        .withOpacity(0.3),
                                                 child: Row(
                                                   children: [
                                                     SizedBox(
@@ -249,4 +249,5 @@ class _LogsScreenState extends State<LogsScreen> {
               fontWeight: FontWeight.w700,
               color: AppColors.textSecondary)));
 }
+
 

@@ -6,6 +6,14 @@ import '../../core/utils/ui_feedback.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../features/auth/presentation/cubit/auth_cubit.dart';
 import '../logic/connectivity_cubit.dart';
+import '../../features/cases/presentation/cubit/cases_cubit.dart';
+import '../../features/cases/presentation/cubit/cases_state.dart';
+import '../../features/procedures/presentation/cubit/procedures_cubit.dart';
+import '../../features/procedures/presentation/cubit/procedures_state.dart';
+import '../../features/inventory/presentation/cubit/inventory_cubit.dart';
+import '../../features/inventory/presentation/cubit/inventory_state.dart';
+import '../../features/users/presentation/cubit/users_cubit.dart';
+import '../../features/users/presentation/cubit/users_state.dart';
 
 /// نموذج عنصر الشريط الجانبي
 class _SidebarItem {
@@ -22,6 +30,7 @@ class SidebarWidget extends StatefulWidget {
   final int selectedIndex;
   final Function(int) onItemSelected;
   final String userName;
+  final String userId;
   final String userRole;
   final String userRoleLabel;
 
@@ -30,6 +39,7 @@ class SidebarWidget extends StatefulWidget {
     required this.selectedIndex,
     required this.onItemSelected,
     required this.userName,
+    required this.userId,
     required this.userRole,
     required this.userRoleLabel,
   });
@@ -294,7 +304,16 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                             maxLines: 1,
                           ),
                         ),
-                        if (isSelected)
+                        // === Counters ===
+                        if (item.label == AppStrings.cases)
+                          _buildCasesCounter()
+                        else if (item.label == 'الخدمات والإجراءات')
+                          _buildProceduresCounter()
+                        else if (item.label == AppStrings.inventory)
+                          _buildInventoryCounter()
+                        else if (item.label == AppStrings.users)
+                          _buildUsersCounter()
+                        else if (isSelected)
                           Container(
                             width: 6,
                             height: 6,
@@ -307,6 +326,88 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                     ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Case counter badge widget
+  Widget _buildCasesCounter() {
+    return BlocBuilder<CasesCubit, CasesState>(
+      builder: (context, state) {
+        if (state is CasesLoaded && state.cases.isNotEmpty) {
+          final isAdmin = widget.userRole.toLowerCase() == 'admin' || 
+                         widget.userRole.toLowerCase() == 'super_admin';
+          
+          final count = isAdmin 
+              ? state.cases.length 
+              : state.cases.where((c) => c.nurseId == widget.userId).length;
+
+          if (count == 0) return const SizedBox.shrink();
+          return _buildBadge(count);
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  /// Procedures counter badge
+  Widget _buildProceduresCounter() {
+    return BlocBuilder<ProceduresCubit, ProceduresState>(
+      builder: (context, state) {
+        if (state is ProceduresLoaded && state.procedures.isNotEmpty) {
+          return _buildBadge(state.procedures.length);
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  /// Inventory counter badge
+  Widget _buildInventoryCounter() {
+    return BlocBuilder<InventoryCubit, InventoryState>(
+      builder: (context, state) {
+        if (state is InventoryLoaded && state.items.isNotEmpty) {
+          return _buildBadge(state.items.length);
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  /// Users counter badge
+  Widget _buildUsersCounter() {
+    return BlocBuilder<UsersCubit, UsersState>(
+      builder: (context, state) {
+        if (state is UsersLoaded && state.users.isNotEmpty) {
+          return _buildBadge(state.users.length);
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  Widget _buildBadge(int count) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.secondary.withValues(alpha: 0.3),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        '$count',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Cairo',
         ),
       ),
     );
@@ -493,3 +594,4 @@ class _SidebarWidgetState extends State<SidebarWidget> {
     );
   }
 }
+

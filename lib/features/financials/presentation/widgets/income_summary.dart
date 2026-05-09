@@ -122,7 +122,7 @@ class IncomeSummary extends StatelessWidget {
         LinearProgressIndicator(
           value: pr,
           color: color,
-          backgroundColor: color.withValues(alpha: 0.1),
+          backgroundColor: color.withOpacity(0.1),
           minHeight: 6,
           borderRadius: BorderRadius.circular(10),
         ),
@@ -130,3 +130,4 @@ class IncomeSummary extends StatelessWidget {
     );
   }
 }
+

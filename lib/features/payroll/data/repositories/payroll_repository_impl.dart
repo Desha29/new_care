@@ -143,4 +143,20 @@ class PayrollRepositoryImpl implements IPayrollRepository {
       data: {},
     );
   }
+
+  @override
+  Future<double> getOutsideCaseFee() async {
+    return await _local.getOutsideCaseFee();
+  }
+
+  @override
+  Future<void> updatePayroll(PayrollModel payroll) async {
+    await _local.insert('payroll', payroll.toSqliteMap());
+    await _sync.enqueue(
+      tableName: 'payroll',
+      operation: 'update',
+      docId: payroll.id,
+      data: payroll.toMap(),
+    );
+  }
 }

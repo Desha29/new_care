@@ -70,7 +70,7 @@ class AppColors {
   // === ظلال - BoxShadows ===
   static List<BoxShadow> get cardShadow => [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
+          color: Colors.black.withOpacity(0.05),
           blurRadius: 10,
           offset: const Offset(0, 4),
         ),
@@ -78,7 +78,7 @@ class AppColors {
       
   static List<BoxShadow> get shadowMd => [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.1),
+          color: Colors.black.withOpacity(0.1),
           blurRadius: 20,
           offset: const Offset(0, 8),
         ),
@@ -103,3 +103,4 @@ class AppColors {
     colors: [Color(0xFF103E6F), Color(0xFF0A294A)],
   );
 }
+

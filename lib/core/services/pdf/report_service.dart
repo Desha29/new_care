@@ -6,6 +6,7 @@ import 'package:new_care/features/cases/data/models/case_model.dart';
 import 'package:new_care/features/financials/data/models/expense_model.dart';
 import 'package:new_care/features/attendance/data/models/attendance_model.dart';
 import 'package:new_care/features/shifts/data/models/shift_model.dart';
+import 'package:new_care/features/payroll/data/models/payroll_model.dart';
 import 'package:new_care/core/constants/app_strings.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:arabic_reshaper/arabic_reshaper.dart';
@@ -20,8 +21,25 @@ class ReportService {
   // === الخطوط والثوابت - Fonts & Constants ===
   // ============================================
 
-  Future<pw.Font> _getFont() async => await PdfGoogleFonts.cairoRegular();
-  Future<pw.Font> _getBoldFont() async => await PdfGoogleFonts.cairoBold();
+  pw.Font? _cachedFont;
+  pw.Font? _cachedBoldFont;
+  pw.Font? _cachedFallbackFont;
+
+  Future<pw.Font> _getFont() async {
+    _cachedFont ??= await PdfGoogleFonts.cairoRegular();
+    return _cachedFont!;
+  }
+
+  Future<pw.Font> _getBoldFont() async {
+    _cachedBoldFont ??= await PdfGoogleFonts.cairoBold();
+    return _cachedBoldFont!;
+  }
+
+  Future<pw.Font> _getFallbackFont() async {
+    _cachedFallbackFont ??= await PdfGoogleFonts.notoSansArabicRegular();
+    return _cachedFallbackFont!;
+  }
+
 
   Future<pw.MemoryImage?> _getLogo() async {
     try {
@@ -40,8 +58,21 @@ class ReportService {
 
     // Step 1: Reshape to join letters (initial, medial, final forms)
     final reshaped = ArabicReshaper().reshape(text);
-    // Step 2: Reverse the string manually for LTR rendering
-    return reshaped.split('').reversed.join();
+    
+    // Step 2: Handle mixed text (numbers should not be reversed)
+    // We'll split by words/numbers and only reverse the Arabic parts
+    final words = reshaped.split(' ');
+    final processedWords = words.map((word) {
+      // If word is numeric (or contains numbers/symbols like 2026 or 15.0)
+      if (RegExp(r'^[0-9\.\,]+$').hasMatch(word)) {
+        return word; // Keep as is
+      }
+      // If word is Arabic, reverse it
+      return word.split('').reversed.join();
+    }).toList();
+
+    // Rejoin words in reverse order because the whole sentence is RTL
+    return processedWords.reversed.join(' ');
   }
 
   pw.Widget _buildHeader(
@@ -156,7 +187,7 @@ class ReportService {
       pw.Page(
         pageFormat: PdfPageFormat.roll80,
         margin: const pw.EdgeInsets.all(10),
-        theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf),
+        theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf, fontFallback: [await _getFallbackFont()]),
         build: (pw.Context context) {
           return pw.Directionality(
             textDirection: pw.TextDirection.ltr,
@@ -512,7 +543,7 @@ class ReportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
-        theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf),
+        theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf, fontFallback: [await _getFallbackFont()]),
         header: (pw.Context context) => pw.Directionality(
           textDirection: pw.TextDirection.ltr,
           child: pw.Column(
@@ -736,7 +767,7 @@ class ReportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
-        theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf),
+        theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf, fontFallback: [await _getFallbackFont()]),
         header: (pw.Context context) => pw.Directionality(
           textDirection: pw.TextDirection.ltr,
           child: pw.Column(
@@ -992,7 +1023,7 @@ class ReportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
-        theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf),
+        theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf, fontFallback: [await _getFallbackFont()]),
         header: (pw.Context context) => pw.Directionality(
           textDirection: pw.TextDirection.ltr,
           child: pw.Column(
@@ -1303,7 +1334,7 @@ class ReportService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf),
+        theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf, fontFallback: [await _getFallbackFont()]),
         header: (pw.Context context) => pw.Column(
           children: [
             _buildHeader(boldTtf, logo, 'تقرير أداء ممرض'),
@@ -1510,7 +1541,7 @@ class ReportService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf),
+        theme: pw.ThemeData.withFont(base: ttf, bold: boldTtf, fontFallback: [await _getFallbackFont()]),
         header: (pw.Context context) => pw.Column(
           children: [
             _buildHeader(boldTtf, logo, 'تقرير المخزون'),
@@ -1613,6 +1644,169 @@ class ReportService {
       name: 'Inventory_Report',
     );
   }
+
+  /// تقرير الرواتب الشهري التفصيلي - Detailed Monthly Payroll Report
+  Future<Uint8List> generatePayrollReportBytes({
+    required List<PayrollModel> payrolls,
+    required int year,
+    required int month,
+    required String generatedBy,
+  }) async {
+    final pdf = pw.Document();
+    final ttf = await _getFont();
+    final boldTtf = await _getBoldFont();
+    final logo = await _getLogo();
+
+    final months = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+    ];
+    final monthName = months[month - 1];
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4.landscape,
+        theme: pw.ThemeData.withFont(
+          base: ttf,
+          bold: boldTtf,
+          fontFallback: [await _getFallbackFont()],
+        ),
+        header: (pw.Context context) => _buildHeader(
+          boldTtf,
+          logo,
+          'تقرير مسير الرواتب - $monthName $year',
+        ),
+        build: (pw.Context context) => [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    _shape('الفترة المالية: $monthName $year'),
+                    style: pw.TextStyle(font: boldTtf, fontSize: 14),
+                  ),
+                  pw.Text(
+                    _shape('تاريخ الاستخراج: ${intl.DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now())}'),
+                    style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                  ),
+                ],
+              ),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text(
+                    _shape('عدد الموظفين: ${payrolls.length}'),
+                    style: const pw.TextStyle(fontSize: 12),
+                  ),
+                  pw.Text(
+                    _shape('بواسطة: $generatedBy'),
+                    style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 20),
+
+          pw.TableHelper.fromTextArray(
+            headers: [
+              '#',
+              'اسم الموظف',
+              'الساعات',
+              'الأساسي',
+              'خارجية',
+              'مكافآت',
+              'خصومات',
+              'صافي الراتب',
+              'الحالة',
+            ].map((h) => _shape(h)).toList(),
+            headerStyle: pw.TextStyle(
+              font: boldTtf,
+              fontSize: 10,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blue900),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            cellAlignments: {
+              0: pw.Alignment.center,
+              2: pw.Alignment.center,
+              3: pw.Alignment.centerLeft,
+              4: pw.Alignment.centerLeft,
+              5: pw.Alignment.centerLeft,
+              6: pw.Alignment.centerLeft,
+              7: pw.Alignment.centerLeft,
+              8: pw.Alignment.center,
+            },
+            data: List<List<dynamic>>.generate(payrolls.length, (index) {
+              final p = payrolls[index];
+              return [
+                index + 1,
+                _shape(p.userName),
+                p.totalHours.toStringAsFixed(1),
+                '${p.baseSalary.toStringAsFixed(0)}',
+                '${p.outsideCasesFees.toStringAsFixed(0)}',
+                '${p.bonus.toStringAsFixed(0)}',
+                '${p.deductions.toStringAsFixed(0)}',
+                '${p.netSalary.toStringAsFixed(0)}',
+                _shape(p.status == 'paid' ? 'تم الدفع' : p.status == 'approved' ? 'معتمد' : 'مسودة'),
+              ];
+            }),
+          ),
+          
+          pw.SizedBox(height: 30),
+          
+          // Total Summary
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              border: pw.Border.all(color: PdfColors.grey300),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.end,
+              children: [
+                pw.Text(
+                  _shape('إجمالي الرواتب الصافية لهذا الشهر: '),
+                  style: pw.TextStyle(font: boldTtf, fontSize: 14),
+                ),
+                pw.Text(
+                  '${payrolls.fold(0.0, (sum, p) => sum + p.netSalary).toStringAsFixed(2)} E.P',
+                  style: pw.TextStyle(
+                    font: boldTtf,
+                    fontSize: 16,
+                    color: PdfColors.blue900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        footer: (pw.Context context) => pw.Column(
+          children: [
+            pw.Divider(),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  _shape('تقرير الرواتب - نيو كير'),
+                  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                ),
+                pw.Text(
+                  _shape('صفحة ${context.pageNumber} من ${context.pagesCount}'),
+                  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return pdf.save();
+  }
 }
 
 /// نموذج مساعد داخلي لتجميع بيانات الموظف
@@ -1624,4 +1818,5 @@ class _StaffSummary {
 
   _StaffSummary({required this.name});
 }
+
 

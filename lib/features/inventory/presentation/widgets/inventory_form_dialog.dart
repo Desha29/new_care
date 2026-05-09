@@ -75,7 +75,7 @@ class _InventoryFormDialogState extends State<InventoryFormDialog> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withValues(alpha: 0.1),
+                        color: AppColors.secondary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -225,3 +225,4 @@ class _InventoryFormDialogState extends State<InventoryFormDialog> {
     );
   }
 }
+

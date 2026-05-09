@@ -47,6 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+
   Future<void> _saveClinicInfo() async {
     setState(() => _isSavingInfo = true);
     try {
@@ -62,6 +63,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() => _isSavingInfo = false);
     }
   }
+
 
   @override
   void dispose() {
@@ -476,6 +478,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+
   Widget _editableInfoRow(
     String label,
     TextEditingController controller, {
@@ -579,4 +582,5 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
+
 

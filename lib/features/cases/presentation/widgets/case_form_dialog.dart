@@ -774,10 +774,13 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
         await context.read<CasesCubit>().addCase(newCase);
       }
 
+      if (!mounted) return;
+
       // Check if the cubit emitted an error (e.g. insufficient stock)
-      final casesState = context.read<CasesCubit>().state;
+      final casesCubit = context.read<CasesCubit>();
+      final casesState = casesCubit.state;
       if (casesState is CasesError) {
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -787,34 +790,39 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
               backgroundColor: Colors.red,
             ),
           );
-          // Restore cases state so the screen doesn't break
-          context.read<CasesCubit>().loadCases(force: true);
         }
+        // Restore cases state so the screen doesn't break
+        casesCubit.loadCases(force: true);
         return;
       }
 
+      if (!mounted) return;
+      final dashboardCubit = context.read<DashboardCubit>();
+      final financialsCubit = context.read<FinancialsCubit>();
+      final inventoryCubit = context.read<InventoryCubit>();
+      final payrollCubit = context.read<PayrollCubit>();
+
       // Refresh all connected features based on user role
-      final user = context.read<AuthCubit>().state is AuthAuthenticated
-          ? (context.read<AuthCubit>().state as AuthAuthenticated).user
-          : null;
+      final authState = context.read<AuthCubit>().state;
+      final user = authState is AuthAuthenticated ? authState.user : null;
 
       if (user != null) {
         if (user.role.isAdmin) {
-          context.read<DashboardCubit>().loadDashboardData(force: true);
+          dashboardCubit.loadDashboardData(force: true);
         } else {
-          context.read<DashboardCubit>().loadNurseDashboardData(
+          dashboardCubit.loadNurseDashboardData(
             user.id,
             force: true,
           );
         }
       }
 
-      context.read<FinancialsCubit>().loadFinancials(force: true);
-      context.read<InventoryCubit>().loadInventory(force: true);
-      context.read<PayrollCubit>().loadPayroll(force: true);
+      financialsCubit.loadFinancials(force: true);
+      inventoryCubit.loadInventory(force: true);
+      payrollCubit.loadPayroll(force: true);
 
       _hasChanges = false;
-      Navigator.pop(context, true);
+      if (mounted) Navigator.pop(context, true);
     }
   }
 
@@ -861,3 +869,4 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
     );
   }
 }
+

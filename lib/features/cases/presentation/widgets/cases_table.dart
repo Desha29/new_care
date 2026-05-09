@@ -29,7 +29,7 @@ class CasesTable extends StatelessWidget {
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withOpacity(0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -114,7 +114,7 @@ class CasesTable extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
       color: index.isEven
           ? Colors.transparent
-          : AppColors.surfaceVariant.withValues(alpha: 0.2),
+          : AppColors.surfaceVariant.withOpacity(0.2),
       child: Row(
         children: [
           Expanded(
@@ -245,3 +245,4 @@ class CasesTable extends StatelessWidget {
     });
   }
 }
+

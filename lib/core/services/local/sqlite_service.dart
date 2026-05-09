@@ -485,9 +485,17 @@ class SqliteService {
   }
 
   Future<void> saveClinicInfo(String name, String phone, String address) async {
-    await setSetting('clinic_name', name);
-    await setSetting('clinic_phone', phone);
     await setSetting('clinic_address', address);
+  }
+
+  Future<double> getOutsideCaseFee() async {
+    final val = await getSetting('outside_case_fee');
+    if (val == null) return 15.0; // Default 15 E.P
+    return double.tryParse(val) ?? 15.0;
+  }
+
+  Future<void> saveOutsideCaseFee(double fee) async {
+    await setSetting('outside_case_fee', fee.toString());
   }
 
   Future<DateTime> getLastSync() async {

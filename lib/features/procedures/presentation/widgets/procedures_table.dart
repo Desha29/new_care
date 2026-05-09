@@ -98,7 +98,7 @@ class ProceduresTable extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       color: index.isEven
           ? Colors.transparent
-          : AppColors.surfaceVariant.withValues(alpha: 0.3),
+          : AppColors.surfaceVariant.withOpacity(0.3),
       child: Row(
         children: [
           Expanded(
@@ -159,3 +159,4 @@ class ProceduresTable extends StatelessWidget {
     );
   }
 }
+

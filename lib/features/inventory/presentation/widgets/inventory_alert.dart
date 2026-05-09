@@ -20,7 +20,7 @@ class InventoryAlert extends StatelessWidget {
         color: AppColors.statusPendingBg,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.statusPending.withValues(alpha: 0.3),
+          color: AppColors.statusPending.withOpacity(0.3),
         ),
       ),
       child: Row(
@@ -46,3 +46,4 @@ class InventoryAlert extends StatelessWidget {
     );
   }
 }
+

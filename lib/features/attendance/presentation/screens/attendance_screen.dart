@@ -5,13 +5,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/widgets/dialogs/loading_dialog.dart';
+import '../../../../core/services/pdf/report_service.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
+import '../../../reports/presentation/screens/report_preview_screen.dart';
 import '../cubit/attendance_cubit.dart';
 import '../cubit/attendance_state.dart';
 import '../widgets/attendance_header.dart';
 import '../widgets/check_in_card.dart';
 import '../widgets/attendance_records_list.dart';
+import 'package:intl/intl.dart';
 
 /// شاشة الحضور والانصراف - Attendance Screen
 class AttendanceScreen extends StatefulWidget {
@@ -41,12 +44,44 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _generateMonthlyReport() async {
     final now = DateTime.now();
+    final authState = context.read<AuthCubit>().state;
+    final userName = authState is AuthAuthenticated ? authState.user.name : 'مدير النظام';
+    
     LoadingDialog.show(context, message: 'جاري إعداد التقرير...');
-    await context.read<AttendanceCubit>().generateMonthlyReport(
+    
+    final data = await context.read<AttendanceCubit>().getMonthlyReportData(
       now.year,
       now.month,
     );
-    if (mounted) LoadingDialog.hide(context);
+    
+    if (!mounted) return;
+    LoadingDialog.hide(context);
+    
+    if (data == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا توجد بيانات لإعداد التقرير', style: TextStyle(fontFamily: 'Cairo'))),
+      );
+      return;
+    }
+    
+    final monthName = DateFormat('MMMM yyyy', 'ar').format(now);
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReportPreviewScreen(
+          title: 'تقرير الحضور - $monthName',
+          fileName: 'Attendance_Report_${now.year}_${now.month}',
+          buildReport: () => ReportService.instance.generateMonthlyStaffReportBytes(
+            attendanceRecords: data['records'],
+            shifts: data['shifts'],
+            year: now.year,
+            month: now.month,
+            generatedBy: userName,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
