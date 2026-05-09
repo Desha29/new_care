@@ -17,6 +17,7 @@ class CasesCubit extends Cubit<CasesState> {
   final ICasesRepository _casesRepository;
   final SyncManager _syncManager;
   StreamSubscription? _caseChangeSub;
+  String? _activeNurseId; // حفظ فلتر الممرض - Store nurse filter for reloads
 
   CasesCubit({
     required ICasesRepository casesRepository,
@@ -38,11 +39,17 @@ class CasesCubit extends Cubit<CasesState> {
 
   /// تحميل الحالات مرة واحدة بدون stream
   Future<void> loadCases({String? nurseId, bool force = false}) async {
+    // حفظ الفلتر لاستخدامه في إعادة التحميل التلقائي
+    // Store the filter; only update if explicitly provided
+    if (nurseId != null) {
+      _activeNurseId = nurseId;
+    }
+
     if (!force && state is CasesLoaded) return;
 
     emit(CasesLoading());
     try {
-      final cases = await _casesRepository.getAllCases(nurseId: nurseId);
+      final cases = await _casesRepository.getAllCases(nurseId: _activeNurseId);
       final sortedCases = List<CaseModel>.from(cases)
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       emit(CasesLoaded(cases: sortedCases));
@@ -50,6 +57,7 @@ class CasesCubit extends Cubit<CasesState> {
       emit(CasesError('خطأ في تحميل الحالات: ${e.toString()}'));
     }
   }
+
 
   void searchCases(String query) {
     if (state is CasesLoaded) {
