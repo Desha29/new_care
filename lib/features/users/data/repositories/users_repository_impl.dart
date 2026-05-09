@@ -64,16 +64,9 @@ class UsersRepositoryImpl implements IUsersRepository {
   @override
   Future<List<UserModel>> getAllUsers() async {
     final results = await _local.database.then((db) => db.query('users', orderBy: 'name'));
-    if (results.isNotEmpty) {
-      return results.map((m) => UserModel.fromMap(m, m['id'] as String)).toList();
-    }
-    
-    final remote = await _remote.getAllUsers();
-    for (var u in remote) {
-      await _local.saveUser(u.toSqliteMap());
-    }
-    return remote;
+    return results.map((m) => UserModel.fromMap(m, m['id'] as String)).toList();
   }
+
 
   @override
   Future<int> getUsersCount() async {

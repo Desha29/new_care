@@ -47,17 +47,9 @@ class InventoryRepositoryImpl implements IInventoryRepository {
   @override
   Future<List<InventoryModel>> getAllInventory() async {
     final results = await _local.database.then((db) => db.query('inventory'));
-    if (results.isNotEmpty) {
-      return results.map((m) => InventoryModel.fromMap(m, m['id'] as String)).toList();
-    }
-    
-    // Fallback to remote
-    final remoteItems = await _remote.getAllInventory();
-    for (var item in remoteItems) {
-      await _local.insert('inventory', item.toSqliteMap());
-    }
-    return remoteItems;
+    return results.map((m) => InventoryModel.fromMap(m, m['id'] as String)).toList();
   }
+
 
   @override
   Future<int> getInventoryCount() async {

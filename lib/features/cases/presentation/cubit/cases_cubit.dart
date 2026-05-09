@@ -4,7 +4,7 @@ import 'dart:developer';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/local/local_log_service.dart';
 import '../../../../core/services/local/sqlite_service.dart';
-import '../../../../core/services/network/connectivity_service.dart';
+
 import '../../../../core/services/sync/sync_manager.dart';
 import '../../../../core/services/notifications/case_change_notifier.dart';
 import '../../../../core/services/notifications/data_change_notifier.dart';
@@ -174,17 +174,8 @@ class CasesCubit extends Cubit<CasesState> {
       final uid = currentUser?.uid ?? '';
       final uName = currentUser?.displayName ?? 'مستخدم';
 
-      final isConnected = await ConnectivityService.instance.checkConnection();
-      if (isConnected) {
-        await _casesRepository.deleteCase(c.id);
-      } else {
-        await _syncManager.addPendingOperation(
-          tableName: 'cases',
-          operation: 'delete',
-          docId: c.id,
-          data: {},
-        );
-      }
+      // Always delete from local SQLite + queue remote delete
+      await _casesRepository.deleteCase(c.id);
 
       await LocalLogService.instance.logActivity(
         userId: uid,
@@ -210,4 +201,5 @@ class CasesCubit extends Cubit<CasesState> {
       emit(CasesError('خطأ في حذف الحالة: ${e.toString()}'));
     }
   }
+
 }

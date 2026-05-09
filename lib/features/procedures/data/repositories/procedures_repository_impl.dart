@@ -49,9 +49,7 @@ class ProceduresRepositoryImpl implements IProceduresRepository {
   Future<List<ProcedureModel>> getAllProcedures() async {
     try {
       final results = await _local.database.then((db) => db.query('procedures'));
-      if (results.isNotEmpty) {
-        return results.map((m) => ProcedureModel.fromMap(m, m['id'] as String)).toList();
-      }
+      return results.map((m) => ProcedureModel.fromMap(m, m['id'] as String)).toList();
     } catch (e) {
       // If table is corrupted or schema mismatched, try to recreate it
       final db = await _local.database;
@@ -67,19 +65,10 @@ class ProceduresRepositoryImpl implements IProceduresRepository {
           updatedAt TEXT NOT NULL
         )
       ''');
+      return [];
     }
-    
-    // Fallback to remote or initial load
-    final remoteItems = await _remote.getAllProcedures();
-    for (var item in remoteItems) {
-      try {
-        await _local.insert('procedures', item.toSqliteMap());
-      } catch (e) {
-        // Final fallback
-      }
-    }
-    return remoteItems;
   }
+
 
   @override
   Future<int> getProceduresCount() async {
