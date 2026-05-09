@@ -16,7 +16,6 @@ import '../../../financials/presentation/cubit/financials_cubit.dart';
 import '../../../dashboard/presentation/cubit/dashboard_cubit.dart';
 import '../../../../core/widgets/sync_progress_dialog.dart';
 
-
 class DataStatusScreen extends StatefulWidget {
   const DataStatusScreen({super.key});
 
@@ -299,7 +298,6 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                 await SyncManager.instance.syncAll();
                 _loadData();
               },
-
             ),
         ],
       ),
@@ -493,125 +491,104 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
           child: PrimaryButton(
             label: 'مزامنة إجبارية شاملة',
             icon: Icons.cloud_upload_rounded,
-            onPressed: _isLoading
-                ? null
-                : () async {
-                    try {
-                      // عرض ديالوج التقدم
-                      SyncProgressDialog.show(context, title: 'مزامنة شاملة');
-                      await SyncManager.instance.syncAll();
-                      await _loadData();
+            isLoading: _isLoading,
+            onPressed: () async {
+              setState(() => _isLoading = true);
+              try {
+                // عرض ديالوج التقدم
 
+                SyncProgressDialog.show(context, title: 'مزامنة شاملة');
+                await SyncManager.instance.syncAll();
+                await _loadData();
 
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'تمت المزامنة بنجاح',
-                              style: TextStyle(fontFamily: 'Cairo'),
-                            ),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        // Close dialog if still open
-                        if (Navigator.of(context).canPop()) {
-                          Navigator.of(context).pop();
-                        }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'خطأ في المزامنة: $e',
-                              style: const TextStyle(fontFamily: 'Cairo'),
-                            ),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  },
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'تمت المزامنة بنجاح',
+                        style: TextStyle(fontFamily: 'Cairo'),
+                      ),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  // Close dialog if still open
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'خطأ في المزامنة: $e',
+                        style: const TextStyle(fontFamily: 'Cairo'),
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
           ),
         ),
         const SizedBox(width: 16),
         // زر تحميل من السحابة - Download from Cloud
         Expanded(
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.cloud_download_rounded, color: Colors.white),
-            label: const Text(
-              'تحميل من السحابة',
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.secondary,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: _isLoading
-                ? null
-                : () async {
-                    try {
-                      // عرض ديالوج التقدم
-                      SyncProgressDialog.show(context, title: 'تحميل من السحابة');
-                      await SyncManager.instance.downloadFromCloud();
-                      await _loadData();
+          child: PrimaryButton(
+            label: 'تحميل من السحابة',
+            icon: Icons.cloud_download_rounded,
+            color: AppColors.secondary,
+            isLoading: _isLoading,
+            onPressed: () async {
+              setState(() => _isLoading = true);
+              try {
+                // عرض ديالوج التقدم
 
+                SyncProgressDialog.show(context, title: 'تحميل من السحابة');
+                await SyncManager.instance.downloadFromCloud();
+                await _loadData();
 
-                      // === تحديث جميع الشاشات بعد التحميل من السحابة ===
-                      if (mounted) {
-                        context.read<CasesCubit>().loadCases(force: true);
-                        context.read<InventoryCubit>().loadInventory(
-                          force: true,
-                        );
-                        context.read<ProceduresCubit>().loadProcedures(
-                          force: true,
-                        );
-                        context.read<FinancialsCubit>().loadFinancials(
-                          force: true,
-                        );
-                        context.read<DashboardCubit>().loadDashboardData(
-                          force: true,
-                        );
-                      }
+                // === تحديث جميع الشاشات بعد التحميل من السحابة ===
+                if (mounted) {
+                  context.read<CasesCubit>().loadCases(force: true);
+                  context.read<InventoryCubit>().loadInventory(force: true);
+                  context.read<ProceduresCubit>().loadProcedures(force: true);
+                  context.read<FinancialsCubit>().loadFinancials(force: true);
+                  context.read<DashboardCubit>().loadDashboardData(force: true);
+                }
 
-                      CaseChangeNotifier().notifyCaseUpdated('cloud_download');
-                      DataChangeNotifier().notifyCloudDownloadCompleted();
+                CaseChangeNotifier().notifyCaseUpdated('cloud_download');
+                DataChangeNotifier().notifyCloudDownloadCompleted();
 
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'تم تحميل البيانات من السحابة بنجاح',
-                              style: TextStyle(fontFamily: 'Cairo'),
-                            ),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        if (Navigator.of(context).canPop()) {
-                          Navigator.of(context).pop();
-                        }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'خطأ في التحميل: $e',
-                              style: const TextStyle(fontFamily: 'Cairo'),
-                            ),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  },
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'تم تحميل البيانات من السحابة بنجاح',
+                        style: TextStyle(fontFamily: 'Cairo'),
+                      ),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'خطأ في التحميل: $e',
+                        style: const TextStyle(fontFamily: 'Cairo'),
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
           ),
         ),
       ],

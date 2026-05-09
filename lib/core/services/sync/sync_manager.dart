@@ -592,96 +592,129 @@ class SyncManager {
   /// تنزيل كل البيانات من Firestore إلى SQLite (بدون حذف - إضافة/تحديث فقط)
   /// Download ALL data from Firestore and merge into SQLite (no deletes, only insert/update)
   Future<void> _downloadAllFromCloud() async {
+    const totalSteps = 10;
     try {
-      _emitProgress('جاري تحميل البيانات من السحابة...', icon: '☁️', step: 0, total: 3);
+      _emitProgress('بدء تحميل البيانات من السحابة...', icon: '☁️', step: 0, total: totalSteps);
       log('[SyncManager] Fetching ALL data from Firestore...');
 
-      // Run all downloads in parallel with timeout protection
-      final results = await Future.wait([
-        _firebaseService.getAllCases().timeout(const Duration(seconds: 60)).catchError((e) {
-          log('[SyncManager] Failed to fetch cases: $e');
-          return <CaseModel>[];
-        }),
-        _firebaseService.getAllUsers().timeout(const Duration(seconds: 60)).catchError((e) {
-          log('[SyncManager] Failed to fetch users: $e');
-          return <UserModel>[];
-        }),
-        _firebaseService.getAllInventory().timeout(const Duration(seconds: 60)).catchError((e) {
-          log('[SyncManager] Failed to fetch inventory: $e');
-          return <InventoryModel>[];
-        }),
-        _firebaseService.getAllProcedures().timeout(const Duration(seconds: 60)).catchError((e) {
-          log('[SyncManager] Failed to fetch procedures: $e');
-          return <ProcedureModel>[];
-        }),
-        _firebaseService.getAllShifts().timeout(const Duration(seconds: 60)).catchError((e) {
-          log('[SyncManager] Failed to fetch shifts: $e');
-          return <ShiftModel>[];
-        }),
-        _firebaseService.getAllAttendance().timeout(const Duration(seconds: 60)).catchError((e) {
-          log('[SyncManager] Failed to fetch attendance: $e');
-          return <AttendanceModel>[];
-        }),
-        _firebaseService.getAllPayroll().timeout(const Duration(seconds: 60)).catchError((e) {
-          log('[SyncManager] Failed to fetch payroll: $e');
-          return <PayrollModel>[];
-        }),
-        _firebaseService.getAllExpenses().timeout(const Duration(seconds: 60)).catchError((e) {
-          log('[SyncManager] Failed to fetch expenses: $e');
-          return <ExpenseModel>[];
-        }),
-      ]);
+      final db = await _sqliteService.database;
 
-      await Future.delayed(const Duration(milliseconds: 200));
+      // 1. Cases
+      _emitProgress('الحالات...', icon: '🏥', step: 1, total: totalSteps);
+      final cases = await _firebaseService.getAllCases().timeout(const Duration(seconds: 45));
+      _emitProgress('الحالات — ${cases.length} سجل', icon: '🏥', step: 1, total: totalSteps);
+      await db.transaction((txn) async {
 
-      _emitProgress('حفظ البيانات محلياً...', icon: '💾', step: 1, total: 3);
-
-      // إدراج البيانات في SQLite بدون حذف أي شيء (INSERT OR REPLACE)
-      await _sqliteService.runTransaction((txn) async {
-        try {
-          final batch = txn.batch();
-
-          for (var c in results[0] as List<CaseModel>) {
-            batch.insert('cases', c.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          }
-          for (var u in results[1] as List<UserModel>) {
-            batch.insert('users', u.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          }
-          for (var i in results[2] as List<InventoryModel>) {
-            batch.insert('inventory', i.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          }
-          for (var p in results[3] as List<ProcedureModel>) {
-            batch.insert('procedures', p.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          }
-          for (var s in results[4] as List<ShiftModel>) {
-            batch.insert('shifts', s.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          }
-          for (var a in results[5] as List<AttendanceModel>) {
-            batch.insert('attendance', a.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          }
-          for (var p in results[6] as List<PayrollModel>) {
-            batch.insert('payroll', p.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          }
-          for (var e in results[7] as List<ExpenseModel>) {
-            batch.insert('expenses', e.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          }
-
-          await batch.commit(noResult: true);
-        } catch (e) {
-          log('[SyncManager] Transaction error: $e');
-          rethrow;
+        final batch = txn.batch();
+        for (var c in cases) {
+          batch.insert('cases', c.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
         }
+        await batch.commit(noResult: true);
       });
 
-      final totalRecords = results.fold<int>(0, (sum, list) => sum + (list as List).length);
-      _emitProgress('تم تحميل $totalRecords سجل بنجاح ✓', icon: '🎉', step: 3, total: 3, isDone: true);
+      // 2. Users
+      _emitProgress('الموظفين...', icon: '👥', step: 2, total: totalSteps);
+      final users = await _firebaseService.getAllUsers().timeout(const Duration(seconds: 45));
+      _emitProgress('الموظفين — ${users.length} سجل', icon: '👥', step: 2, total: totalSteps);
+      await db.transaction((txn) async {
+
+        final batch = txn.batch();
+        for (var u in users) {
+          batch.insert('users', u.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        await batch.commit(noResult: true);
+      });
+
+      // 3. Inventory
+      _emitProgress('المخزون...', icon: '📦', step: 3, total: totalSteps);
+      final inventory = await _firebaseService.getAllInventory().timeout(const Duration(seconds: 45));
+      _emitProgress('المخزون — ${inventory.length} صنف', icon: '📦', step: 3, total: totalSteps);
+      await db.transaction((txn) async {
+
+        final batch = txn.batch();
+        for (var i in inventory) {
+          batch.insert('inventory', i.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        await batch.commit(noResult: true);
+      });
+
+      // 4. Procedures
+      _emitProgress('الإجراءات...', icon: '💊', step: 4, total: totalSteps);
+      final procedures = await _firebaseService.getAllProcedures().timeout(const Duration(seconds: 45));
+      _emitProgress('الإجراءات — ${procedures.length} إجراء', icon: '💊', step: 4, total: totalSteps);
+      await db.transaction((txn) async {
+
+        final batch = txn.batch();
+        for (var p in procedures) {
+          batch.insert('procedures', p.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        await batch.commit(noResult: true);
+      });
+
+      // 5. Shifts
+      _emitProgress('الورديات...', icon: '📅', step: 5, total: totalSteps);
+      final shifts = await _firebaseService.getAllShifts().timeout(const Duration(seconds: 45));
+      _emitProgress('الورديات — ${shifts.length} وردية', icon: '📅', step: 5, total: totalSteps);
+      await db.transaction((txn) async {
+
+        final batch = txn.batch();
+        for (var s in shifts) {
+          batch.insert('shifts', s.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        await batch.commit(noResult: true);
+      });
+
+      // 6. Attendance
+      _emitProgress('الحضور...', icon: '✅', step: 6, total: totalSteps);
+      final attendance = await _firebaseService.getAllAttendance().timeout(const Duration(seconds: 45));
+      _emitProgress('الحضور — ${attendance.length} سجل', icon: '✅', step: 6, total: totalSteps);
+      await db.transaction((txn) async {
+
+        final batch = txn.batch();
+        for (var a in attendance) {
+          batch.insert('attendance', a.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        await batch.commit(noResult: true);
+      });
+
+      // 7. Payroll
+      _emitProgress('الرواتب...', icon: '💰', step: 7, total: totalSteps);
+      final payroll = await _firebaseService.getAllPayroll().timeout(const Duration(seconds: 45));
+      _emitProgress('الرواتب — ${payroll.length} سجل', icon: '💰', step: 7, total: totalSteps);
+      await db.transaction((txn) async {
+
+        final batch = txn.batch();
+        for (var p in payroll) {
+          batch.insert('payroll', p.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        await batch.commit(noResult: true);
+      });
+
+      // 8. Expenses
+      _emitProgress('المصاريف...', icon: '💳', step: 8, total: totalSteps);
+      final expenses = await _firebaseService.getAllExpenses().timeout(const Duration(seconds: 45));
+      _emitProgress('المصاريف — ${expenses.length} سجل', icon: '💳', step: 8, total: totalSteps);
+      await db.transaction((txn) async {
+
+        final batch = txn.batch();
+        for (var e in expenses) {
+          batch.insert('expenses', e.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        await batch.commit(noResult: true);
+      });
+
+      // 9. Finalizing
+      _emitProgress('تحديث الحالة النهائية...', icon: '⚙️', step: 9, total: totalSteps);
+      final totalRecords = cases.length + users.length + inventory.length + procedures.length + shifts.length + attendance.length + payroll.length + expenses.length;
+      
+      _emitProgress('تم تحميل $totalRecords سجل بنجاح ✓', icon: '🎉', step: totalSteps, total: totalSteps, isDone: true);
       log('[SyncManager] ✓ Downloaded & merged $totalRecords records from cloud');
     } catch (e) {
       _emitProgress('فشل التحميل: $e', icon: '❌', isError: true);
       log('[SyncManager] Download all from cloud error: $e');
-      // Don't rethrow - download failures shouldn't crash the app
     }
   }
+
 
   // ============================================
   // === Legacy Wrappers (For Compatibility) ===
