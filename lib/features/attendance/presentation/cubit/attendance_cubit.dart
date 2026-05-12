@@ -100,6 +100,20 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         });
   }
 
+  void searchAttendance(String query) {
+    if (state is AttendanceLoaded) {
+      final s = state as AttendanceLoaded;
+      emit(s.copyWith(searchQuery: query));
+    }
+  }
+
+  void filterByDate(DateTime? date) {
+    if (state is AttendanceLoaded) {
+      final s = state as AttendanceLoaded;
+      emit(s.copyWith(dateFilter: date, clearDateFilter: date == null));
+    }
+  }
+
   /// توليد تقرير الحضور الشهري - Generate Monthly Attendance Report
   /// Returns the report data (records + shifts) for preview usage
   Future<Map<String, dynamic>?> getMonthlyReportData(int year, int month) async {

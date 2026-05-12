@@ -23,11 +23,9 @@ class _LoginScreenState extends State<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _searchController = TextEditingController(); // البحث عن المستخدمين
   bool _obscurePassword = true;
   bool _isQuickLogin = true; // الوضع الافتراضي الجديد هى البطاقات
   List<UserModel> _allUsers = [];
-  List<UserModel> _filteredUsers = [];
   bool _isLoadingUsers = false;
   late AnimationController _animController;
 
@@ -50,7 +48,6 @@ class _LoginScreenState extends State<LoginScreen>
       if (mounted) {
         setState(() {
           _allUsers = users;
-          _filteredUsers = users;
           _isLoadingUsers = false;
         });
       }
@@ -65,7 +62,6 @@ class _LoginScreenState extends State<LoginScreen>
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _searchController.dispose();
     _animController.dispose();
     super.dispose();
   }
@@ -497,17 +493,18 @@ class _LoginScreenState extends State<LoginScreen>
       );
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 0.85,
-      ),
-      itemCount: _filteredUsers.length,
-      itemBuilder: (context, index) => _buildUserCard(_filteredUsers[index]),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 10),
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _allUsers.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 10),
+          itemBuilder: (context, index) => _buildUserCard(_allUsers[index]),
+        ),
+      ],
     );
   }
 
@@ -949,59 +946,63 @@ class _HoverUserCardState extends State<_HoverUserCard> {
                 )
               ] : [],
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Hero(
-                  tag: 'avatar_${widget.user.id}',
-                  child: CircleAvatar(
-                    radius: 35,
-                    backgroundColor: color,
-                    child: Text(
-                      widget.user.name.isNotEmpty ? widget.user.name[0].toUpperCase() : '?',
-                      style: const TextStyle(
-                        color: Colors.white, 
-                        fontSize: 28, 
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Cairo'
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Hero(
+                    tag: 'avatar_${widget.user.id}',
+                    child: CircleAvatar(
+                      radius: 25,
+                      backgroundColor: color,
+                      child: Text(
+                        widget.user.name.isNotEmpty ? widget.user.name[0].toUpperCase() : '?',
+                        style: const TextStyle(
+                          color: Colors.white, 
+                          fontSize: 20, 
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Cairo'
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                  child: Text(
-                    widget.user.name,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: 'Cairo', 
-                      fontSize: 14, 
-                      fontWeight: _isHovered ? FontWeight.w800 : FontWeight.w700,
-                      color: _isHovered ? AppColors.textPrimary : AppColors.textSecondary,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          widget.user.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'Cairo', 
+                            fontSize: 15, 
+                            fontWeight: _isHovered ? FontWeight.w800 : FontWeight.w700,
+                            color: _isHovered ? AppColors.textPrimary : AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.user.role.label,
+                          style: TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 11,
+                            color: color.withOpacity(0.8),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: color.withOpacity(0.3),
+                    size: 20,
                   ),
-                  child: Text(
-                    widget.user.role.label,
-                    style: TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 10,
-                      color: color,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

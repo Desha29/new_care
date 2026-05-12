@@ -12,6 +12,7 @@ import '../../data/models/case_model.dart';
 import '../../domain/repositories/cases_repository.dart';
 import 'cases_state.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../../../core/enums/case_status.dart';
 
 class CasesCubit extends Cubit<CasesState> {
   final ICasesRepository _casesRepository;
@@ -71,8 +72,15 @@ class CasesCubit extends Cubit<CasesState> {
 
   void searchCases(String query) {
     if (state is CasesLoaded) {
-      final currentState = state as CasesLoaded;
-      emit(CasesLoaded(cases: currentState.cases, searchQuery: query));
+      final s = state as CasesLoaded;
+      emit(s.copyWith(searchQuery: query));
+    }
+  }
+
+  void filterByType(CaseType? type) {
+    if (state is CasesLoaded) {
+      final s = state as CasesLoaded;
+      emit(s.copyWith(typeFilter: type, clearTypeFilter: type == null));
     }
   }
 

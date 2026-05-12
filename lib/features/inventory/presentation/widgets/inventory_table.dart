@@ -43,7 +43,7 @@ class InventoryTable extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                     decoration: const BoxDecoration(
-                      color: AppColors.surfaceVariant,
+                      color: AppColors.primary,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(16),
                         topRight: Radius.circular(16),
@@ -95,7 +95,7 @@ class InventoryTable extends StatelessWidget {
           t,
           style: AppTypography.tableHeader.copyWith(
             fontSize: 13,
-            color: AppColors.textSecondary,
+            color: Colors.white,
           ),
         ),
       );

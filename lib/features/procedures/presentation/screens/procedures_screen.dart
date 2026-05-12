@@ -19,8 +19,6 @@ class ProceduresScreen extends StatefulWidget {
 }
 
 class _ProceduresScreenState extends State<ProceduresScreen> {
-  final TextEditingController _searchCtrl = TextEditingController();
-
   @override
   void initState() {
     super.initState();
@@ -42,21 +40,6 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
               context,
               context.read<ProceduresCubit>(),
             ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                flex: isDesktop ? 2 : 1,
-                child: SearchBarWidget(
-                  controller: _searchCtrl,
-                  hintText: 'ابحث عن الإجراء أو الخدمة...',
-                  onChanged: (v) =>
-                      context.read<ProceduresCubit>().searchProcedures(v),
-                ),
-              ),
-              if (isDesktop) const Spacer(flex: 3),
-            ],
           ),
           const SizedBox(height: 24),
           Expanded(

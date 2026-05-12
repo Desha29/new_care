@@ -43,7 +43,7 @@ class UsersTable extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                     decoration: const BoxDecoration(
-                      color: AppColors.surfaceVariant,
+                      color: AppColors.primary,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(16),
                         topRight: Radius.circular(16),
@@ -51,13 +51,13 @@ class UsersTable extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        _hc('الاسم', 2),
-                        _hc('البريد', 2),
-                        _hc('الهاتف', 2),
-                        _hc('الصلاحية', 2),
-                        _hc('المرتب', 2),
-                        _hc('الحالة', 1),
-                        _hc('إجراءات', 2),
+                        _hc('الاسم', 2, Colors.white),
+                        _hc('البريد', 2, Colors.white),
+                        _hc('الهاتف', 2, Colors.white),
+                        _hc('الصلاحية', 2, Colors.white),
+                        _hc('المرتب', 2, Colors.white),
+                        _hc('الحالة', 1, Colors.white),
+                        _hc('إجراءات', 2, Colors.white),
                       ],
                     ),
                   ),
@@ -246,9 +246,15 @@ class UsersTable extends StatelessWidget {
     );
   }
 
-  Widget _hc(String t, int f) => Expanded(
+  Widget _hc(String t, int f, [Color? color]) => Expanded(
         flex: f,
-        child: Text(t, style: AppTypography.tableHeader.copyWith(fontSize: 13)),
+        child: Text(
+          t, 
+          style: AppTypography.tableHeader.copyWith(
+            fontSize: 13, 
+            color: color ?? AppColors.textSecondary,
+          ),
+        ),
       );
 
   Widget _ab(IconData icon, Color color, String tooltip, VoidCallback? onTap) => Tooltip(

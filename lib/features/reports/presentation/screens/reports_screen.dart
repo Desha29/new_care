@@ -348,14 +348,18 @@ class _ReportsScreenState extends State<ReportsScreen>
               children: [
                 ElevatedButton.icon(
                   onPressed: () => _generateWorkReport(filteredCases),
-                  icon: const Icon(Icons.description_rounded),
+                  icon: const Icon(Icons.description_rounded, size: 18),
                   label: const Text(
                     'إنشاء تقرير عمل شهري',
-                    style: TextStyle(fontFamily: 'Cairo'),
+                    style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.info,
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ],
@@ -369,68 +373,114 @@ class _ReportsScreenState extends State<ReportsScreen>
                   subtitle: 'سيتم عرض فواتير الحالات المسجلة هنا',
                 )
               : ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 24),
                   itemCount: filteredCases.length,
                   itemBuilder: (context, index) {
                     final c = filteredCases[index];
-                    return Card(
+                    return Container(
                       margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 8,
-                        ),
-                        leading: CircleAvatar(
-                          backgroundColor: AppColors.primary.withValues(
-                            alpha: 0.1,
-                          ),
-                          child: const Icon(
-                            Icons.receipt_rounded,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        title: Text(
-                          c.patientName,
-                          style: const TextStyle(
-                            fontFamily: 'Cairo',
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        subtitle: Text(
-                          '${DateFormat('yyyy/MM/dd').format(c.caseDate)} • ${c.caseType.label} • ${c.nurseName}',
-                          style: const TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 12,
-                          ),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '${(c.totalPrice - c.discount).toStringAsFixed(0)} E.P',
-                              style: const TextStyle(
-                                fontFamily: 'Cairo',
-                                fontWeight: FontWeight.bold,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: IntrinsicHeight(
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 6,
                                 color: AppColors.primary,
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.visibility_rounded,
-                                color: AppColors.info,
-                              ),
-                              onPressed: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      InvoicePreviewScreen(caseData: c),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 22,
+                                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                                        child: const Icon(
+                                          Icons.receipt_rounded,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              c.patientName,
+                                              style: const TextStyle(
+                                                fontFamily: 'Cairo',
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${DateFormat('yyyy/MM/dd').format(c.caseDate)} • ${c.caseType.label} • ${c.nurseName}',
+                                              style: const TextStyle(
+                                                fontFamily: 'Cairo',
+                                                fontSize: 12,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '${(c.totalPrice - c.discount).toStringAsFixed(0)} E.P',
+                                            style: const TextStyle(
+                                              fontFamily: 'Cairo',
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              color: AppColors.info.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: IconButton(
+                                              icon: const Icon(
+                                                Icons.visibility_rounded,
+                                                color: AppColors.info,
+                                                size: 20,
+                                              ),
+                                              onPressed: () => Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      InvoicePreviewScreen(caseData: c),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -473,135 +523,163 @@ class _ReportsScreenState extends State<ReportsScreen>
           children: [
             ElevatedButton.icon(
               onPressed: _generateFullStaffReport,
-              icon: const Icon(Icons.picture_as_pdf_rounded),
+              icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
               label: const Text(
                 'تحميل تقرير PDF شامل',
-                style: TextStyle(fontFamily: 'Cairo'),
+                style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 16),
         Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: ListView.separated(
-              itemCount: staffList.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final entry = staffList[index];
-                final name = names[entry.key] ?? 'مجهول';
-                final hours = entry.value;
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 24),
+            itemCount: staffList.length,
+            itemBuilder: (context, index) {
+              final entry = staffList[index];
+              final name = names[entry.key] ?? 'مجهول';
+              final hours = entry.value;
 
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: InkWell(
-                    onTap: () {
-                      final userAttendance = _attendance
-                          .where((a) => a.userId == entry.key)
-                          .toList();
-
-                      final authState = context.read<AuthCubit>().state;
-                      String genBy = 'مدير النظام';
-                      if (authState is AuthAuthenticated) {
-                        genBy = authState.user.name;
-                      }
-
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ReportPreviewScreen(
-                            title: 'تقرير الموظف - $name',
-                            fileName:
-                                'Nurse_Report_${name}_${_selectedDate.year}_${_selectedDate.month}',
-                            buildReport: () => ReportService.instance
-                                .generateSingleNurseReportBytes(
-                                  year: _selectedDate.year,
-                                  month: _selectedDate.month,
-                                  nurseName: name,
-                                  attendanceRecords: userAttendance,
-                                  generatedBy: genBy,
-                                ),
-                          ),
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          color: AppColors.secondary,
                         ),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: AppColors.secondary.withValues(
-                              alpha: 0.1,
-                            ),
-                            child: const Icon(
-                              Icons.person_rounded,
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  name,
-                                  style: const TextStyle(
-                                    fontFamily: 'Cairo',
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              final userAttendance = _attendance
+                                  .where((a) => a.userId == entry.key)
+                                  .toList();
+
+                              final authState = context.read<AuthCubit>().state;
+                              String genBy = 'مدير النظام';
+                              if (authState is AuthAuthenticated) {
+                                genBy = authState.user.name;
+                              }
+
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ReportPreviewScreen(
+                                    title: 'تقرير الموظف - $name',
+                                    fileName:
+                                        'Nurse_Report_${name}_${_selectedDate.year}_${_selectedDate.month}',
+                                    buildReport: () => ReportService.instance
+                                        .generateSingleNurseReportBytes(
+                                          year: _selectedDate.year,
+                                          month: _selectedDate.month,
+                                          nurseName: name,
+                                          attendanceRecords: userAttendance,
+                                          generatedBy: genBy,
+                                        ),
                                   ),
                                 ),
-                                Text(
-                                  'انقر لمعاينة تقرير الحضور التفصيلي',
-                                  style: TextStyle(
-                                    fontFamily: 'Cairo',
-                                    fontSize: 12,
-                                    color: AppColors.primary,
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 22,
+                                    backgroundColor: AppColors.secondary.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    child: const Icon(
+                                      Icons.person_rounded,
+                                      color: AppColors.secondary,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.success.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              '${hours.toStringAsFixed(1)} ساعة',
-                              style: const TextStyle(
-                                fontFamily: 'Cairo',
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.success,
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          name,
+                                          style: const TextStyle(
+                                            fontFamily: 'Cairo',
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        const Text(
+                                          'انقر لمعاينة تقرير الحضور التفصيلي',
+                                          style: TextStyle(
+                                            fontFamily: 'Cairo',
+                                            fontSize: 12,
+                                            color: AppColors.textHint,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.success.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      '${hours.toStringAsFixed(1)} ساعة',
+                                      style: const TextStyle(
+                                        fontFamily: 'Cairo',
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.success,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: AppColors.textHint,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          const Icon(
-                            Icons.chevron_right_rounded,
-                            color: AppColors.textHint,
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
         ),
       ],

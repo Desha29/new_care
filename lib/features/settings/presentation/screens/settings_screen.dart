@@ -108,25 +108,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             if (isSmall) ...[
               _buildBackupSection(),
               const SizedBox(height: 20),
-              _buildRemoteConfigSection(),
-              const SizedBox(height: 20),
-              _buildSystemStatus(),
-              const SizedBox(height: 20),
               _buildClinicInfoSection(),
             ] else ...[
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(flex: 1, child: _buildBackupSection()),
-                  const SizedBox(width: 20),
-                  Expanded(flex: 1, child: _buildRemoteConfigSection()),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 1, child: _buildSystemStatus()),
                   const SizedBox(width: 20),
                   Expanded(flex: 1, child: _buildClinicInfoSection()),
                 ],
@@ -292,144 +279,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildRemoteConfigSection() {
-    return _sectionCard(
-      AppStrings.remoteConfig,
-      Icons.cloud_sync_rounded,
-      AppColors.secondary,
-      [
-        ..._flags.entries.map((e) {
-          String label;
-          String desc;
-          switch (e.key) {
-            case 'enable_printing':
-              label = 'الطباعة';
-              desc = 'تفعيل/تعطيل ميزة الطباعة والتقارير الورقية';
-              break;
-            case 'enable_backup':
-              label = 'النسخ السحابي';
-              desc = 'تفعيل المزامنة التلقائية مع Firebase';
-              break;
-            case 'enable_reports':
-              label = 'التقارير';
-              desc = 'الوصول لتقارير الأداء الشهرية';
-              break;
-            case 'force_update':
-              label = 'تحديث إجباري';
-              desc = 'إلزام المستخدمين بالانتقال لأحدث نسخة';
-              break;
-            case 'kill_switch':
-              label = 'إيقاف النظام';
-              desc = 'تعطيل الدخول للتطبيق في وضع الطوارئ';
-              break;
-            case 'maintenance_mode':
-              label = 'وضع الصيانة';
-              desc = 'إظهار شاشة الصيانة للمستخدمين';
-              break;
-            default:
-              label = e.key;
-              desc = '';
-          }
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: _settingRow(
-              label,
-              desc,
-              Switch(
-                value: e.value,
-                onChanged: (v) => setState(() => _flags[e.key] = v),
-                activeThumbColor: e.key.contains('kill') || e.key.contains('force')
-                    ? AppColors.error
-                    : AppColors.primary,
-              ),
-            ),
-          );
-        }),
-        const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => _showSnackbar(
-              'تم تحديث الإعدادات من السيرفر بنجاح',
-              AppColors.success,
-            ),
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text(
-              'تحديث من Cloud Config',
-              style: TextStyle(fontFamily: 'Cairo'),
-            ),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSystemStatus() {
-    return _sectionCard(
-      AppStrings.systemStatus,
-      Icons.monitor_heart_rounded,
-      _systemActive ? AppColors.success : AppColors.error,
-      [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _systemActive
-                ? AppColors.statusCompletedBg
-                : AppColors.statusCancelledBg,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                _systemActive
-                    ? Icons.check_circle_rounded
-                    : Icons.error_rounded,
-                color: _systemActive ? AppColors.success : AppColors.error,
-                size: 32,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _systemActive
-                          ? AppStrings.systemActive
-                          : AppStrings.systemStopped,
-                      style: TextStyle(
-                        fontFamily: 'Cairo',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: _systemActive
-                            ? AppColors.success
-                            : AppColors.error,
-                      ),
-                    ),
-                    Text(
-                      _systemActive
-                          ? 'جميع أنظمة تطبيق نيو كير تعمل بشكل مستقر'
-                          : 'توجد بعض المشاكل في الاتصال بالسيرفر',
-                      style: const TextStyle(
-                        fontFamily: 'Cairo',
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildClinicInfoSection() {
     return _sectionCard(

@@ -12,11 +12,26 @@ class ProceduresLoading extends ProceduresState {}
 class ProceduresLoaded extends ProceduresState {
   final List<ProcedureModel> procedures;
   final String searchQuery;
-  const ProceduresLoaded({required this.procedures, this.searchQuery = ''});
+
+  const ProceduresLoaded({
+    required this.procedures,
+    this.searchQuery = '',
+  });
+
+  ProceduresLoaded copyWith({
+    List<ProcedureModel>? procedures,
+    String? searchQuery,
+  }) {
+    return ProceduresLoaded(
+      procedures: procedures ?? this.procedures,
+      searchQuery: searchQuery ?? this.searchQuery,
+    );
+  }
 
   List<ProcedureModel> get filteredProcedures {
     if (searchQuery.isEmpty) return procedures;
-    return procedures.where((p) => p.name.contains(searchQuery)).toList();
+    final q = searchQuery.toLowerCase();
+    return procedures.where((p) => p.name.toLowerCase().contains(q)).toList();
   }
 
   @override

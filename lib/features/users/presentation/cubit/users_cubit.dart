@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/notifications/data_change_notifier.dart';
 import '../../domain/repositories/users_repository.dart';
 import '../../../auth/data/models/user_model.dart';
+import '../../../../core/enums/user_role.dart';
 import 'users_state.dart';
 
 class UsersCubit extends Cubit<UsersState> {
@@ -36,6 +37,13 @@ class UsersCubit extends Cubit<UsersState> {
     if (state is UsersLoaded) {
       final s = state as UsersLoaded;
       emit(s.copyWith(searchQuery: query));
+    }
+  }
+
+  void filterByRole(UserRole? role) {
+    if (state is UsersLoaded) {
+      final s = state as UsersLoaded;
+      emit(s.copyWith(roleFilter: role, clearRoleFilter: role == null));
     }
   }
 

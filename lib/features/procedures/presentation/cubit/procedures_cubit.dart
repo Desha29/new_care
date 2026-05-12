@@ -25,8 +25,8 @@ class ProceduresCubit extends Cubit<ProceduresState> {
 
   void searchProcedures(String query) {
     if (state is ProceduresLoaded) {
-      final currentState = state as ProceduresLoaded;
-      emit(ProceduresLoaded(procedures: currentState.procedures, searchQuery: query));
+      final s = state as ProceduresLoaded;
+      emit(s.copyWith(searchQuery: query));
     }
   }
 

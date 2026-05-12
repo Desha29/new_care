@@ -21,6 +21,8 @@ class ExpensesTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final expenses = state.filteredExpenses;
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -31,98 +33,150 @@ class ExpensesTable extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'سجل المصروفات',
-            style: TextStyle(
-              fontFamily: 'Cairo',
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            children: [
+              const Icon(Icons.receipt_long_rounded, color: AppColors.primary),
+              const SizedBox(width: 10),
+              const Text(
+                'سجل المصروفات',
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${expenses.length} مصروف',
+                  style: const TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          if (state.expenses.isEmpty)
+          const SizedBox(height: 24),
+          if (expenses.isEmpty)
             EmptyStateWidget(
               icon: Icons.receipt_long_rounded,
-              title: 'لا توجد مصروفات سجلت',
-              subtitle: 'يمكنك إضافة مصروفات جديدة لتتبع التكاليف',
-              actionLabel: 'إضافة مصروف',
-              onAction: onAdd,
+              title: state.searchQuery.isEmpty ? 'لا توجد مصروفات سجلت' : 'لا توجد نتائج للبحث',
+              subtitle: state.searchQuery.isEmpty 
+                  ? 'يمكنك إضافة مصروفات جديدة لتتبع التكاليف'
+                  : 'جرب البحث بكلمات أخرى',
+              actionLabel: state.searchQuery.isEmpty ? 'إضافة مصروف' : null,
+              onAction: state.searchQuery.isEmpty ? onAdd : null,
             )
           else
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: state.expenses.length,
-              separatorBuilder: (context, index) => const Divider(),
+              itemCount: expenses.length,
+              separatorBuilder: (context, index) => const Divider(height: 24),
               itemBuilder: (context, i) {
-                final e = state.expenses[i];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.payment_rounded,
-                          color: AppColors.error,
-                          size: 18,
-                        ),
+                final e = expenses[i];
+                return Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              e.label,
-                              style: const TextStyle(
-                                fontFamily: 'Cairo',
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                            Text(
-                              e.category,
-                              style: const TextStyle(
-                                fontFamily: 'Cairo',
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
+                      child: const Icon(
+                        Icons.payment_rounded,
+                        color: AppColors.error,
+                        size: 20,
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${e.amount} ${AppStrings.currency}',
+                            e.label,
                             style: const TextStyle(
                               fontFamily: 'Cairo',
                               fontWeight: FontWeight.bold,
-                              color: AppColors.error,
+                              fontSize: 15,
                             ),
                           ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceVariant,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  e.category,
+                                  style: const TextStyle(
+                                    fontFamily: 'Cairo',
+                                    fontSize: 10,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                DateFormat('dd MMMM yyyy', 'ar').format(e.date),
+                                style: const TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontSize: 11,
+                                  color: AppColors.textHint,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${e.amount} ${AppStrings.currency}',
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.error,
+                          ),
+                        ),
+                        if (e.notes.isNotEmpty)
                           Text(
-                            DateFormat('dd/MM/yyyy').format(e.date),
+                            e.notes,
                             style: const TextStyle(
                               fontFamily: 'Cairo',
                               fontSize: 10,
                               color: AppColors.textHint,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
+                      ],
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      onPressed: () => onDelete(e),
+                      icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.error.withValues(alpha: 0.05),
+                        padding: const EdgeInsets.all(8),
                       ),
-                      const SizedBox(width: 8),
-                      IconActionButton.delete(
-                        onPressed: () => onDelete(e),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 );
               },
             ),

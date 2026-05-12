@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/widgets/search_bar_widget.dart';
 import '../../../../core/widgets/buttons/primary_button.dart';
+import '../../../../core/enums/user_role.dart';
+import '../cubit/users_cubit.dart';
+import '../cubit/users_state.dart';
 
 class UsersHeader extends StatelessWidget {
   final VoidCallback onRefresh;
@@ -62,12 +66,8 @@ class UsersHeader extends StatelessWidget {
             ),
             if (!isMobile)
               SizedBox(
-                width: 300,
-                child: SearchBarWidget(
-                  hintText: AppStrings.searchUsers,
-                  controller: searchController,
-                  onChanged: onSearchChanged,
-                ),
+                width: 350,
+                child: _buildSearchWithFilter(context),
               ),
             const SizedBox(width: 12),
             PrimaryButton(
@@ -79,13 +79,42 @@ class UsersHeader extends StatelessWidget {
         ),
         if (isMobile) ...[
           const SizedBox(height: 12),
-          SearchBarWidget(
-            hintText: AppStrings.searchUsers,
-            controller: searchController,
-            onChanged: onSearchChanged,
-          ),
+          _buildSearchWithFilter(context),
         ],
       ],
+    );
+  }
+
+  Widget _buildSearchWithFilter(BuildContext context) {
+    return BlocBuilder<UsersCubit, UsersState>(
+      buildWhen: (prev, curr) => curr is UsersLoaded,
+      builder: (context, state) {
+        final roleFilter = state is UsersLoaded ? state.roleFilter : null;
+        
+        return SearchBarWidget(
+          hintText: AppStrings.searchUsers,
+          controller: searchController,
+          onChanged: onSearchChanged,
+          trailing: DropdownButtonHideUnderline(
+            child: DropdownButton<UserRole?>(
+              value: roleFilter,
+              icon: const Icon(Icons.filter_list_rounded, size: 18, color: AppColors.primary),
+              hint: const Text('الكل', style: TextStyle(fontFamily: 'Cairo', fontSize: 12)),
+              onChanged: (role) => context.read<UsersCubit>().filterByRole(role),
+              items: [
+                const DropdownMenuItem(
+                  value: null,
+                  child: Text('الكل', style: TextStyle(fontFamily: 'Cairo', fontSize: 12)),
+                ),
+                ...UserRole.values.map((role) => DropdownMenuItem(
+                  value: role,
+                  child: Text(role.label, style: const TextStyle(fontFamily: 'Cairo', fontSize: 12)),
+                )),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

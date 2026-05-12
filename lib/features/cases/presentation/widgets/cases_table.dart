@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/widgets/buttons/icon_action_button.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../../../../core/widgets/dialogs/confirm_dialog.dart';
 import '../../data/models/case_model.dart';
@@ -22,185 +21,244 @@ class CasesTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (cases.isEmpty) {
+      return EmptyStateWidget.cases(
+        onAction: () => _showCaseDialog(context),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: cases.length,
+      padding: const EdgeInsets.only(bottom: 24),
+      itemBuilder: (context, index) => _buildCaseCard(context, cases[index]),
+    );
+  }
+
+  Widget _buildCaseCard(BuildContext context, CaseModel c) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final minWidth = constraints.maxWidth < 700 ? 700.0 : constraints.maxWidth;
-          return Column(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: IntrinsicHeight(
+          child: Row(
             children: [
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(width: minWidth, child: _buildTableHeader()),
+              // Indicator color based on case type
+              Container(
+                width: 6,
+                color: c.caseType.label.contains('طوارئ') ? AppColors.error : AppColors.primary,
               ),
-              const Divider(height: 1, color: AppColors.border),
               Expanded(
-                child: cases.isEmpty
-                    ? EmptyStateWidget.cases(
-                        onAction: () => _showCaseDialog(context),
-                      )
-                    : SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: SizedBox(
-                          width: minWidth,
-                          child: ListView.separated(
-                            shrinkWrap: true,
-                            itemCount: cases.length,
-                            separatorBuilder: (context, index) =>
-                                const Divider(height: 1, color: AppColors.borderLight),
-                            itemBuilder: (context, index) =>
-                                _buildTableRow(context, cases[index], index),
-                          ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // Patient Info
+                      Expanded(
+                        flex: 4,
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.08),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.person_rounded, color: AppColors.primary, size: 22),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    c.patientName,
+                                    style: const TextStyle(
+                                      fontFamily: 'Cairo',
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (c.patientPhone.isNotEmpty)
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.phone_rounded, size: 10, color: AppColors.textHint),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          c.patientPhone,
+                                          style: const TextStyle(
+                                            fontFamily: 'Cairo',
+                                            fontSize: 12,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                      
+                      const VerticalDivider(width: 32, indent: 8, endIndent: 8),
+
+                      // Nurse Info
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'الممرض المسئول',
+                              style: TextStyle(fontFamily: 'Cairo', fontSize: 10, color: AppColors.textHint, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.medical_services_outlined, size: 13, color: AppColors.secondary),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    c.nurseName.isNotEmpty ? c.nurseName : 'غير محدد',
+                                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.w700),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const VerticalDivider(width: 32, indent: 8, endIndent: 8),
+
+                      // Case Type & Price
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(c.caseType.icon, size: 12, color: AppColors.secondary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    c.caseType.label,
+                                    style: const TextStyle(
+                                      fontFamily: 'Cairo', 
+                                      fontSize: 11, 
+                                      fontWeight: FontWeight.bold, 
+                                      color: AppColors.secondary
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '${c.totalPrice.toStringAsFixed(0)} ${AppStrings.currency}',
+                              style: const TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const VerticalDivider(width: 32, indent: 8, endIndent: 8),
+
+                      // Actions
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _actionIconBtn(
+                            context: context,
+                            icon: Icons.receipt_long_rounded,
+                            color: AppColors.success,
+                            tooltip: 'عرض الفاتورة',
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => InvoicePreviewScreen(caseData: c)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _actionIconBtn(
+                            context: context,
+                            icon: Icons.edit_rounded,
+                            color: AppColors.warning,
+                            tooltip: 'تعديل',
+                            onPressed: () => _showCaseDialog(context, caseData: c),
+                          ),
+                          const SizedBox(width: 8),
+                          _actionIconBtn(
+                            context: context,
+                            icon: Icons.delete_outline_rounded,
+                            color: AppColors.error,
+                            tooltip: 'حذف',
+                            onPressed: () => _confirmDelete(context, c),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildTableHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ),
-      ),
-      child: Row(
-        children: [
-          _headerCell('المريض / العميل', 3),
-          _headerCell('الممرض المسئول', 2),
-          _headerCell('نوع الحالة', 2),
-          _headerCell('إجمالي السعر', 2),
-          _headerCell('الإجراءات', 2),
-        ],
-      ),
-    );
-  }
-
-  Widget _headerCell(String text, int flex) {
-    return Expanded(
-      flex: flex,
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontFamily: 'Cairo',
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-          color: AppColors.textSecondary,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTableRow(BuildContext context, CaseModel c, int index) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-      color: index.isEven
-          ? Colors.transparent
-          : AppColors.surfaceVariant.withOpacity(0.2),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  c.patientName,
-                  style: const TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (c.patientPhone.isNotEmpty)
-                  Text(
-                    c.patientPhone,
-                    style: const TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-              ],
-            ),
+  Widget _actionIconBtn({
+    required BuildContext context,
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
           ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              c.nurseName.isNotEmpty ? c.nurseName : '-',
-              style: const TextStyle(fontFamily: 'Cairo', fontSize: 13),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Row(
-              children: [
-                Icon(c.caseType.icon, size: 14, color: AppColors.secondary),
-                const SizedBox(width: 8),
-                Text(
-                  c.caseType.label,
-                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              '${c.totalPrice.toStringAsFixed(0)} ${AppStrings.currency}',
-              style: const TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Row(
-              children: [
-                IconActionButton(
-                  icon: Icons.receipt_long_rounded,
-                  tooltip: 'عرض الفاتورة',
-                  color: AppColors.success,
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => InvoicePreviewScreen(caseData: c),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconActionButton.edit(
-                  onPressed: () => _showCaseDialog(context, caseData: c),
-                ),
-                const SizedBox(width: 8),
-                IconActionButton.delete(
-                  onPressed: () => _confirmDelete(context, c),
-                ),
-              ],
-            ),
-          ),
-        ],
+          child: Icon(icon, color: color, size: 20),
+        ),
       ),
     );
   }

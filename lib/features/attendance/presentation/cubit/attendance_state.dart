@@ -13,29 +13,56 @@ class AttendanceLoading extends AttendanceState {}
 
 class AttendanceLoaded extends AttendanceState {
   final List<AttendanceModel> records;
-  final AttendanceModel? todayRecord; // سجل اليوم للمستخدم الحالي
+  final AttendanceModel? todayRecord;
   final bool isCheckedIn;
+  final String searchQuery;
+  final DateTime? dateFilter;
 
   const AttendanceLoaded({
     required this.records,
     this.todayRecord,
     this.isCheckedIn = false,
+    this.searchQuery = '',
+    this.dateFilter,
   });
 
   AttendanceLoaded copyWith({
     List<AttendanceModel>? records,
     AttendanceModel? todayRecord,
     bool? isCheckedIn,
+    String? searchQuery,
+    DateTime? dateFilter,
+    bool clearDateFilter = false,
   }) {
     return AttendanceLoaded(
       records: records ?? this.records,
       todayRecord: todayRecord ?? this.todayRecord,
       isCheckedIn: isCheckedIn ?? this.isCheckedIn,
+      searchQuery: searchQuery ?? this.searchQuery,
+      dateFilter: clearDateFilter ? null : (dateFilter ?? this.dateFilter),
     );
   }
 
+  List<AttendanceModel> get filteredRecords {
+    List<AttendanceModel> result = records;
+
+    // Filter by date
+    if (dateFilter != null) {
+      final dateStr = '${dateFilter!.year}-${dateFilter!.month.toString().padLeft(2, '0')}-${dateFilter!.day.toString().padLeft(2, '0')}';
+      result = result.where((r) => r.date == dateStr).toList();
+    }
+
+    // Filter by search query
+    if (searchQuery.isNotEmpty) {
+      final q = searchQuery.toLowerCase();
+      result = result.where((r) => r.userName.toLowerCase().contains(q)).toList();
+    }
+
+    return result;
+  }
+
   @override
-  List<Object?> get props => [records, todayRecord, isCheckedIn];
+  List<Object?> get props => [records, todayRecord, isCheckedIn, searchQuery, dateFilter];
 }
 
 class AttendanceCheckedIn extends AttendanceState {

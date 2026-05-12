@@ -37,7 +37,7 @@ class ProceduresTable extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                     decoration: const BoxDecoration(
-                      color: AppColors.surfaceVariant,
+                      color: AppColors.primary,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(16),
                         topRight: Radius.circular(16),
@@ -57,21 +57,28 @@ class ProceduresTable extends StatelessWidget {
               ),
               const Divider(height: 1, color: AppColors.border),
               Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(
-                    width: minWidth,
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: procedures.length,
-                      separatorBuilder: (context, index) => const Divider(
-                        height: 1,
-                        color: AppColors.borderLight,
+                child: procedures.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'لا توجد إجراءات مضافة',
+                          style: TextStyle(fontFamily: 'Cairo'),
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: minWidth,
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: procedures.length,
+                            separatorBuilder: (context, index) => const Divider(
+                              height: 1,
+                              color: AppColors.borderLight,
+                            ),
+                            itemBuilder: (context, index) => _buildRow(procedures[index], index),
+                          ),
+                        ),
                       ),
-                      itemBuilder: (context, index) => _buildRow(procedures[index], index),
-                    ),
-                  ),
-                ),
               ),
             ],
           );
@@ -88,6 +95,7 @@ class ProceduresTable extends StatelessWidget {
         style: AppTypography.tableHeader.copyWith(
           fontSize: 15,
           fontWeight: FontWeight.bold,
+          color: Colors.white,
         ),
       ),
     );

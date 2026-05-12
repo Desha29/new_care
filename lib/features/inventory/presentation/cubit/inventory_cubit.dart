@@ -49,8 +49,15 @@ class InventoryCubit extends Cubit<InventoryState> {
 
   void searchInventory(String query) {
     if (state is InventoryLoaded) {
-      final currentState = state as InventoryLoaded;
-      emit(InventoryLoaded(items: currentState.items, searchQuery: query));
+      final s = state as InventoryLoaded;
+      emit(s.copyWith(searchQuery: query));
+    }
+  }
+
+  void filterByCategory(String? category) {
+    if (state is InventoryLoaded) {
+      final s = state as InventoryLoaded;
+      emit(s.copyWith(categoryFilter: category, clearCategoryFilter: category == null));
     }
   }
 

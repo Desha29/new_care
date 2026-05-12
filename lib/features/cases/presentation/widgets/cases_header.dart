@@ -10,6 +10,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../cubit/cases_cubit.dart';
 import '../cubit/cases_state.dart';
 
+import '../../../../core/enums/case_status.dart';
+
 class CasesHeader extends StatelessWidget {
   final CasesLoaded state;
 
@@ -59,9 +61,9 @@ class CasesHeader extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (!isMobile)
-              SearchBarWidget(
-                hintText: 'البحث باسم المريض أو الهاتف...',
-                onChanged: (v) => context.read<CasesCubit>().searchCases(v),
+              SizedBox(
+                width: 380,
+                child: _buildSearchWithFilter(context),
               ),
             if (!isMobile) const SizedBox(width: 12),
             PrimaryButton(
@@ -72,11 +74,33 @@ class CasesHeader extends StatelessWidget {
           ],
         ),
         if (isMobile)
-          SearchBarWidget(
-            hintText: 'البحث باسم المريض أو الهاتف...',
-            onChanged: (v) => context.read<CasesCubit>().searchCases(v),
-          ),
+          _buildSearchWithFilter(context),
       ],
+    );
+  }
+
+  Widget _buildSearchWithFilter(BuildContext context) {
+    return SearchBarWidget(
+      hintText: 'البحث باسم المريض أو الهاتف...',
+      onChanged: (v) => context.read<CasesCubit>().searchCases(v),
+      trailing: DropdownButtonHideUnderline(
+        child: DropdownButton<CaseType?>(
+          value: state.typeFilter,
+          icon: const Icon(Icons.filter_alt_rounded, size: 18, color: AppColors.primary),
+          hint: const Text('النوع', style: TextStyle(fontFamily: 'Cairo', fontSize: 12)),
+          onChanged: (type) => context.read<CasesCubit>().filterByType(type),
+          items: [
+            const DropdownMenuItem(
+              value: null,
+              child: Text('الكل', style: TextStyle(fontFamily: 'Cairo', fontSize: 12)),
+            ),
+            ...CaseType.values.map((type) => DropdownMenuItem(
+              value: type,
+              child: Text(type.label, style: const TextStyle(fontFamily: 'Cairo', fontSize: 12)),
+            )),
+          ],
+        ),
+      ),
     );
   }
 

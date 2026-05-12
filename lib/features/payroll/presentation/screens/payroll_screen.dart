@@ -376,49 +376,17 @@ class _PayrollScreenState extends State<PayrollScreen> {
         );
       }
 
-      // Two-panel layout: table + detail
+      // Desktop layout: show table full width and use Dialog for details
       final isDesktop = ResponsiveHelper.isDesktop(context);
-      
-      if (isDesktop && _selectedPayroll != null) {
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 3,
-              child: PayrollTable(
-                payrolls: state.payrolls,
-                selectedId: _selectedPayroll?.id,
-                onSelect: (p) => setState(() => _selectedPayroll = p),
-                onApprove: (p) => context.read<PayrollCubit>().approvePayroll(p.id),
-                onPay: (p) => context.read<PayrollCubit>().markAsPaid(p.id),
-              ),
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              flex: 2,
-              child: SalaryBreakdownCard(
-                payroll: _selectedPayroll!,
-                onClose: () => setState(() => _selectedPayroll = null),
-                onEdit: (bonus, deductions, notes) {
-                  context.read<PayrollCubit>().updatePayrollExtras(
-                    payrollId: _selectedPayroll!.id,
-                    bonus: bonus,
-                    deductions: deductions,
-                    notes: notes,
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      }
 
       return PayrollTable(
         payrolls: state.payrolls,
         selectedId: _selectedPayroll?.id,
         onSelect: (p) {
           setState(() => _selectedPayroll = p);
-          if (!isDesktop) {
+          if (isDesktop) {
+            _showPayrollDetailDialog(context, p);
+          } else {
             _showPayrollDetailSheet(context, p);
           }
         },
@@ -427,6 +395,38 @@ class _PayrollScreenState extends State<PayrollScreen> {
       );
     }
     return const SizedBox.shrink();
+  }
+
+  void _showPayrollDetailDialog(BuildContext context, PayrollModel payroll) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        backgroundColor: Colors.transparent,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 800),
+          child: SalaryBreakdownCard(
+            payroll: payroll,
+            onClose: () {
+              Navigator.pop(context);
+              setState(() => _selectedPayroll = null);
+            },
+            onEdit: (bonus, deductions, notes) {
+              context.read<PayrollCubit>().updatePayrollExtras(
+                payrollId: payroll.id,
+                bonus: bonus,
+                deductions: deductions,
+                notes: notes,
+              );
+            },
+          ),
+        ),
+      ),
+    ).then((_) {
+      if (mounted) setState(() => _selectedPayroll = null);
+    });
   }
 
   void _showPayrollDetailSheet(BuildContext context, PayrollModel payroll) {

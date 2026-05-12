@@ -59,6 +59,13 @@ class FinancialsCubit extends Cubit<FinancialsState> {
     }
   }
 
+  void searchExpenses(String query) {
+    if (state is FinancialsLoaded) {
+      final s = state as FinancialsLoaded;
+      emit(s.copyWith(searchQuery: query));
+    }
+  }
+
   /// تحميل البيانات المالية بحسب فترة زمنية - Load financials by date range
   Future<void> loadFinancialsByMonth({
     required int year,

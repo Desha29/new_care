@@ -7,12 +7,19 @@ import '../../../../core/utils/responsive_helper.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
 
+import 'package:intl/intl.dart' as intl;
+import '../../../../core/widgets/search_bar_widget.dart';
+import '../cubit/attendance_cubit.dart';
+import '../cubit/attendance_state.dart';
+
 class AttendanceHeader extends StatelessWidget {
+  final AttendanceLoaded? state;
   final VoidCallback onRefresh;
   final VoidCallback onGenerateReport;
 
   const AttendanceHeader({
     super.key,
+    this.state,
     required this.onRefresh,
     required this.onGenerateReport,
   });
@@ -21,73 +28,208 @@ class AttendanceHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final titleSize = ResponsiveHelper.getTitleFontSize(context);
     final authState = context.read<AuthCubit>().state;
-    final isAdmin = authState is AuthAuthenticated && authState.user.role.isAdmin;
+    final isAdmin =
+        authState is AuthAuthenticated && authState.user.role.isAdmin;
+    final isMobile = ResponsiveHelper.isMobile(context);
 
-    return Row(
+    return Column(
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Row(
           children: [
-            Text(
-              'الحضور والانصراف',
-              style: AppTypography.pageTitle.copyWith(fontSize: titleSize),
-            ),
-            Text(
-              isAdmin
-                  ? 'مراقبة حضور الطاقم وتسجيل QR'
-                  : 'تسجيل حضورك الشخصي للمناوبة',
-              style: AppTypography.pageSubtitle.copyWith(
-                fontSize: ResponsiveHelper.getSubtitleFontSize(context),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'الحضور والانصراف',
+                    style: AppTypography.pageTitle.copyWith(
+                      fontSize: titleSize,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isAdmin
+                        ? 'مراقبة حضور الطاقم وتسجيل QR'
+                        : 'تسجيل حضورك الشخصي للمناوبة',
+                    style: AppTypography.pageSubtitle.copyWith(
+                      fontSize: ResponsiveHelper.getSubtitleFontSize(context),
+                    ),
+                  ),
+                ],
               ),
+            ),
+            if (isAdmin && !isMobile) ...[
+              ElevatedButton.icon(
+                onPressed: () => _showCenterQr(context, isDeparture: false),
+                icon: const Icon(Icons.qr_code_2_rounded),
+                label: const Text(
+                  'كود الحضور',
+                  style: TextStyle(fontFamily: 'Cairo'),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 15,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: () => _showCenterQr(context, isDeparture: true),
+                icon: const Icon(Icons.logout_rounded),
+                label: const Text(
+                  'كود الانصراف',
+                  style: TextStyle(fontFamily: 'Cairo'),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 15,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: onGenerateReport,
+                icon: const Icon(Icons.print_rounded, size: 18),
+                label: const Text(
+                  'تقرير شهري',
+                  style: TextStyle(fontFamily: 'Cairo'),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            IconButton(
+              onPressed: onRefresh,
+              icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
             ),
           ],
         ),
-        const Spacer(),
         if (isAdmin) ...[
-          ElevatedButton.icon(
-            onPressed: () => _showCenterQr(context, isDeparture: false),
-            icon: const Icon(Icons.qr_code_2_rounded),
-            label: const Text('كود الحضور', style: TextStyle(fontFamily: 'Cairo')),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.secondary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: () => _showCenterQr(context, isDeparture: true),
-            icon: const Icon(Icons.logout_rounded),
-            label: const Text('كود الانصراف', style: TextStyle(fontFamily: 'Cairo')),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          OutlinedButton.icon(
-            onPressed: onGenerateReport,
-            icon: const Icon(Icons.print_rounded, size: 18),
-            label: Text(
-              ResponsiveHelper.isMobile(context) ? 'تقرير' : 'تقرير شهري',
-              style: const TextStyle(fontFamily: 'Cairo'),
-            ),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: SearchBarWidget(
+                  hintText: 'البحث باسم الموظف...',
+                  onChanged: (val) =>
+                      context.read<AttendanceCubit>().searchAttendance(val),
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              if (state?.dateFilter != null) ...[
+                Container(
+                  height: 50,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        intl.DateFormat(
+                          'yyyy-MM-dd',
+                        ).format(state!.dateFilter!),
+                        style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () =>
+                            context.read<AttendanceCubit>().filterByDate(null),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              InkWell(
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: state?.dateFilter ?? DateTime.now(),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now(),
+                  );
+                  if (date != null && context.mounted) {
+                    context.read<AttendanceCubit>().filterByDate(date);
+                  }
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.calendar_month_rounded,
+                    color: AppColors.primary,
+                    size: 22,
+                  ),
+                ),
+              ),
+              if (isMobile) ...[
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: () => _showCenterQr(context, isDeparture: false),
+                  icon: const Icon(Icons.qr_code_2_rounded),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                  ),
+                ),
+                IconButton.filled(
+                  onPressed: () => _showCenterQr(context, isDeparture: true),
+                  icon: const Icon(Icons.logout_rounded),
+                  style: IconButton.styleFrom(backgroundColor: AppColors.error),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(width: 8),
         ],
-        IconButton(
-          onPressed: onRefresh,
-          icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
-        ),
       ],
     );
   }
@@ -100,7 +242,10 @@ class AttendanceHeader extends StatelessWidget {
         title: Text(
           isDeparture ? 'كود انصراف المركز' : 'كود حضور المركز',
           textAlign: TextAlign.center,
-          style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontFamily: 'Cairo',
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: SizedBox(
           width: 300,
@@ -115,7 +260,9 @@ class AttendanceHeader extends StatelessWidget {
                   border: Border.all(color: AppColors.border),
                 ),
                 child: QrImageView(
-                  data: isDeparture ? 'NEWCARE_DEPARTURE' : 'NEWCARE_ATTENDANCE',
+                  data: isDeparture
+                      ? 'NEWCARE_DEPARTURE'
+                      : 'NEWCARE_ATTENDANCE',
                   version: QrVersions.auto,
                   size: 250.0,
                 ),
@@ -127,7 +274,10 @@ class AttendanceHeader extends StatelessWidget {
                     : 'اطلب من الممرض مسح هذا الكود عند بداية نوبة العمل لتسجيل الحضور',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                    fontFamily: 'Cairo', fontSize: 13, color: AppColors.textSecondary),
+                  fontFamily: 'Cairo',
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),

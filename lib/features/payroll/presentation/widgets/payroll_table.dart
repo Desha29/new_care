@@ -44,7 +44,7 @@ class PayrollTable extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
+                      color: AppColors.primary,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(AppSpacing.radiusLg),
                         topRight: Radius.circular(AppSpacing.radiusLg),
@@ -91,7 +91,13 @@ class PayrollTable extends StatelessWidget {
 
   Widget _hc(String t, int f) => Expanded(
     flex: f,
-    child: Text(t, style: AppTypography.tableHeader.copyWith(fontSize: 12)),
+    child: Text(
+      t, 
+      style: AppTypography.tableHeader.copyWith(
+        fontSize: 12,
+        color: Colors.white,
+      ),
+    ),
   );
 
   Widget _buildRow(BuildContext context, PayrollModel payroll, int index) {

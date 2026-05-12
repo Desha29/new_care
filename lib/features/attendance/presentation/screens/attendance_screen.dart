@@ -101,6 +101,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AttendanceHeader(
+                  state: state is AttendanceLoaded ? state as AttendanceLoaded : null,
                   onRefresh: _loadData,
                   onGenerateReport: _generateMonthlyReport,
                 ),

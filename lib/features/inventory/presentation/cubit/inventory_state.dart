@@ -12,15 +12,44 @@ class InventoryLoading extends InventoryState {}
 class InventoryLoaded extends InventoryState {
   final List<InventoryModel> items;
   final String searchQuery;
-  const InventoryLoaded({required this.items, this.searchQuery = ''});
+  final String? categoryFilter;
+
+  const InventoryLoaded({
+    required this.items,
+    this.searchQuery = '',
+    this.categoryFilter,
+  });
+
+  InventoryLoaded copyWith({
+    List<InventoryModel>? items,
+    String? searchQuery,
+    String? categoryFilter,
+    bool clearCategoryFilter = false,
+  }) {
+    return InventoryLoaded(
+      items: items ?? this.items,
+      searchQuery: searchQuery ?? this.searchQuery,
+      categoryFilter: clearCategoryFilter ? null : (categoryFilter ?? this.categoryFilter),
+    );
+  }
 
   List<InventoryModel> get filteredItems {
-    if (searchQuery.isEmpty) return items;
-    return items.where((i) => i.name.contains(searchQuery) || i.category.contains(searchQuery)).toList();
+    List<InventoryModel> result = items;
+
+    if (categoryFilter != null) {
+      result = result.where((i) => i.category == categoryFilter).toList();
+    }
+
+    if (searchQuery.isNotEmpty) {
+      final q = searchQuery.toLowerCase();
+      result = result.where((i) => i.name.toLowerCase().contains(q)).toList();
+    }
+
+    return result;
   }
 
   @override
-  List<Object?> get props => [items, searchQuery];
+  List<Object?> get props => [items, searchQuery, categoryFilter];
 }
 class InventoryError extends InventoryState {
   final String message;

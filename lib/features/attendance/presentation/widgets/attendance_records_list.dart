@@ -8,289 +8,184 @@ import '../cubit/attendance_cubit.dart';
 import '../cubit/attendance_state.dart';
 import '../../data/models/attendance_model.dart';
 
-class AttendanceRecordsList extends StatefulWidget {
+class AttendanceRecordsList extends StatelessWidget {
   final AttendanceState state;
 
   const AttendanceRecordsList({super.key, required this.state});
 
   @override
-  State<AttendanceRecordsList> createState() => _AttendanceRecordsListState();
-}
-
-class _AttendanceRecordsListState extends State<AttendanceRecordsList> {
-  String _searchQuery = '';
-
-  @override
   Widget build(BuildContext context) {
     List<AttendanceModel> records = [];
-    if (widget.state is AttendanceLoaded) {
-      records = (widget.state as AttendanceLoaded).records;
+    if (state is AttendanceLoaded) {
+      records = (state as AttendanceLoaded).filteredRecords;
     }
 
-    final filteredRecords = records
-        .where((r) => r.userName.toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
+    if (state is AttendanceLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final minWidth = constraints.maxWidth < 750 ? 750.0 : constraints.maxWidth;
-          return Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                decoration: const BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.people_rounded,
-                        size: 20,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'سجلات حضور اليوم',
-                        style: TextStyle(
-                          fontFamily: 'Cairo',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      SizedBox(
-                        width: 200,
-                        height: 35,
-                        child: TextField(
-                          onChanged: (val) => setState(() => _searchQuery = val),
-                          decoration: InputDecoration(
-                            hintText: 'تصفية بالاسم...',
-                            hintStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 12),
-                            prefixIcon: const Icon(Icons.search, size: 18),
-                            filled: true,
-                            fillColor: AppColors.background,
-                            contentPadding:
-                                const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: AppColors.border),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: AppColors.border),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${filteredRecords.length} سجل',
-                          style: const TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const Divider(height: 1, color: AppColors.border),
-              // Table header
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: minWidth,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    child: Row(
-                      children: [
-                        _hc('الموظف', 3),
-                        _hc('وقت الحضور', 2),
-                        _hc('وقت الانصراف', 2),
-                        _hc('الحالة', 2),
-                        _hc('الجهاز', 2),
-                        _hc('إجراء', 1),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const Divider(height: 1, color: AppColors.border),
-              Expanded(
-                child: widget.state is AttendanceLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : filteredRecords.isEmpty
-                        ? const EmptyStateWidget(
-                            icon: Icons.fingerprint_rounded,
-                            title: 'لا توجد سجلات حضور اليوم',
-                            subtitle: 'سيتم عرض سجلات الحضور هنا عند تسجيلها',
-                          )
-                        : SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: SizedBox(
-                              width: minWidth,
-                              child: ListView.separated(
-                                shrinkWrap: true,
-                                itemCount: filteredRecords.length,
-                                separatorBuilder: (context, index) =>
-                                    const Divider(height: 1, color: AppColors.borderLight),
-                                itemBuilder: (context, i) => _recordRow(filteredRecords[i], i),
-                              ),
-                            ),
-                          ),
-              ),
-            ],
-          );
-        },
-      ),
+    if (records.isEmpty) {
+      return const EmptyStateWidget(
+        icon: Icons.fingerprint_rounded,
+        title: 'لا توجد سجلات حضور',
+        subtitle: 'سيتم عرض سجلات الحضور هنا عند تسجيلها',
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 8),
+      itemCount: records.length,
+      itemBuilder: (context, index) => _attendanceCard(context, records[index]),
     );
   }
 
-  Widget _hc(String t, int f) => Expanded(
-        flex: f,
-        child: Text(t, style: AppTypography.tableHeader.copyWith(fontSize: 12)),
-      );
-
-  Widget _recordRow(AttendanceModel record, int i) {
+  Widget _attendanceCard(BuildContext context, AttendanceModel record) {
     final checkInTime = DateFormat('hh:mm a', 'ar').format(record.checkInTime);
     final checkOutTime = record.checkOutTime != null
         ? DateFormat('hh:mm a', 'ar').format(record.checkOutTime!)
         : '---';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      color: i.isEven
-          ? Colors.transparent
-          : AppColors.surfaceVariant.withOpacity(0.3),
-      child: Row(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              // Status Indicator Bar
+              Container(
+                width: 6,
+                color: record.isCheckedOut ? AppColors.error : AppColors.success,
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 22,
+                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                            child: const Icon(Icons.person_rounded, color: AppColors.primary),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  record.userName,
+                                  style: const TextStyle(
+                                    fontFamily: 'Cairo',
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  'بتاريخ: ${record.date}',
+                                  style: const TextStyle(
+                                    fontFamily: 'Cairo',
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: (record.isCheckedOut ? AppColors.error : AppColors.success)
+                                  .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              record.status.label,
+                              style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: record.isCheckedOut ? AppColors.error : AppColors.success,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(height: 1, color: AppColors.border),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          _infoItem(Icons.login_rounded, 'وقت الحضور', checkInTime, AppColors.success),
+                          _infoItem(Icons.logout_rounded, 'وقت الانصراف', checkOutTime, 
+                              record.isCheckedOut ? AppColors.error : AppColors.textHint),
+                          _infoItem(Icons.devices_rounded, 'الجهاز المستخدم', 
+                              record.deviceId.length > 10 ? '${record.deviceId.substring(0, 10)}...' : record.deviceId,
+                              AppColors.primary),
+                          if (record.isCheckedIn && !record.isCheckedOut)
+                            IconButton(
+                              onPressed: () => context.read<AttendanceCubit>().checkOut(
+                                userId: record.userId,
+                                userName: record.userName,
+                              ),
+                              icon: const Icon(Icons.logout_rounded, color: AppColors.error),
+                              tooltip: 'تسجيل انصراف يدوي',
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _infoItem(IconData icon, String label, String value, Color color) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 3,
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppColors.secondary.withOpacity(0.1),
-                  child: const Icon(
-                    Icons.person_rounded,
-                    size: 16,
-                    color: AppColors.secondary,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    record.userName,
-                    style: const TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              checkInTime,
-              style: const TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 12,
-                color: AppColors.success,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              checkOutTime,
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 12,
-                color: record.isCheckedOut ? AppColors.error : AppColors.textHint,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: record.isCheckedIn
-                    ? AppColors.success.withOpacity(0.1)
-                    : AppColors.textHint.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                record.status.label,
-                style: TextStyle(
+          Row(
+            children: [
+              Icon(icon, size: 14, color: AppColors.textSecondary),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: const TextStyle(
                   fontFamily: 'Cairo',
                   fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: record.isCheckedIn ? AppColors.success : AppColors.textHint,
+                  color: AppColors.textSecondary,
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
+            ],
           ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              record.deviceId.length > 15
-                  ? '${record.deviceId.substring(0, 15)}...'
-                  : record.deviceId,
-              style: const TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 10,
-                color: AppColors.textHint,
-              ),
-              overflow: TextOverflow.ellipsis,
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: color,
             ),
-          ),
-          Expanded(
-            flex: 1,
-            child: (record.isCheckedIn && !record.isCheckedOut)
-                ? IconButton(
-                    icon: const Icon(
-                      Icons.logout_rounded,
-                      size: 18,
-                      color: AppColors.error,
-                    ),
-                    onPressed: () => context.read<AttendanceCubit>().checkOut(
-                          userId: record.userId,
-                          userName: record.userName,
-                        ),
-                    tooltip: 'تسجيل انصراف يدوي',
-                  )
-                : const SizedBox.shrink(),
           ),
         ],
       ),
