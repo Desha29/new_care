@@ -4,85 +4,118 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../cases/data/models/case_model.dart';
 import '../../../../core/services/pdf/report_service.dart';
 
-class InvoicePreviewScreen extends StatelessWidget {
+class InvoicePreviewDialog extends StatelessWidget {
   final CaseModel caseData;
 
-  const InvoicePreviewScreen({super.key, required this.caseData});
+  const InvoicePreviewDialog({super.key, required this.caseData});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5),
-      appBar: AppBar(
-        title: const Text(
-          'معاينة الفاتورة الشخصية',
-          style: TextStyle(fontFamily: 'Cairo'),
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Container(
+        width: 450,
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0F2F5),
+          borderRadius: BorderRadius.circular(16),
         ),
-        centerTitle: true,
-        actions: [
+        child: Column(
+          children: [
+            _buildAppBar(context),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Center(
+                  child: Container(
+                    width: 420, // عرض يشبه الإيصال (Thermal Receipt style)
+                    margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildReceiptHeader(),
+                        _dashedDivider(),
+                        Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildPatientDetails(),
+                              const SizedBox(height: 20),
+                              _dashedDivider(),
+                              const SizedBox(height: 20),
+                              _buildReceiptItems(),
+                              const SizedBox(height: 20),
+                              _dashedDivider(),
+                              const SizedBox(height: 20),
+                              _buildFinancials(),
+
+                              // _buildQRCode(),
+                              const SizedBox(height: 24),
+                              Align(
+                                alignment: Alignment.center,
+                                child: _buildFooterText(),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _buildBottomCutEffect(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: const BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
+      child: Row(
+        children: [
           IconButton(
-            icon: const Icon(Icons.share_rounded),
+            icon: const Icon(Icons.close_rounded, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          const Expanded(
+            child: Text(
+              'معاينة الفاتورة الشخصية',
+              style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.share_rounded, color: Colors.white),
             onPressed: () => ReportService.instance.shareCaseInvoice(caseData),
             tooltip: 'مشاركة الفاتورة',
           ),
           IconButton(
-            icon: const Icon(Icons.print_rounded),
-            onPressed: () =>
-                ReportService.instance.generateCaseInvoice(caseData),
+            icon: const Icon(Icons.print_rounded, color: Colors.white),
+            onPressed: () => ReportService.instance.generateCaseInvoice(caseData),
             tooltip: 'طباعة الفاتورة',
           ),
-          const SizedBox(width: 8),
         ],
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          child: Container(
-            width: 420, // عرض يشبه الإيصال (Thermal Receipt style)
-            margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                _buildReceiptHeader(),
-                _dashedDivider(),
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildPatientDetails(),
-                      const SizedBox(height: 20),
-                      _dashedDivider(),
-                      const SizedBox(height: 20),
-                      _buildReceiptItems(),
-                      const SizedBox(height: 20),
-                      _dashedDivider(),
-                      const SizedBox(height: 20),
-                      _buildFinancials(),
-
-                      // _buildQRCode(),
-                      const SizedBox(height: 24),
-                      Align(
-                        alignment: Alignment.center,
-                        child: _buildFooterText(),
-                      ),
-                    ],
-                  ),
-                ),
-                _buildBottomCutEffect(),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -241,7 +274,7 @@ class InvoicePreviewScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.05),
+            color: AppColors.primary.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(4),
           ),
           child: _receiptRow(
@@ -295,7 +328,7 @@ class InvoicePreviewScreen extends StatelessWidget {
           child: Container(
             color: index % 2 == 0
                 ? Colors.transparent
-                : Colors.grey.withOpacity(0.3),
+                : Colors.grey.withValues(alpha: 0.3),
             height: 1,
           ),
         ),
@@ -310,7 +343,7 @@ class InvoicePreviewScreen extends StatelessWidget {
   //         Container(
   //           padding: const EdgeInsets.all(12),
   //           decoration: BoxDecoration(
-  //             border: Border.all(color: Colors.grey.withOpacity(0.2)),
+  //             border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
   //             borderRadius: BorderRadius.circular(12),
   //           ),
   //           child: QrImageView(
@@ -383,7 +416,7 @@ class InvoicePreviewScreen extends StatelessWidget {
                 color: Colors.transparent,
                 border: Border(
                   top: BorderSide(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: Colors.grey.withValues(alpha: 0.1),
                     width: 1,
                   ),
                 ),

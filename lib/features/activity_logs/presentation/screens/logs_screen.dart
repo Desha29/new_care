@@ -175,7 +175,7 @@ class _LogsScreenState extends State<LogsScreen> {
                                                 color: i.isEven
                                                     ? Colors.transparent
                                                     : AppColors.surfaceVariant
-                                                        .withOpacity(0.3),
+                                                        .withValues(alpha: 0.3),
                                                 child: Row(
                                                   children: [
                                                     SizedBox(

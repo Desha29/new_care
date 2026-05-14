@@ -69,7 +69,7 @@ class IconActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveColor = color ?? AppColors.textSecondary;
-    final effectiveBg = backgroundColor ?? effectiveColor.withOpacity(0.08);
+    final effectiveBg = backgroundColor ?? effectiveColor.withValues(alpha: 0.08);
 
     Widget button;
 

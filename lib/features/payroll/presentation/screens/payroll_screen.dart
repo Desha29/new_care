@@ -6,7 +6,6 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/utils/number_formatter.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
-import '../../../../core/widgets/buttons/primary_button.dart';
 import '../cubit/payroll_cubit.dart';
 import '../cubit/payroll_state.dart';
 import '../../data/models/payroll_model.dart';
@@ -17,6 +16,7 @@ import '../../../../core/services/pdf/report_service.dart';
 import '../../../../features/auth/presentation/cubit/auth_cubit.dart';
 import '../../../../features/auth/presentation/cubit/auth_state.dart';
 import '../../../../features/reports/presentation/screens/report_preview_screen.dart';
+import '../../../../core/utils/ui_feedback.dart';
 
 /// شاشة الرواتب - Payroll Management Screen
 class PayrollScreen extends StatefulWidget {
@@ -54,20 +54,10 @@ class _PayrollScreenState extends State<PayrollScreen> {
       body: BlocConsumer<PayrollCubit, PayrollState>(
         listener: (context, state) {
           if (state is PayrollActionSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')),
-                backgroundColor: AppColors.success,
-              ),
-            );
+            UIFeedback.showSuccess(context, state.message);
           }
           if (state is PayrollError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')),
-                backgroundColor: AppColors.error,
-              ),
-            );
+            UIFeedback.showError(context, state.message);
           }
         },
         builder: (context, state) {
@@ -77,8 +67,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context),
-                const SizedBox(height: AppSpacing.sectionGap),
-                _buildMonthSelector(),
                 const SizedBox(height: AppSpacing.sectionGap),
                 if (state is PayrollLoaded) ...[
                   _buildStatsRow(state),
@@ -138,32 +126,44 @@ class _PayrollScreenState extends State<PayrollScreen> {
                 final fee = snapshot.data ?? 15.0;
                 return TextButton.icon(
                   onPressed: () => _showFeeEditDialog(context, fee),
-                  icon: const Icon(Icons.edit_note_rounded, size: 18),
+                  icon: const Icon(Icons.edit_note_rounded, size: 20),
                   label: Text(
                     'بدل العملية: ${fee.toStringAsFixed(0)} E.P',
-                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 13),
+                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.bold),
                   ),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.secondary,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
                 );
               },
             ),
             const SizedBox(width: 12),
-            PrimaryButton(
-              label: isMobile ? 'حساب' : 'حساب الرواتب',
-              icon: Icons.calculate_rounded,
+            ElevatedButton.icon(
               onPressed: () => context.read<PayrollCubit>().calculateMonthlyPayroll(
                 year: _selectedYear,
                 month: _selectedMonth,
+              ),
+              icon: const Icon(Icons.calculate_rounded, size: 20),
+              label: Text(
+                isMobile ? 'حساب' : 'حساب الرواتب',
+                style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
               ),
             ),
             if (!isMobile) ...[
               const SizedBox(width: 12),
               IconButton(
                 onPressed: _generatePayrollReport,
-                icon: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.error),
+                icon: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.error, size: 28),
                 tooltip: 'طباعة التقرير الشهري',
               ),
             ],
@@ -174,91 +174,103 @@ class _PayrollScreenState extends State<PayrollScreen> {
   }
 
   Widget _buildMonthSelector() {
-    final isMobile = ResponsiveHelper.isMobile(context);
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        border: Border.all(color: AppColors.border),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            const Icon(Icons.calendar_month_rounded, size: 20, color: AppColors.primary),
-            const SizedBox(width: 12),
-            Text('الفترة:', style: AppTypography.sectionTitle.copyWith(fontSize: 14)),
-            const SizedBox(width: 16),
-            // Month dropdown
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
-                  value: _selectedMonth,
-                  style: AppTypography.tableCell.copyWith(color: AppColors.textPrimary),
-                  items: List.generate(12, (i) => DropdownMenuItem(
-                    value: i + 1,
-                    child: Text(_months[i]),
-                  )),
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() => _selectedMonth = v);
-                      context.read<PayrollCubit>().loadPayroll(year: _selectedYear, month: v);
-                    }
-                  },
-                ),
+      child: Row(
+        children: [
+          const Icon(Icons.calendar_month_rounded, size: 20, color: AppColors.primary),
+          const SizedBox(width: 12),
+          const Text(
+            'الفترة:',
+            style: TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(width: 16),
+          // Month selector button
+          _toolbarDropdown<int>(
+            value: _selectedMonth,
+            items: List.generate(12, (i) => DropdownMenuItem(
+              value: i + 1,
+              child: Text(_months[i]),
+            )),
+            onChanged: (v) {
+              if (v != null) {
+                setState(() => _selectedMonth = v);
+                context.read<PayrollCubit>().loadPayroll(year: _selectedYear, month: v);
+              }
+            },
+          ),
+          const SizedBox(width: 10),
+          // Year selector button
+          _toolbarDropdown<int>(
+            value: _selectedYear,
+            items: List.generate(5, (i) {
+              final y = DateTime.now().year - 2 + i;
+              return DropdownMenuItem(value: y, child: Text('$y'));
+            }),
+            onChanged: (v) {
+              if (v != null) {
+                setState(() => _selectedYear = v);
+                context.read<PayrollCubit>().loadPayroll(year: v, month: _selectedMonth);
+              }
+            },
+          ),
+          const Spacer(),
+          // Selected period summary badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+            ),
+            child: Text(
+              '${_months[_selectedMonth - 1]} $_selectedYear',
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
               ),
             ),
-            const SizedBox(width: 12),
-            // Year dropdown
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
-                  value: _selectedYear,
-                  style: AppTypography.tableCell.copyWith(color: AppColors.textPrimary),
-                  items: List.generate(5, (i) {
-                    final y = DateTime.now().year - 2 + i;
-                    return DropdownMenuItem(value: y, child: Text('$y'));
-                  }),
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() => _selectedYear = v);
-                      context.read<PayrollCubit>().loadPayroll(year: v, month: _selectedMonth);
-                    }
-                  },
-                ),
-              ),
-            ),
-            SizedBox(width: isMobile ? 16 : 80),
-            // Period display
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${_months[_selectedMonth - 1]} $_selectedYear',
-                style: const TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _toolbarDropdown<T>({
+    required T value,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          items: items,
+          onChanged: onChanged,
+          icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
+          style: const TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 13,
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+          dropdownColor: Colors.white,
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
     );
@@ -382,6 +394,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
       return PayrollTable(
         payrolls: state.payrolls,
         selectedId: _selectedPayroll?.id,
+        topToolbar: _buildMonthSelector(),
         onSelect: (p) {
           setState(() => _selectedPayroll = p);
           if (isDesktop) {
@@ -479,9 +492,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
   void _generatePayrollReport() {
     final state = context.read<PayrollCubit>().state;
     if (state is! PayrollLoaded || state.payrolls.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا توجد بيانات رواتب لإصدار تقرير بها')),
-      );
+      UIFeedback.showWarning(context, 'لا توجد بيانات رواتب لإصدار تقرير بها');
       return;
     }
 
@@ -494,7 +505,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
       MaterialPageRoute(
         builder: (_) => ReportPreviewScreen(
           title: 'تقرير مسير الرواتب - ${_months[_selectedMonth - 1]} $_selectedYear',
-          fileName: 'Payroll_Report_${_selectedYear}_${_selectedMonth}',
+          fileName: 'Payroll_Report_$_selectedYear$_selectedMonth',
           buildReport: () => ReportService.instance.generatePayrollReportBytes(
             payrolls: state.payrolls,
             year: _selectedYear,
@@ -533,9 +544,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
                 if (context.mounted) {
                   Navigator.pop(context);
                   setState(() {}); // Refresh header
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('تم تحديث قيمة بدل العمليات الخارجية')),
-                  );
+                  UIFeedback.showSuccess(context, 'تم تحديث قيمة بدل العمليات الخارجية');
                 }
               }
             },

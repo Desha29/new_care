@@ -13,6 +13,7 @@ class PayrollTable extends StatelessWidget {
   final Function(PayrollModel) onSelect;
   final Function(PayrollModel) onApprove;
   final Function(PayrollModel) onPay;
+  final Widget? topToolbar;
 
   const PayrollTable({
     super.key,
@@ -21,6 +22,7 @@ class PayrollTable extends StatelessWidget {
     required this.onSelect,
     required this.onApprove,
     required this.onPay,
+    this.topToolbar,
   });
 
   @override
@@ -35,7 +37,12 @@ class PayrollTable extends StatelessWidget {
         builder: (context, constraints) {
           final minWidth = constraints.maxWidth < 900 ? 900.0 : constraints.maxWidth;
           return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (topToolbar != null) ...[
+                topToolbar!,
+                const Divider(height: 1, color: AppColors.border),
+              ],
               // Table header
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -45,10 +52,12 @@ class PayrollTable extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(AppSpacing.radiusLg),
-                        topRight: Radius.circular(AppSpacing.radiusLg),
-                      ),
+                      borderRadius: topToolbar == null
+                          ? BorderRadius.only(
+                              topLeft: Radius.circular(AppSpacing.radiusLg),
+                              topRight: Radius.circular(AppSpacing.radiusLg),
+                            )
+                          : null,
                     ),
                     child: Row(
                       children: [
@@ -109,10 +118,10 @@ class PayrollTable extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withOpacity(0.05)
+              ? AppColors.primary.withValues(alpha: 0.05)
               : index.isEven
                   ? Colors.transparent
-                  : AppColors.surfaceVariant.withOpacity(0.3),
+                  : AppColors.surfaceVariant.withValues(alpha: 0.3),
           border: isSelected
               ? Border(right: BorderSide(color: AppColors.primary, width: 3))
               : null,
@@ -126,7 +135,7 @@ class PayrollTable extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                     child: Text(
                       payroll.userName.isNotEmpty ? payroll.userName.substring(0, 1) : '?',
                       style: const TextStyle(

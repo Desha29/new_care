@@ -1,4 +1,5 @@
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/services/firebase/firebase_service.dart';
 import '../../../../core/services/local/sqlite_service.dart';
 import '../../../../core/services/sync/sync_manager.dart';
@@ -58,6 +59,25 @@ class CasesRepositoryImpl implements ICasesRepository {
     }
 
     return cases;
+  }
+
+  @override
+  Future<PaginatedResult<CaseModel>> getCasesPaginated({
+    String? nurseId,
+    int limit = 20,
+    DocumentSnapshot? startAfter,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    // We prioritize remote for paginated queries to handle large datasets correctly
+    // with server-side filters.
+    return await _remote.getCasesPaginated(
+      nurseId: nurseId,
+      limit: limit,
+      startAfter: startAfter,
+      startDate: startDate,
+      endDate: endDate,
+    );
   }
 
   @override

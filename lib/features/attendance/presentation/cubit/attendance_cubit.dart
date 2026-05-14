@@ -40,22 +40,70 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     return super.close();
   }
 
+  /// تحميل جميع سجلات الحضور بصفحات - Load all attendance records paginated
+  Future<void> loadAttendancePaginated({String? userId, bool force = false}) async {
+    if (!force && state is AttendanceLoaded && (state as AttendanceLoaded).records.isNotEmpty) return;
+
+    emit(AttendanceLoading());
+    try {
+      final result = await _attendanceRepository.getAttendancePaginated(
+        userId: userId,
+        limit: 20,
+      );
+
+      emit(AttendanceLoaded(
+        records: result.items,
+        hasMore: result.hasMore,
+        lastDocument: result.lastDocument,
+      ));
+    } catch (e) {
+      emit(AttendanceError('خطأ في تحميل سجلات الحضور: ${e.toString()}'));
+    }
+  }
+
+  /// تحميل المزيد من سجلات الحضور - Load more attendance records
+  Future<void> loadMoreAttendance({String? userId}) async {
+    if (state is! AttendanceLoaded) return;
+    final currentState = state as AttendanceLoaded;
+    
+    if (currentState.isLoadingMore || !currentState.hasMore || currentState.lastDocument == null) return;
+
+    emit(currentState.copyWith(isLoadingMore: true));
+    try {
+      final result = await _attendanceRepository.getAttendancePaginated(
+        userId: userId,
+        limit: 20,
+        startAfter: currentState.lastDocument,
+      );
+
+      emit(currentState.copyWith(
+        records: [...currentState.records, ...result.items],
+        isLoadingMore: false,
+        hasMore: result.hasMore,
+        lastDocument: result.lastDocument,
+      ));
+    } catch (e) {
+      emit(currentState.copyWith(isLoadingMore: false));
+      // We don't emit error state here to avoid breaking the list
+    }
+  }
+
   /// تحميل سجلات حضور اليوم بشكل تفاعلي - Reactive Load today's attendance records
   void loadTodayAttendance() {
-    print("Loading attendance records...");
+
     emit(AttendanceLoading());
     _todayAttendanceSub?.cancel();
     _todayAttendanceSub = _attendanceRepository
         .streamTodayAttendanceRecords()
         .listen(
           (records) {
-            print("Attendance records loaded: ${records.length}");
+
             if (state is AttendanceLoaded) {
               final s = state as AttendanceLoaded;
-              print("Attendance records loaded: ${records.length}");
+
               emit(s.copyWith(records: records));
             } else {
-              print("Attendance records loaded: ${records.length}");
+
               emit(AttendanceLoaded(records: records));
             }
           },

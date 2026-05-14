@@ -11,6 +11,7 @@ import '../widgets/financials_stats.dart';
 import '../widgets/expenses_table.dart';
 import '../widgets/income_summary.dart';
 import '../widgets/add_expense_dialog.dart';
+import '../../../../core/utils/ui_feedback.dart';
 
 class FinancialsScreen extends StatelessWidget {
   const FinancialsScreen({super.key});
@@ -35,12 +36,7 @@ class _FinancialsView extends StatelessWidget {
       body: BlocConsumer<FinancialsCubit, FinancialsState>(
         listener: (context, state) {
           if (state is FinancialsError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: AppColors.error,
-              ),
-            );
+            UIFeedback.showError(context, state.message);
           }
         },
         builder: (context, state) {

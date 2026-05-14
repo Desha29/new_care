@@ -46,25 +46,121 @@ class CasesCubit extends Cubit<CasesState> {
   }
 
   /// تحميل الحالات من الشاشة - Load cases from screen (sets/resets filter)
-  Future<void> loadCases({String? nurseId, bool force = false}) async {
-    // دايماً حدّث الفلتر لما الشاشة تستدعي - Always update filter from screen
+  Future<void> loadCases({
+    String? nurseId, 
+    bool force = false,
+    TimeFilter timeFilter = TimeFilter.all,
+    DateTime? customStartDate,
+    DateTime? customEndDate,
+  }) async {
     _activeNurseId = nurseId;
-    await _loadCasesInternal(force: force);
-
+    await _loadCasesInternal(
+      force: force, 
+      timeFilter: timeFilter,
+      customStartDate: customStartDate,
+      customEndDate: customEndDate,
+    );
   }
 
   /// تحميل الحالات الفعلي - Actual case loading
-  Future<void> _loadCasesInternal({bool force = false}) async {
-    if (!force && state is CasesLoaded) return;
+  Future<void> _loadCasesInternal({
+    bool force = false,
+    TimeFilter timeFilter = TimeFilter.all,
+    DateTime? customStartDate,
+    DateTime? customEndDate,
+  }) async {
+    if (!force && state is CasesLoaded && (state as CasesLoaded).timeFilter == timeFilter && (state as CasesLoaded).customStartDate == customStartDate && (state as CasesLoaded).customEndDate == customEndDate) return;
 
     emit(CasesLoading());
     try {
-      final cases = await _casesRepository.getAllCases(nurseId: _activeNurseId);
-      final sortedCases = List<CaseModel>.from(cases)
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      emit(CasesLoaded(cases: sortedCases));
+      final dateRange = _getDateRange(timeFilter, customStartDate, customEndDate);
+      
+      final result = await _casesRepository.getCasesPaginated(
+        nurseId: _activeNurseId,
+        startDate: dateRange['start'],
+        endDate: dateRange['end'],
+        limit: 20,
+      );
+
+      emit(CasesLoaded(
+        cases: result.items,
+        timeFilter: timeFilter,
+        customStartDate: customStartDate,
+        customEndDate: customEndDate,
+        hasMore: result.hasMore,
+        lastDocument: result.lastDocument,
+      ));
     } catch (e) {
       emit(CasesError('خطأ في تحميل الحالات: ${e.toString()}'));
+    }
+  }
+
+  /// تحميل المزيد من الحالات - Load more cases (Pagination)
+  Future<void> loadMoreCases() async {
+    if (state is! CasesLoaded) return;
+    final currentState = state as CasesLoaded;
+    
+    if (currentState.isLoadingMore || !currentState.hasMore || currentState.lastDocument == null) return;
+
+    emit(currentState.copyWith(isLoadingMore: true));
+    try {
+      final dateRange = _getDateRange(
+        currentState.timeFilter,
+        currentState.customStartDate,
+        currentState.customEndDate,
+      );
+      
+      final result = await _casesRepository.getCasesPaginated(
+        nurseId: _activeNurseId,
+        startDate: dateRange['start'],
+        endDate: dateRange['end'],
+        startAfter: currentState.lastDocument,
+        limit: 20,
+      );
+
+      emit(currentState.copyWith(
+        cases: [...currentState.cases, ...result.items],
+        isLoadingMore: false,
+        hasMore: result.hasMore,
+        lastDocument: result.lastDocument,
+      ));
+    } catch (e) {
+      log('Error loading more cases: $e');
+      emit(currentState.copyWith(isLoadingMore: false));
+    }
+  }
+
+  Map<String, DateTime?> _getDateRange(TimeFilter filter, [DateTime? customStart, DateTime? customEnd]) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    switch (filter) {
+      case TimeFilter.today:
+        return {
+          'start': today,
+          'end': today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1)),
+        };
+      case TimeFilter.yesterday:
+        final yesterday = today.subtract(const Duration(days: 1));
+        return {
+          'start': yesterday,
+          'end': today.subtract(const Duration(milliseconds: 1)),
+        };
+      case TimeFilter.last7Days:
+        return {
+          'start': today.subtract(const Duration(days: 7)),
+          'end': today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1)),
+        };
+      case TimeFilter.custom:
+        if (customStart != null && customEnd != null) {
+          return {
+            'start': customStart,
+            'end': DateTime(customEnd.year, customEnd.month, customEnd.day, 23, 59, 59, 999),
+          };
+        }
+        return {'start': null, 'end': null};
+      case TimeFilter.all:
+        return {'start': null, 'end': null};
     }
   }
 
@@ -81,6 +177,13 @@ class CasesCubit extends Cubit<CasesState> {
     if (state is CasesLoaded) {
       final s = state as CasesLoaded;
       emit(s.copyWith(typeFilter: type, clearTypeFilter: type == null));
+    }
+  }
+
+  void filterByProcedure(String? procedureName) {
+    if (state is CasesLoaded) {
+      final s = state as CasesLoaded;
+      emit(s.copyWith(procedureFilter: procedureName, clearProcedureFilter: procedureName == null));
     }
   }
 

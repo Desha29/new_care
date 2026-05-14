@@ -4,7 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/responsive_helper.dart';
-import '../../../../core/widgets/search_bar_widget.dart';
+import '../../../../core/widgets/app_search_bar.dart';
 import '../../../../core/widgets/buttons/primary_button.dart';
 import '../../../../core/enums/user_role.dart';
 import '../cubit/users_cubit.dart';
@@ -91,30 +91,45 @@ class UsersHeader extends StatelessWidget {
       builder: (context, state) {
         final roleFilter = state is UsersLoaded ? state.roleFilter : null;
         
-        return SearchBarWidget(
+        return AppSearchBar(
           hintText: AppStrings.searchUsers,
           controller: searchController,
           onChanged: onSearchChanged,
-          trailing: DropdownButtonHideUnderline(
-            child: DropdownButton<UserRole?>(
-              value: roleFilter,
-              icon: const Icon(Icons.filter_list_rounded, size: 18, color: AppColors.primary),
-              hint: const Text('الكل', style: TextStyle(fontFamily: 'Cairo', fontSize: 12)),
-              onChanged: (role) => context.read<UsersCubit>().filterByRole(role),
-              items: [
-                const DropdownMenuItem(
-                  value: null,
-                  child: Text('الكل', style: TextStyle(fontFamily: 'Cairo', fontSize: 12)),
-                ),
-                ...UserRole.values.map((role) => DropdownMenuItem(
-                  value: role,
-                  child: Text(role.label, style: const TextStyle(fontFamily: 'Cairo', fontSize: 12)),
-                )),
-              ],
-            ),
-          ),
+          onFilterTap: () => _showRoleFilterMenu(context, roleFilter),
         );
       },
     );
+  }
+
+  void _showRoleFilterMenu(BuildContext context, UserRole? currentRole) {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Navigator.of(context).overlay!.context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    showMenu<UserRole?>(
+      context: context,
+      position: position,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      items: [
+        const PopupMenuItem(
+          value: null,
+          child: Text('الكل (الصلاحيات)', style: TextStyle(fontFamily: 'Cairo')),
+        ),
+        ...UserRole.values.map((role) => PopupMenuItem(
+          value: role,
+          child: Text(role.label, style: const TextStyle(fontFamily: 'Cairo')),
+        )),
+      ],
+    ).then((role) {
+      if (context.mounted && (role != null || currentRole != null)) {
+        context.read<UsersCubit>().filterByRole(role);
+      }
+    });
   }
 }

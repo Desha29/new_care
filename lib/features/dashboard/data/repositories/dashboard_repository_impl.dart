@@ -3,6 +3,7 @@ import '../../../attendance/data/models/attendance_model.dart';
 import '../../../cases/domain/repositories/cases_repository.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../../../../core/services/local/sqlite_service.dart';
+import '../../../../core/services/firebase/firebase_service.dart';
 
 /// تنفيذ مستودع لوحة التحكم (الجيل الثاني) - Dashboard Repository Implementation v2
 /// Optimized for speed using local data and reliable remote fallbacks.
@@ -16,13 +17,9 @@ class DashboardRepositoryImpl implements IDashboardRepository {
   @override
   Future<Map<String, dynamic>> getDashboardStats({DateTime? date}) async {
     final targetDate = date ?? DateTime.now();
-    final allCases = await _casesRepository.getAllCases();
     
-    final todayCases = allCases.where((c) => 
-      c.caseDate.year == targetDate.year && 
-      c.caseDate.month == targetDate.month && 
-      c.caseDate.day == targetDate.day
-    ).toList();
+    // Server-side aggregation (Optimized for 5000+ records)
+    final aggregates = await FirebaseService.instance.getDailyAggregates(date: targetDate);
     
     final totalPatients = await _local.getPatientsCount();
 
@@ -35,16 +32,11 @@ class DashboardRepositoryImpl implements IDashboardRepository {
       ),
     );
 
-    double todayRevenue = 0;
-    for (final c in todayCases) {
-      todayRevenue += (c.totalPrice - c.discount);
-    }
-
     return {
       'totalPatients': totalPatients,
-      'todayCases': todayCases.length,
+      'todayCases': aggregates['totalCases'],
       'availableNurses': nurses.length,
-      'todayRevenue': todayRevenue,
+      'todayRevenue': aggregates['totalRevenue'],
     };
   }
 

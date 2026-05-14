@@ -24,6 +24,9 @@ abstract class IAuthRepository {
   /// إرسال رابط إعادة تعيين كلمة المرور
   Future<void> sendPasswordResetEmail(String email);
 
+  /// تسجيل الدخول بدون إنترنت (محلياً)
+  Future<UserModel?> loginOffline(String email, String password);
+
   /// مراقبة حالة المصادقة
   Stream<User?> get authStateChanges;
 }

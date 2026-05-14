@@ -30,6 +30,20 @@ class ProceduresCubit extends Cubit<ProceduresState> {
     }
   }
 
+  void setSortBy(ProcedureSort sortBy) {
+    if (state is ProceduresLoaded) {
+      final s = state as ProceduresLoaded;
+      emit(s.copyWith(sortBy: sortBy));
+    }
+  }
+
+  void setMaxPrice(double? maxPrice) {
+    if (state is ProceduresLoaded) {
+      final s = state as ProceduresLoaded;
+      emit(s.copyWith(maxPrice: maxPrice, clearMaxPrice: maxPrice == null));
+    }
+  }
+
   Future<void> addProcedure(ProcedureModel p) async {
     try {
       await _proceduresRepository.createProcedure(p);

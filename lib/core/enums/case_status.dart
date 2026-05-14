@@ -28,4 +28,7 @@ enum CaseType {
         return Icons.home_rounded;
     }
   }
+
+  bool get isHome => this == CaseType.homeVisit;
+  bool get isInCenter => this == CaseType.inCenter;
 }

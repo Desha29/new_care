@@ -153,8 +153,8 @@ class DashboardRevenueChart extends StatelessWidget {
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              AppColors.success.withOpacity(0.2),
-                              AppColors.success.withOpacity(0),
+                              AppColors.success.withValues(alpha: 0.2),
+                              AppColors.success.withValues(alpha: 0),
                             ],
                           ),
                         ),

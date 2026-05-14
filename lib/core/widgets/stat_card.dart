@@ -73,14 +73,14 @@ class _StatCardState extends State<StatCard> with SingleTickerProviderStateMixin
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _isHovered
-                    ? widget.color.withOpacity(0.3)
+                    ? widget.color.withValues(alpha: 0.3)
                     : AppColors.border,
                 width: _isHovered ? 1.5 : 1,
               ),
               boxShadow: [
                 BoxShadow(
                   color: _isHovered
-                      ? widget.color.withOpacity(0.1)
+                      ? widget.color.withValues(alpha: 0.1)
                       : AppColors.shadowLight,
                   blurRadius: _isHovered ? 16 : 8,
                   offset: const Offset(0, 4),
@@ -120,7 +120,7 @@ class _StatCardState extends State<StatCard> with SingleTickerProviderStateMixin
                           width: iconSize,
                           height: iconSize,
                           decoration: BoxDecoration(
-                            color: widget.color.withOpacity(0.1),
+                            color: widget.color.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(

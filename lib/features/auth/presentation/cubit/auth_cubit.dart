@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/models/user_model.dart';
@@ -39,6 +40,9 @@ class AuthCubit extends Cubit<AuthState> {
       if (e.code == 'permission-denied') {
         emit(AuthUnauthenticated());
       } else {
+        // التحقق من وجود مستخدم مخزن محلياً إذا كان هناك خطأ في الاتصال
+        // If it's a network error during initial check, maybe keep last session?
+        // Usually handled by Firebase persistence, so we only handle errors here.
         emit(AuthError('حدث خطأ في التحقق من الحساب: ${e.message}'));
       }
     } catch (e) {
@@ -49,6 +53,35 @@ class AuthCubit extends Cubit<AuthState> {
   /// تسجيل الدخول - Login
   Future<void> login(String email, String password) async {
     emit(AuthLoading());
+    
+    // 1. التحقق من الاتصال بالإنترنت - Check internet connectivity
+    final connectivityResult = await Connectivity().checkConnectivity();
+    final hasNoInternet = connectivityResult.contains(ConnectivityResult.none);
+
+    if (hasNoInternet) {
+      // محاولة تسجيل الدخول محلياً - Attempt offline login
+      try {
+        final user = await _authRepository.loginOffline(email, password);
+        if (user != null) {
+          if (!user.isActive) {
+            emit(const AuthError('تم تعطيل حسابك. تواصل مع المدير'));
+            return;
+          }
+          _currentUser = user;
+          await _logActivity(user, 'login_offline', 'تسجيل دخول (بدون إنترنت)');
+          emit(AuthAuthenticated(user));
+          return;
+        } else {
+          emit(const AuthError('لا يوجد اتصال بالإنترنت، ولم يتم العثور على بيانات دخول محلية مطابقة.'));
+          return;
+        }
+      } catch (e) {
+        emit(AuthError('خطأ في تسجيل الدخول المحلي: $e'));
+        return;
+      }
+    }
+
+    // 2. تسجيل دخول عادي (أونلاين) - Standard online login
     try {
       final credential = await _authRepository.signInWithEmailAndPassword(
         email.trim(),
@@ -61,25 +94,19 @@ class AuthCubit extends Cubit<AuthState> {
         
         var user = await _authRepository.getUser(uid);
         
-        // Auto-fix orphaned users (in Auth but missing Firestore doc)
+        // Auto-fix orphaned users
         if (user == null && userEmail != null) {
           user = UserModel(
             id: uid,
             name: userEmail.split('@').first,
             email: userEmail,
             phone: '',
-            role: UserRole.nurse, // Fallback default
+            role: UserRole.nurse,
             isActive: true,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
           );
-          try {
-            await _authRepository.createUser(user);
-          } catch (e) {
-            await _authRepository.signOut();
-            emit(AuthError('لم نتمكن من تهيئة ملفك بصورة صحيحة: $e'));
-            return;
-          }
+          await _authRepository.createUser(user);
         }
 
         if (user != null) {
@@ -89,52 +116,60 @@ class AuthCubit extends Cubit<AuthState> {
             return;
           }
           _currentUser = user;
-
-          // تسجيل نشاط الدخول محلياً - Log login activity locally
-          await LocalLogService.instance.logActivity(
-            userId: user.id,
-            userName: user.name,
-            action: 'login',
-            actionLabel: 'تسجيل دخول',
-            details: 'قام ${user.name} بتسجيل الدخول',
-          );
-
+          await _logActivity(user, 'login', 'تسجيل دخول');
           emit(AuthAuthenticated(user));
         }
       }
     } on FirebaseAuthException catch (e) {
+      // معالجة أخطاء الشبكة أثناء المحاولة - Handle network errors during attempt
+      if (e.code == 'network-request-failed' || e.code == 'unavailable') {
+          // Fallback to offline login if online fails due to network
+          final user = await _authRepository.loginOffline(email, password);
+          if (user != null) {
+             _currentUser = user;
+             emit(AuthAuthenticated(user));
+             return;
+          }
+      }
+      
       String message;
       switch (e.code) {
-        case 'user-not-found':
-          message = 'البريد الإلكتروني غير مسجل';
-          break;
-        case 'wrong-password':
-          message = 'كلمة المرور غير صحيحة';
-          break;
-        case 'invalid-email':
-          message = 'بريد إلكتروني غير صحيح';
-          break;
-        case 'user-disabled':
-          message = 'تم تعطيل هذا الحساب';
-          break;
-        case 'too-many-requests':
-          message = 'محاولات كثيرة. حاول لاحقاً';
-          break;
-        default:
-          message = 'خطأ في تسجيل الدخول: ${e.message}';
+        case 'user-not-found': message = 'البريد الإلكتروني غير مسجل'; break;
+        case 'wrong-password': message = 'كلمة المرور غير صحيحة'; break;
+        case 'invalid-email': message = 'بريد إلكتروني غير صحيح'; break;
+        case 'user-disabled': message = 'تم تعطيل هذا الحساب'; break;
+        case 'too-many-requests': message = 'محاولات كثيرة. حاول لاحقاً'; break;
+        case 'network-request-failed': message = 'فشل الاتصال بالإنترنت'; break;
+        default: message = 'خطأ في تسجيل الدخول: ${e.message}';
       }
       emit(AuthError(message));
     } catch (e) {
+      // Fallback for generic network issues
+      if (e.toString().contains('SocketException') || e.toString().contains('Network')) {
+          final user = await _authRepository.loginOffline(email, password);
+          if (user != null) {
+             _currentUser = user;
+             emit(AuthAuthenticated(user));
+             return;
+          }
+      }
+      
       if (e.toString().contains('permission-denied')) {
-        emit(
-          const AuthError(
-            'الصلاحيات غير كافية للوصول (Permission Denied). يرجى مراجعة القواعد (Rules) في كونسول فايربيز كمدير نظام.',
-          ),
-        );
+        emit(const AuthError('الصلاحيات غير كافية للوصول (Permission Denied).'));
       } else {
         emit(AuthError('خطأ غير متوقع في تسجيل الدخول: $e'));
       }
     }
+  }
+
+  Future<void> _logActivity(UserModel user, String action, String label) async {
+    await LocalLogService.instance.logActivity(
+      userId: user.id,
+      userName: user.name,
+      action: action,
+      actionLabel: label,
+      details: 'قام ${user.name} بـ $label',
+    );
   }
 
   /// تسجيل الخروج - Logout

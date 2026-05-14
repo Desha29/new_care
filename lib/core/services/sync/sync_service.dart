@@ -21,7 +21,7 @@ class SyncService {
   /// مزامنة شاملة - رفع كل البيانات المحلية إلى Firestore
   Future<void> syncFromFirebase() async {
     if (!await isOnline()) return;
-    print(2632);
+
     try {
       // رفع كل البيانات من SQLite إلى Firestore (كل حاجة مش بس الجديد)
       await _sync.syncAll();

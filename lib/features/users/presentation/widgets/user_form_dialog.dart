@@ -151,7 +151,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
+                              color: AppColors.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
@@ -328,7 +328,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: s ? AppColors.primary.withOpacity(0.1) : AppColors.surfaceVariant,
+            color: s ? AppColors.primary.withValues(alpha: 0.1) : AppColors.surfaceVariant,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: s ? AppColors.primary : AppColors.border),
           ),

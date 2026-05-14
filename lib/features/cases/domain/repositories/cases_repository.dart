@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../../core/services/firebase/firebase_service.dart';
 import '../../data/models/case_model.dart';
 
 /// واجهة مستودع الحالات - Cases Repository Interface
@@ -5,6 +7,15 @@ import '../../data/models/case_model.dart';
 abstract class ICasesRepository {
   /// جلب جميع الحالات - Get all cases
   Future<List<CaseModel>> getAllCases({String? nurseId});
+
+  /// جلب الحالات بصفحات - Get paginated cases
+  Future<PaginatedResult<CaseModel>> getCasesPaginated({
+    String? nurseId,
+    int limit = 20,
+    DocumentSnapshot? startAfter,
+    DateTime? startDate,
+    DateTime? endDate,
+  });
 
   /// جلب حالات اليوم - Get today's cases
   Future<List<CaseModel>> getTodayCases({String? nurseId});

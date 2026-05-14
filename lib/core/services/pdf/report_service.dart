@@ -791,14 +791,14 @@ class ReportService {
                     pw.Row(
                       children: [
                         pw.Text(
-                          _shape(subtitle.split(':').first + ':'),
+                          _shape('${subtitle.split(':').first}:'),
                           style: pw.TextStyle(
                             fontSize: 12,
                             fontWeight: pw.FontWeight.bold,
                           ),
                         ),
                         pw.Text(
-                          ' ' + subtitle.split(':').last,
+                          ' ${subtitle.split(':').last}',
                           style: pw.TextStyle(
                             fontSize: 12,
                             fontWeight: pw.FontWeight.bold,
@@ -1745,11 +1745,11 @@ class ReportService {
                 index + 1,
                 _shape(p.userName),
                 p.totalHours.toStringAsFixed(1),
-                '${p.baseSalary.toStringAsFixed(0)}',
-                '${p.outsideCasesFees.toStringAsFixed(0)}',
-                '${p.bonus.toStringAsFixed(0)}',
-                '${p.deductions.toStringAsFixed(0)}',
-                '${p.netSalary.toStringAsFixed(0)}',
+                p.baseSalary.toStringAsFixed(0),
+                p.outsideCasesFees.toStringAsFixed(0),
+                p.bonus.toStringAsFixed(0),
+                p.deductions.toStringAsFixed(0),
+                p.netSalary.toStringAsFixed(0),
                 _shape(p.status == 'paid' ? 'تم الدفع' : p.status == 'approved' ? 'معتمد' : 'مسودة'),
               ];
             }),

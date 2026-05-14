@@ -3,6 +3,7 @@ import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/services/local/sqlite_service.dart';
+import '../../../../core/utils/ui_feedback.dart';
 
 /// شاشة الإعدادات - Settings Screen
 class SettingsScreen extends StatefulWidget {
@@ -18,16 +19,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _addressController;
   bool _isSavingInfo = false;
   bool _autoBackup = true;
-  final bool _systemActive = true;
-
-  final Map<String, bool> _flags = {
-    'enable_printing': true,
-    'enable_backup': true,
-    'enable_reports': true,
-    'force_update': false,
-    'kill_switch': false,
-    'maintenance_mode': false,
-  };
 
   @override
   void initState() {
@@ -420,15 +411,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showSnackbar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(fontFamily: 'Cairo')),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    if (color == AppColors.success) {
+      UIFeedback.showSuccess(context, message);
+    } else if (color == AppColors.error) {
+      UIFeedback.showError(context, message);
+    } else {
+      UIFeedback.showInfo(context, message);
+    }
   }
 }
 

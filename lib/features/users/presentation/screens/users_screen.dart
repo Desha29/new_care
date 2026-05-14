@@ -7,7 +7,6 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/services/network/connectivity_service.dart';
 import '../../../../core/services/notifications/data_change_notifier.dart';
-import '../../../../core/di/injection.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../cubit/users_cubit.dart';
@@ -29,7 +28,6 @@ class _UsersScreenState extends State<UsersScreen> {
   bool _isOffline = false;
   StreamSubscription? _dataChangeSub;
   // Key to force-rebuild the BlocProvider when data changes from cloud
-  Key _blocKey = UniqueKey();
 
   @override
   void initState() {
@@ -39,7 +37,7 @@ class _UsersScreenState extends State<UsersScreen> {
     // Listen for cloud download to auto-refresh users
     _dataChangeSub = DataChangeNotifier().onDataChanged.listen((_) {
       if (mounted) {
-        setState(() => _blocKey = UniqueKey());
+        context.read<UsersCubit>().loadUsers(force: true);
       }
     });
   }
@@ -187,7 +185,7 @@ class _UsersScreenState extends State<UsersScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.error.withOpacity(0.1),
+        color: AppColors.error.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.error),
       ),

@@ -8,15 +8,20 @@ import 'package:new_care/core/widgets/empty_state_widget.dart';
 import 'package:new_care/core/widgets/dialogs/loading_dialog.dart';
 import 'package:new_care/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:new_care/features/auth/presentation/cubit/auth_state.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:new_care/features/cases/data/models/case_model.dart';
+import 'package:new_care/features/cases/domain/repositories/cases_repository.dart';
 import 'package:new_care/features/invoice/presentation/screens/invoice_preview_screen.dart';
-import 'package:new_care/core/services/local/sqlite_service.dart';
 import 'package:new_care/core/services/firebase/firebase_service.dart';
 import 'package:new_care/core/services/pdf/report_service.dart';
 import 'package:new_care/core/services/notifications/case_change_notifier.dart';
 import 'package:new_care/features/attendance/data/models/attendance_model.dart';
+import 'package:new_care/core/utils/ui_feedback.dart';
+import 'package:new_care/core/widgets/app_search_bar.dart';
+import 'package:new_care/features/invoice/presentation/widgets/invoice_card.dart';
 import 'report_preview_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:get_it/get_it.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -28,10 +33,15 @@ class ReportsScreen extends StatefulWidget {
 class _ReportsScreenState extends State<ReportsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final ScrollController _invoiceScrollController = ScrollController();
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  DocumentSnapshot? _lastDocument;
   List<CaseModel> _cases = [];
   List<AttendanceModel> _attendance = [];
   DateTime _selectedDate = DateTime.now();
+  String _searchQuery = '';
   StreamSubscription? _caseChangeSub;
 
   static const _months = [
@@ -43,12 +53,19 @@ class _ReportsScreenState extends State<ReportsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _invoiceScrollController.addListener(_onInvoiceScroll);
     _loadData();
 
     // Listen for case changes (add/update/delete) to auto-refresh
     _caseChangeSub = CaseChangeNotifier().onCaseChanged.listen((_) {
       _loadData();
     });
+  }
+
+  void _onInvoiceScroll() {
+    if (_invoiceScrollController.position.pixels >= _invoiceScrollController.position.maxScrollExtent * 0.9) {
+      _loadMoreInvoices();
+    }
   }
 
   @override
@@ -59,30 +76,37 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _cases = [];
+      _lastDocument = null;
+      _hasMore = true;
+    });
     try {
       final authState = context.read<AuthCubit>().state;
       final user = authState is AuthAuthenticated ? authState.user : null;
       final isAdmin = user?.role.isAdmin ?? false;
+      final nurseId = isAdmin ? null : user?.id;
 
-      // Read cases from local SQLite (offline-first)
-      final localCases = await SqliteService.instance.getAllCases();
-      var cases = localCases
-          .map((m) => CaseModel.fromMap(m, m['id'] as String))
-          .toList();
+      final repo = GetIt.I<ICasesRepository>();
+      
+      // Calculate start and end of selected month
+      final startOfMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
+      final endOfMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0, 23, 59, 59);
 
-      // Filter cases for nurses
-      if (!isAdmin && user != null) {
-        cases = cases.where((c) => c.nurseId == user.id).toList();
-      }
+      final result = await repo.getCasesPaginated(
+        nurseId: nurseId,
+        startDate: startOfMonth,
+        endDate: endOfMonth,
+        limit: 20,
+      );
 
-      // Attendance still from Firestore (no local monthly query)
+      // Attendance
       List<AttendanceModel> attendance = [];
       try {
         attendance = await FirebaseService.instance
             .getMonthlyAttendanceRecords(_selectedDate.year, _selectedDate.month);
         
-        // Filter attendance for nurses
         if (!isAdmin && user != null) {
           attendance = attendance.where((a) => a.userId == user.id).toList();
         }
@@ -90,17 +114,55 @@ class _ReportsScreenState extends State<ReportsScreen>
 
       if (mounted) {
         setState(() {
-          _cases = cases..sort((a, b) => b.caseDate.compareTo(a.caseDate));
+          _cases = result.items;
+          _lastDocument = result.lastDocument;
+          _hasMore = result.hasMore;
           _attendance = attendance;
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('خطأ في تحميل البيانات: $e')));
+        UIFeedback.showError(context, 'خطأ في تحميل البيانات: $e');
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadMoreInvoices() async {
+    if (_isLoadingMore || !_hasMore || _lastDocument == null) return;
+
+    setState(() => _isLoadingMore = true);
+    try {
+      final authState = context.read<AuthCubit>().state;
+      final user = authState is AuthAuthenticated ? authState.user : null;
+      final isAdmin = user?.role.isAdmin ?? false;
+      final nurseId = isAdmin ? null : user?.id;
+
+      final repo = GetIt.I<ICasesRepository>();
+      
+      final startOfMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
+      final endOfMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0, 23, 59, 59);
+
+      final result = await repo.getCasesPaginated(
+        nurseId: nurseId,
+        startDate: startOfMonth,
+        endDate: endOfMonth,
+        startAfter: _lastDocument,
+        limit: 20,
+      );
+
+      if (mounted) {
+        setState(() {
+          _cases.addAll(result.items);
+          _lastDocument = result.lastDocument;
+          _hasMore = result.hasMore;
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
       }
     }
   }
@@ -191,11 +253,7 @@ class _ReportsScreenState extends State<ReportsScreen>
         .toList();
 
     if (todayCases.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('لا توجد حالات مسجلة اليوم لإصدار تقرير بها'),
-        ),
-      );
+      UIFeedback.showWarning(context, 'لا توجد حالات مسجلة اليوم لإصدار تقرير بها');
       return;
     }
 
@@ -293,7 +351,7 @@ class _ReportsScreenState extends State<ReportsScreen>
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.3),
+              color: AppColors.primary.withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -330,24 +388,31 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   Widget _buildInvoicesTab() {
-    final filteredCases = _cases
-        .where(
-          (c) =>
-              c.caseDate.year == _selectedDate.year &&
-              c.caseDate.month == _selectedDate.month,
-        )
-        .toList();
+    final filtered = _cases.where((c) {
+      if (_searchQuery.isEmpty) return true;
+      final q = _searchQuery.toLowerCase();
+      return c.patientName.toLowerCase().contains(q) ||
+             c.patientPhone.contains(q) ||
+             c.nurseName.toLowerCase().contains(q);
+    }).toList();
 
     return Column(
       children: [
-        if (filteredCases.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: AppSearchBar(
+            hintText: 'البحث في الفواتير (اسم، هاتف، ممرض)...',
+            onChanged: (v) => setState(() => _searchQuery = v),
+          ),
+        ),
+        if (filtered.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 ElevatedButton.icon(
-                  onPressed: () => _generateWorkReport(filteredCases),
+                  onPressed: () => _generateWorkReport(filtered),
                   icon: const Icon(Icons.description_rounded, size: 18),
                   label: const Text(
                     'إنشاء تقرير عمل شهري',
@@ -366,130 +431,40 @@ class _ReportsScreenState extends State<ReportsScreen>
             ),
           ),
         Expanded(
-          child: filteredCases.isEmpty
-              ? const EmptyStateWidget(
+          child: filtered.isEmpty && !_isLoading
+              ? EmptyStateWidget(
                   icon: Icons.receipt_long_rounded,
-                  title: 'لا توجد فواتير لهذا الشهر',
-                  subtitle: 'سيتم عرض فواتير الحالات المسجلة هنا',
+                  title: _searchQuery.isEmpty ? 'لا توجد فواتير لهذا الشهر' : 'لا توجد نتائج بحث',
+                  subtitle: _searchQuery.isEmpty ? 'سيتم عرض فواتير الحالات المسجلة هنا' : 'جرب البحث بكلمات أخرى',
                 )
               : ListView.builder(
+                  controller: _invoiceScrollController,
                   padding: const EdgeInsets.only(bottom: 24),
-                  itemCount: filteredCases.length,
+                  itemCount: filtered.length + (_isLoadingMore ? 1 : 0),
                   itemBuilder: (context, index) {
-                    final c = filteredCases[index];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: IntrinsicHeight(
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 6,
-                                color: AppColors.primary,
-                              ),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Row(
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 22,
-                                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                                        child: const Icon(
-                                          Icons.receipt_rounded,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              c.patientName,
-                                              style: const TextStyle(
-                                                fontFamily: 'Cairo',
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                color: AppColors.textPrimary,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '${DateFormat('yyyy/MM/dd').format(c.caseDate)} • ${c.caseType.label} • ${c.nurseName}',
-                                              style: const TextStyle(
-                                                fontFamily: 'Cairo',
-                                                fontSize: 12,
-                                                color: AppColors.textSecondary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            '${(c.totalPrice - c.discount).toStringAsFixed(0)} E.P',
-                                            style: const TextStyle(
-                                              fontFamily: 'Cairo',
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.primary,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Container(
-                                            decoration: BoxDecoration(
-                                              color: AppColors.info.withValues(alpha: 0.1),
-                                              borderRadius: BorderRadius.circular(10),
-                                            ),
-                                            child: IconButton(
-                                              icon: const Icon(
-                                                Icons.visibility_rounded,
-                                                color: AppColors.info,
-                                                size: 20,
-                                              ),
-                                              onPressed: () => Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      InvoicePreviewScreen(caseData: c),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                    if (index < filtered.length) {
+                      final c = filtered[index];
+                      return InvoiceCard(
+                        caseData: c,
+                        onView: () => showDialog(
+                          context: context,
+                          builder: (_) => InvoicePreviewDialog(caseData: c),
                         ),
-                      ),
-                    );
+                        onPrint: () => ReportService.instance.generateCaseInvoice(c),
+                      );
+                    } else {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      );
+                    }
                   },
                 ),
         ),
       ],
     );
   }
+
 
   Widget _buildAttendanceReportTab() {
     if (_attendance.isEmpty) {
@@ -500,7 +475,6 @@ class _ReportsScreenState extends State<ReportsScreen>
       );
     }
 
-    // تجميع الساعات حسب الممرض
     final Map<String, double> hourlyWork = {};
     final Map<String, String> names = {};
 
@@ -709,7 +683,6 @@ class _ReportsScreenState extends State<ReportsScreen>
     try {
       LoadingDialog.show(context, message: 'جاري إعداد التقرير...');
 
-      // نحتاج الورديات أيضاً للتقرير الكامل
       final shifts = await FirebaseService.instance.getMonthlyShifts(
         _selectedDate.year,
         _selectedDate.month,

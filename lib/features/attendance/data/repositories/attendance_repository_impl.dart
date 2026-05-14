@@ -108,23 +108,7 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
         .toList();
   }
 
-  @override
-  Future<List<AttendanceModel>> getUserAttendance(
-    String userId, {
-    int limit = 30,
-  }) async {
-    final db = await _local.database;
-    final results = await db.query(
-      'attendance',
-      where: 'userId = ?',
-      whereArgs: [userId],
-      orderBy: 'date DESC',
-      limit: limit,
-    );
-    return results
-        .map((m) => AttendanceModel.fromMap(m, m['id'] as String))
-        .toList();
-  }
+
 
   @override
   Stream<List<AttendanceModel>> streamTodayAttendanceRecords() {
@@ -137,7 +121,7 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
       final records = snapshot.docs
           .map(
             (doc) => AttendanceModel.fromMap(
-              doc.data() as Map<String, dynamic>,
+              doc.data(),
               doc.id,
             ),
           )
@@ -152,6 +136,23 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
   String _getTodayString() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Future<PaginatedResult<AttendanceModel>> getAttendancePaginated({
+    String? userId,
+    int limit = 20,
+    DocumentSnapshot? startAfter,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    return await _remote.getAttendancePaginated(
+      userId: userId,
+      limit: limit,
+      startAfter: startAfter,
+      startDate: startDate,
+      endDate: endDate,
+    );
   }
 
   @override

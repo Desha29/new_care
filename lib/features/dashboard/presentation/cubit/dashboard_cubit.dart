@@ -42,8 +42,9 @@ class DashboardCubit extends Cubit<DashboardState> {
 
     if (!force &&
         state is DashboardLoaded &&
-        (state as DashboardLoaded).selectedDate == targetDate)
+        (state as DashboardLoaded).selectedDate == targetDate) {
       return;
+    }
 
     emit(DashboardLoading());
     try {
@@ -84,8 +85,9 @@ class DashboardCubit extends Cubit<DashboardState> {
 
     if (!force &&
         state is DashboardLoaded &&
-        (state as DashboardLoaded).selectedDate == targetDate)
+        (state as DashboardLoaded).selectedDate == targetDate) {
       return;
+    }
 
     emit(DashboardLoading());
     try {

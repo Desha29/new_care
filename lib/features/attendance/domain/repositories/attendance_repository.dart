@@ -1,3 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../../../../core/services/firebase/firebase_service.dart';
 import '../../data/models/attendance_model.dart';
 
 /// واجهة مستودع الحضور والانصراف - Attendance Repository Interface
@@ -15,13 +18,22 @@ abstract class IAttendanceRepository {
   Future<bool> isCheckedInToday(String userId);
 
   /// جلب جميع سجلات حضور شهر معين - Get monthly attendance records
-  Future<List<AttendanceModel>> getMonthlyAttendanceRecords(int year, int month);
+  Future<List<AttendanceModel>> getMonthlyAttendanceRecords(
+    int year,
+    int month,
+  );
 
   /// جلب جميع سجلات حضور اليوم - Get all today's attendance
   Future<List<AttendanceModel>> getTodayAttendanceRecords();
 
-  /// جلب سجلات حضور مستخدم - Get user attendance history
-  Future<List<AttendanceModel>> getUserAttendance(String userId, {int limit = 30});
+  /// جلب سجلات الحضور بصفحات - Get paginated attendance records
+  Future<PaginatedResult<AttendanceModel>> getAttendancePaginated({
+    String? userId,
+    int limit = 20,
+    DocumentSnapshot? startAfter,
+    DateTime? startDate,
+    DateTime? endDate,
+  });
 
   /// بث سجلات حضور اليوم - Stream today's attendance records
   Stream<List<AttendanceModel>> streamTodayAttendanceRecords();

@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../data/models/attendance_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 abstract class AttendanceState extends Equatable {
   const AttendanceState();
@@ -17,6 +18,9 @@ class AttendanceLoaded extends AttendanceState {
   final bool isCheckedIn;
   final String searchQuery;
   final DateTime? dateFilter;
+  final bool hasMore;
+  final DocumentSnapshot? lastDocument;
+  final bool isLoadingMore;
 
   const AttendanceLoaded({
     required this.records,
@@ -24,6 +28,9 @@ class AttendanceLoaded extends AttendanceState {
     this.isCheckedIn = false,
     this.searchQuery = '',
     this.dateFilter,
+    this.hasMore = false,
+    this.lastDocument,
+    this.isLoadingMore = false,
   });
 
   AttendanceLoaded copyWith({
@@ -33,6 +40,9 @@ class AttendanceLoaded extends AttendanceState {
     String? searchQuery,
     DateTime? dateFilter,
     bool clearDateFilter = false,
+    bool? hasMore,
+    DocumentSnapshot? lastDocument,
+    bool? isLoadingMore,
   }) {
     return AttendanceLoaded(
       records: records ?? this.records,
@@ -40,6 +50,9 @@ class AttendanceLoaded extends AttendanceState {
       isCheckedIn: isCheckedIn ?? this.isCheckedIn,
       searchQuery: searchQuery ?? this.searchQuery,
       dateFilter: clearDateFilter ? null : (dateFilter ?? this.dateFilter),
+      hasMore: hasMore ?? this.hasMore,
+      lastDocument: lastDocument ?? this.lastDocument,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     );
   }
 
@@ -62,7 +75,16 @@ class AttendanceLoaded extends AttendanceState {
   }
 
   @override
-  List<Object?> get props => [records, todayRecord, isCheckedIn, searchQuery, dateFilter];
+  List<Object?> get props => [
+        records,
+        todayRecord,
+        isCheckedIn,
+        searchQuery,
+        dateFilter,
+        hasMore,
+        lastDocument,
+        isLoadingMore,
+      ];
 }
 
 class AttendanceCheckedIn extends AttendanceState {

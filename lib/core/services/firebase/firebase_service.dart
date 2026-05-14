@@ -210,6 +210,109 @@ class FirebaseService {
         .toList();
   }
 
+  /// جلب الحالات بصفحات - Get paginated cases
+  Future<PaginatedResult<CaseModel>> getCasesPaginated({
+    String? nurseId,
+    int limit = 20,
+    DocumentSnapshot? startAfter,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    _incRead();
+    Query query = _casesRef.orderBy('caseDate', descending: true);
+
+    if (nurseId != null) {
+      query = query.where('nurseId', isEqualTo: nurseId);
+    }
+
+    if (startDate != null) {
+      query = query.where('caseDate', isGreaterThanOrEqualTo: startDate.toIso8601String());
+    }
+    
+    if (endDate != null) {
+      query = query.where('caseDate', isLessThanOrEqualTo: endDate.toIso8601String());
+    }
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+
+    final snapshot = await query.limit(limit).get();
+    final items = snapshot.docs
+        .map((doc) => CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+
+    return PaginatedResult(
+      items: items,
+      lastDocument: snapshot.docs.isNotEmpty ? snapshot.docs.last : null,
+      hasMore: items.length == limit,
+    );
+  }
+
+  /// جلب سجلات الحضور بصفحات - Get paginated attendance records
+  Future<PaginatedResult<AttendanceModel>> getAttendancePaginated({
+    String? userId,
+    int limit = 20,
+    DocumentSnapshot? startAfter,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    _incRead();
+    Query query = _firestore.collection('attendance')
+        .orderBy('checkInTime', descending: true);
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    if (startDate != null) {
+      query = query.where('checkInTime', isGreaterThanOrEqualTo: startDate);
+    }
+    
+    if (endDate != null) {
+      query = query.where('checkInTime', isLessThanOrEqualTo: endDate);
+    }
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+
+    final snapshot = await query.limit(limit).get();
+    final items = snapshot.docs
+        .map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+
+    return PaginatedResult(
+      items: items,
+      lastDocument: snapshot.docs.isNotEmpty ? snapshot.docs.last : null,
+      hasMore: items.length == limit,
+    );
+  }
+
+  /// جلب الإحصائيات المجمعة لليوم - Get daily aggregated data (count & sum)
+  Future<Map<String, dynamic>> getDailyAggregates({DateTime? date}) async {
+    _incRead();
+    final targetDate = date ?? DateTime.now();
+    final start = DateTime(targetDate.year, targetDate.month, targetDate.day).toIso8601String();
+    final end = DateTime(targetDate.year, targetDate.month, targetDate.day, 23, 59, 59).toIso8601String();
+
+    final query = _casesRef
+        .where('caseDate', isGreaterThanOrEqualTo: start)
+        .where('caseDate', isLessThanOrEqualTo: end);
+
+    final snapshot = await query.get();
+    double totalRevenue = 0.0;
+    for (var doc in snapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      totalRevenue += (data['totalPrice'] as num?)?.toDouble() ?? 0.0;
+    }
+
+    return {
+      'totalCases': snapshot.docs.length,
+      'totalRevenue': totalRevenue,
+    };
+  }
+
   Stream<List<CaseModel>> streamAllCases({String? nurseId}) {
     Query query = _casesRef.orderBy('caseDate', descending: true);
     if (nurseId != null) {
@@ -679,4 +782,17 @@ class FirebaseService {
       const Duration(seconds: 5),
     ).asyncMap((_) => query.get()).asBroadcastStream();
   }
+}
+
+/// نتيجة البحث مع الصفحات - Paginated Result wrapper
+class PaginatedResult<T> {
+  final List<T> items;
+  final DocumentSnapshot? lastDocument;
+  final bool hasMore;
+
+  PaginatedResult({
+    required this.items,
+    this.lastDocument,
+    required this.hasMore,
+  });
 }

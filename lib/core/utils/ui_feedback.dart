@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:new_care/core/utils/app_toast.dart';
 import 'package:new_care/core/constants/app_colors.dart';
 
 /// كلاس التنبيهات والتعليقات البصرية - UI Feedback & Notifications
@@ -6,95 +7,24 @@ import 'package:new_care/core/constants/app_colors.dart';
 class UIFeedback {
   UIFeedback._();
 
-  /// عرض تنبيه نجاح - Success SnackBar
+  /// عرض تنبيه نجاح - Success Toast
   static void showSuccess(BuildContext context, String message) {
-    _showSnackBar(
-      context,
-      message,
-      AppColors.success,
-      Icons.check_circle_rounded,
-    );
+    AppToast.showSuccess(context, message);
   }
 
-  /// عرض تنبيه خطأ - Error SnackBar
+  /// عرض تنبيه خطأ - Error Toast
   static void showError(BuildContext context, String message) {
-    _showSnackBar(
-      context,
-      message,
-      AppColors.error,
-      Icons.error_outline_rounded,
-    );
+    AppToast.showError(context, message);
   }
 
-  /// عرض تنبيه تحذير - Warning SnackBar
+  /// عرض تنبيه تحذير - Warning Toast
   static void showWarning(BuildContext context, String message) {
-    _showSnackBar(
-      context,
-      message,
-      AppColors.warning,
-      Icons.warning_amber_rounded,
-    );
+    AppToast.showError(context, message); // Warning can use error color or we add warning to AppToast
   }
 
-  /// عرض تنبيه معلومة - Info SnackBar
+  /// عرض تنبيه معلومة - Info Toast
   static void showInfo(BuildContext context, String message) {
-    _showSnackBar(
-      context,
-      message,
-      AppColors.info,
-      Icons.info_outline_rounded,
-    );
-  }
-
-  /// التصميم العام للتنبيهات - Common SnackBar Design
-  static void _showSnackBar(
-    BuildContext context,
-    String message,
-    Color color,
-    IconData icon,
-  ) {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars(); // Clear all current and pending snackbars
-    
-    messenger.showSnackBar(
-      SnackBar(
-        content: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          child: Row(
-            children: [
-              Icon(icon, color: Colors.white, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  message,
-                  style: const TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        elevation: 6,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        duration: const Duration(seconds: 3), // Reduced duration
-        action: SnackBarAction(
-          label: 'إغلاق',
-          textColor: Colors.white.withOpacity(0.9),
-          onPressed: () {
-            messenger.hideCurrentSnackBar();
-          },
-        ),
-      ),
-    );
+    AppToast.showInfo(context, message);
   }
 
   /// عرض حوار تأكيد - Confirmation Dialog (Modern Design)

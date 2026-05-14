@@ -1,4 +1,3 @@
-import '../../../../core/services/firebase/firebase_service.dart';
 import '../../../../core/services/local/sqlite_service.dart';
 import '../../../../core/services/sync/sync_manager.dart';
 import '../../domain/repositories/financials_repository.dart';
@@ -9,7 +8,6 @@ import '../../../cases/data/models/case_model.dart';
 /// Enterprise-grade financial tracking with offline-first support.
 class FinancialsRepositoryImpl implements IFinancialsRepository {
   final _local = SqliteService.instance;
-  final _remote = FirebaseService.instance;
   final _sync = SyncManager.instance;
 
   @override

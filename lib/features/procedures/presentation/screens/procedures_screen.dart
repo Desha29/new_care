@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/utils/responsive_helper.dart';
-import '../../../../core/widgets/search_bar_widget.dart';
 import '../../../../core/widgets/dialogs/confirm_dialog.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../cubit/procedures_cubit.dart';
@@ -28,7 +27,6 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
   @override
   Widget build(BuildContext context) {
     final padding = ResponsiveHelper.getScreenPadding(context);
-    final isDesktop = ResponsiveHelper.isDesktop(context);
 
     return Container(
       padding: EdgeInsets.all(padding),
@@ -50,22 +48,28 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
                 } else if (state is ProceduresError) {
                   return Center(child: Text(state.message));
                 } else if (state is ProceduresLoaded) {
-                  final query = state.searchQuery.toLowerCase().trim();
-                  final filtered = state.procedures.where((e) {
-                    if (query.isEmpty) return true;
-                    return e.name.toLowerCase().contains(query);
-                  }).toList();
+                  final filtered = state.filteredProcedures;
 
                   if (filtered.isEmpty) {
+                    final hasFilter = state.searchQuery.isNotEmpty || state.maxPrice != null;
                     return EmptyStateWidget(
                       icon: Icons.medical_services_rounded,
-                      title: 'لا توجد إجراءات',
-                      subtitle: 'تأكد من اختيار إجراءات وإضافتها للنظام',
-                      actionLabel: 'إضافة إجراء',
-                      onAction: () => ProcedureFormDialog.show(
-                        context,
-                        context.read<ProceduresCubit>(),
-                      ),
+                      title: hasFilter ? 'لا توجد نتائج بحث' : 'لا توجد إجراءات',
+                      subtitle: hasFilter 
+                          ? 'جرب تغيير فلاتر البحث أو السعر' 
+                          : 'تأكد من اختيار إجراءات وإضافتها للنظام',
+                      actionLabel: hasFilter ? 'مسح الفلاتر' : 'إضافة إجراء',
+                      onAction: () {
+                         if (hasFilter) {
+                           context.read<ProceduresCubit>().searchProcedures('');
+                           context.read<ProceduresCubit>().setMaxPrice(null);
+                         } else {
+                           ProcedureFormDialog.show(
+                             context,
+                             context.read<ProceduresCubit>(),
+                           );
+                         }
+                      },
                     );
                   }
 

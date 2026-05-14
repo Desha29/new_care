@@ -15,6 +15,7 @@ import '../../../procedures/presentation/cubit/procedures_cubit.dart';
 import '../../../financials/presentation/cubit/financials_cubit.dart';
 import '../../../dashboard/presentation/cubit/dashboard_cubit.dart';
 import '../../../../core/widgets/sync_progress_dialog.dart';
+import '../../../../core/utils/ui_feedback.dart';
 
 class DataStatusScreen extends StatefulWidget {
   const DataStatusScreen({super.key});
@@ -109,9 +110,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('خطأ في جلب البيانات: $e')));
+        UIFeedback.showError(context, 'خطأ في جلب البيانات: $e');
       }
       setState(() => _isLoading = false);
     }
@@ -237,7 +236,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -311,7 +310,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
         color: AppColors.primaryDark,
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
-          colors: [AppColors.primaryDark, AppColors.primary.withOpacity(0.8)],
+          colors: [AppColors.primaryDark, AppColors.primary.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -460,7 +459,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
   Widget _buildDataRow(IconData icon, String label, int count, Color color) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: color.withOpacity(0.7)),
+        Icon(icon, size: 18, color: color.withValues(alpha: 0.7)),
         const SizedBox(width: 10),
         Text(
           label,
@@ -502,15 +501,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                 await _loadData();
 
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'تمت المزامنة بنجاح',
-                        style: TextStyle(fontFamily: 'Cairo'),
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+                  UIFeedback.showSuccess(context, 'تمت المزامنة بنجاح');
                 }
               } catch (e) {
                 if (mounted) {
@@ -518,15 +509,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                   if (Navigator.of(context).canPop()) {
                     Navigator.of(context).pop();
                   }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'خطأ في المزامنة: $e',
-                        style: const TextStyle(fontFamily: 'Cairo'),
-                      ),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  UIFeedback.showError(context, 'خطأ في المزامنة: $e');
                 }
               }
             },
@@ -562,30 +545,14 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                 DataChangeNotifier().notifyCloudDownloadCompleted();
 
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'تم تحميل البيانات من السحابة بنجاح',
-                        style: TextStyle(fontFamily: 'Cairo'),
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+                  UIFeedback.showSuccess(context, 'تم تحميل البيانات من السحابة بنجاح');
                 }
               } catch (e) {
                 if (mounted) {
                   if (Navigator.of(context).canPop()) {
                     Navigator.of(context).pop();
                   }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'خطأ في التحميل: $e',
-                        style: const TextStyle(fontFamily: 'Cairo'),
-                      ),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  UIFeedback.showError(context, 'خطأ في التحميل: $e');
                 }
               }
             },
@@ -621,27 +588,11 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                 try {
                   await OutsideCasesListener.instance.addFakeTestCase();
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'تم إضافة حالة تجريبية في outside_cases — سيتم استيرادها تلقائياً',
-                          style: TextStyle(fontFamily: 'Cairo'),
-                        ),
-                        backgroundColor: Colors.deepOrange,
-                      ),
-                    );
+                    UIFeedback.showInfo(context, 'تم إضافة حالة تجريبية في outside_cases — سيتم استيرادها تلقائياً');
                   }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'خطأ: $e',
-                          style: const TextStyle(fontFamily: 'Cairo'),
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    UIFeedback.showError(context, 'خطأ: $e');
                   }
                 }
               },

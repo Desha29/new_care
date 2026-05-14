@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/utils/ui_feedback.dart';
 import 'package:new_care/features/cases/presentation/cubit/cases_state.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/enums/case_status.dart'; // Desktop stores CaseType here
@@ -758,15 +759,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
   Future<void> _handleSave(BuildContext context, InvoiceState state) async {
     if (_formKey.currentState!.validate()) {
       if (state.services.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'يرجى إضافة خدمة واحدة على الأقل',
-              style: TextStyle(fontFamily: 'Cairo'),
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+        UIFeedback.showWarning(context, 'يرجى إضافة خدمة واحدة على الأقل');
         return;
       }
       final newCase = CaseModel(
@@ -786,52 +779,37 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
         updatedAt: DateTime.now(),
         createdBy: _isEdit ? widget.caseData!.createdBy : 'desktop_admin',
       );
-      if (_isEdit) {
-        await context.read<CasesCubit>().updateCase(newCase);
-      } else {
-        await context.read<CasesCubit>().addCase(newCase);
-      }
-
-      if (!mounted) return;
-
-      // Check if the cubit emitted an error (e.g. insufficient stock)
       final casesCubit = context.read<CasesCubit>();
-      final casesState = casesCubit.state;
-      if (casesState is CasesError) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                casesState.message,
-                style: const TextStyle(fontFamily: 'Cairo'),
-              ),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        // Restore cases state so the screen doesn't break
-        casesCubit.loadCases(force: true);
-        return;
-      }
-
-      if (!mounted) return;
       final dashboardCubit = context.read<DashboardCubit>();
       final financialsCubit = context.read<FinancialsCubit>();
       final inventoryCubit = context.read<InventoryCubit>();
       final payrollCubit = context.read<PayrollCubit>();
+      final authCubit = context.read<AuthCubit>();
+
+      if (_isEdit) {
+        await casesCubit.updateCase(newCase);
+      } else {
+        await casesCubit.addCase(newCase);
+      }
+
+      if (!mounted) return;
+
+      final casesState = casesCubit.state;
+      if (casesState is CasesError) {
+        if (context.mounted) UIFeedback.showError(context, casesState.message);
+        casesCubit.loadCases(force: true);
+        return;
+      }
 
       // Refresh all connected features based on user role
-      final authState = context.read<AuthCubit>().state;
+      final authState = authCubit.state;
       final user = authState is AuthAuthenticated ? authState.user : null;
 
       if (user != null) {
         if (user.role.isAdmin) {
           dashboardCubit.loadDashboardData(force: true);
         } else {
-          dashboardCubit.loadNurseDashboardData(
-            user.id,
-            force: true,
-          );
+          dashboardCubit.loadNurseDashboardData(user.id, force: true);
         }
       }
 
@@ -840,7 +818,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
       payrollCubit.loadPayroll(force: true);
 
       _hasChanges = false;
-      if (mounted) Navigator.pop(context, true);
+      if (context.mounted) Navigator.pop(context, true);
     }
   }
 

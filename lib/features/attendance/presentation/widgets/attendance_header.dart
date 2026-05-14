@@ -8,7 +8,7 @@ import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
 
 import 'package:intl/intl.dart' as intl;
-import '../../../../core/widgets/search_bar_widget.dart';
+import '../../../../core/widgets/app_search_bar.dart';
 import '../cubit/attendance_cubit.dart';
 import '../cubit/attendance_state.dart';
 
@@ -126,7 +126,7 @@ class AttendanceHeader extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: SearchBarWidget(
+                child: AppSearchBar(
                   hintText: 'البحث باسم الموظف...',
                   onChanged: (val) =>
                       context.read<AttendanceCubit>().searchAttendance(val),
@@ -143,7 +143,7 @@ class AttendanceHeader extends StatelessWidget {
                     border: Border.all(color: AppColors.border),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
+                        color: Colors.black.withValues(alpha: 0.03),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -199,7 +199,7 @@ class AttendanceHeader extends StatelessWidget {
                     border: Border.all(color: AppColors.border),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
+                        color: Colors.black.withValues(alpha: 0.03),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),

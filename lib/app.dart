@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/constants/app_theme.dart';
 import 'core/constants/app_strings.dart';
-import 'core/constants/app_colors.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/logic/connectivity_cubit.dart';
 import 'core/logic/error_cubit.dart';
@@ -11,6 +10,7 @@ import 'features/auth/presentation/cubit/auth_cubit.dart';
 import 'features/auth/presentation/cubit/auth_state.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/dashboard/presentation/screens/main_layout.dart';
+import 'core/utils/ui_feedback.dart';
 
 import 'features/cases/presentation/cubit/cases_cubit.dart';
 import 'features/procedures/presentation/cubit/procedures_cubit.dart';
@@ -69,7 +69,7 @@ class NewCareApp extends StatelessWidget {
                 BlocListener<ErrorCubit, GlobalErrorState>(
                   listener: (context, state) {
                     if (state.isError && state.message != null) {
-                      _showSnackBar(state.message!, isError: true);
+                      UIFeedback.showError(context, state.message!);
                       context.read<ErrorCubit>().clearError();
                     }
                   },
@@ -78,9 +78,9 @@ class NewCareApp extends StatelessWidget {
                 BlocListener<ConnectivityCubit, ConnectivityStatus>(
                   listener: (context, status) {
                     if (status == ConnectivityStatus.offline) {
-                      _showSnackBar(AppStrings.offlineMode, isError: true);
+                      UIFeedback.showError(context, AppStrings.offlineMode);
                     } else {
-                      _showSnackBar('أنت متصل الآن', isError: false);
+                      UIFeedback.showInfo(context, 'أنت متصل الآن');
                     }
                   },
                 ),
@@ -88,7 +88,7 @@ class NewCareApp extends StatelessWidget {
                 BlocListener<AttendanceCubit, AttendanceState>(
                   listener: (context, state) {
                     if (state is AttendanceCheckedIn) {
-                      _showSnackBar('تم تسجيل الحضور بنجاح ✅', isError: false);
+                      UIFeedback.showSuccess(context, 'تم تسجيل الحضور بنجاح ✅');
                     } else if (state is AttendanceCheckedOut) {
                       final record = state.record;
                       if (record.checkOutTime != null) {
@@ -101,10 +101,10 @@ class NewCareApp extends StatelessWidget {
                         if (minutes > 0) durationStr += '$minutes دقيقة';
                         if (durationStr.isEmpty) durationStr = 'أقل من دقيقة';
 
-                        _showSnackBar('تم تسجيل الانصراف بنجاح. مدة العمل: $durationStr ✅', isError: false);
+                        UIFeedback.showSuccess(context, 'تم تسجيل الانصراف بنجاح. مدة العمل: $durationStr ✅');
                       }
                     } else if (state is AttendanceError) {
-                      _showSnackBar(state.message, isError: true);
+                      UIFeedback.showError(context, state.message);
                     }
                   },
                 ),
@@ -124,21 +124,6 @@ class NewCareApp extends StatelessWidget {
             return const LoginScreen();
           },
         ),
-      ),
-    );
-  }
-
-  void _showSnackBar(String message, {bool isError = false}) {
-    messengerKey.currentState?.showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: const TextStyle(fontFamily: 'Cairo', color: Colors.white),
-        ),
-        backgroundColor: isError ? AppColors.error : AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -163,7 +148,7 @@ class _SplashScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -196,7 +181,7 @@ class _SplashScreen extends StatelessWidget {
               style: TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 14,
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 32),

@@ -74,6 +74,7 @@ class _LoginScreenState extends State<LoginScreen>
     return BlocListener<AuthCubit, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
+          UIFeedback.showSuccess(context, 'مرحباً بك، ${state.user.name}');
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const MainLayout()),
           );
@@ -128,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen>
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 20,
                               offset: const Offset(0, 8),
                             ),
@@ -165,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen>
                       style: TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
                     2,
@@ -263,7 +264,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
+                                    color: Colors.black.withValues(alpha: 0.2),
                                     blurRadius: 40,
                                     offset: const Offset(0, 15),
                                   ),
@@ -294,7 +295,7 @@ class _LoginScreenState extends State<LoginScreen>
                               letterSpacing: 1.5,
                               shadows: [
                                 Shadow(
-                                  color: Colors.black.withOpacity(0.3),
+                                  color: Colors.black.withValues(alpha: 0.3),
                                   blurRadius: 10,
                                   offset: const Offset(0, 5),
                                 ),
@@ -313,12 +314,12 @@ class _LoginScreenState extends State<LoginScreen>
                             decoration: BoxDecoration(
                               color: const Color(
                                 0xFFF4D03F,
-                              ).withOpacity(0.2),
+                              ).withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: const Color(
                                   0xFFF4D03F,
-                                ).withOpacity(0.5),
+                                ).withValues(alpha: 0.5),
                               ),
                             ),
                             child: Text(
@@ -413,7 +414,7 @@ class _LoginScreenState extends State<LoginScreen>
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadow.withOpacity(0.1),
+            color: AppColors.shadow.withValues(alpha: 0.1),
             blurRadius: 30,
             offset: const Offset(0, 10),
           ),
@@ -476,7 +477,7 @@ class _LoginScreenState extends State<LoginScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error.withOpacity(0.5)),
+            Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error.withValues(alpha: 0.5)),
             const SizedBox(height: 12),
             const Text(
               'لا يمكن تحميل قائمة المستخدمين',
@@ -522,9 +523,11 @@ class _LoginScreenState extends State<LoginScreen>
 
     showDialog(
       context: context,
+      barrierColor: AppColors.primary.withValues(alpha: 0.8),
       builder: (ctx) => StatefulBuilder(
         builder: (context, dialogSetState) {
           final authCubit = context.read<AuthCubit>();
+          final color = user.role.isAdmin ? AppColors.primary : AppColors.secondary;
           
           void doLogin() {
             if (passwordCtrl.text.isNotEmpty) {
@@ -533,63 +536,190 @@ class _LoginScreenState extends State<LoginScreen>
             }
           }
 
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircleAvatar(
-                  radius: 35,
-                  backgroundColor: user.role.isAdmin ? AppColors.primary : AppColors.secondary,
-                  child: const Icon(Icons.lock_person_rounded, color: Colors.white, size: 35),
-                ),
-                const SizedBox(height: 16),
-                const Text('كلمة المرور لـ', style: TextStyle(fontFamily: 'Cairo', fontSize: 13)),
-                Text(
-                  user.name,
-                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: passwordCtrl,
-                  obscureText: obscure,
-                  textAlign: TextAlign.center,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => doLogin(),
-                  style: const TextStyle(fontFamily: 'Cairo', letterSpacing: 5),
-                  decoration: _inputDecoration(
-                    hint: '••••••••',
-                    icon: Icons.lock_rounded,
-                    suffixIcon: IconButton(
-                      icon: Icon(obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded),
-                      onPressed: () => dialogSetState(() => obscure = !obscure),
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              width: 400,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(32),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 50,
+                    offset: const Offset(0, 20),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Upper design element
+                  Container(
+                    height: 140,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          color.withValues(alpha: 0.1),
+                          color.withValues(alpha: 0.02),
+                        ],
+                      ),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Positioned(
+                          top: 40,
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: color.withValues(alpha: 0.15),
+                                  blurRadius: 30,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: Icon(Icons.lock_person_rounded, color: color, size: 48),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
-              ),
-              BlocBuilder<AuthCubit, AuthState>(
-                builder: (context, state) {
-                  final isLoading = state is AuthLoading;
-                  return ElevatedButton(
-                    onPressed: isLoading ? null : doLogin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
+                    child: Column(
+                      children: [
+                        Text(
+                          'مرحباً، ${user.name}',
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'يرجى إدخال كلمة المرور للمتابعة',
+                          style: TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 13,
+                            color: AppColors.textSecondary.withValues(alpha: 0.7),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        
+                        TextField(
+                          controller: passwordCtrl,
+                          obscureText: obscure,
+                          autofocus: true,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            letterSpacing: 4,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          onSubmitted: (_) => doLogin(),
+                          decoration: InputDecoration(
+                            hintText: '••••••',
+                            hintStyle: TextStyle(
+                              letterSpacing: 4,
+                              color: AppColors.textHint.withValues(alpha: 0.5),
+                            ),
+                            filled: true,
+                            fillColor: AppColors.surfaceVariant.withValues(alpha: 0.5),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 18),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: BorderSide(color: color, width: 2),
+                            ),
+                            prefixIcon: Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: IconButton(
+                                icon: Icon(
+                                  obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                  color: AppColors.textHint,
+                                  size: 20,
+                                ),
+                                onPressed: () => dialogSetState(() => obscure = !obscure),
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 32),
+                        
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'إلغاء',
+                                  style: TextStyle(
+                                    fontFamily: 'Cairo',
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 2,
+                              child: ElevatedButton(
+                                onPressed: doLogin,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: color,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  elevation: 8,
+                                  shadowColor: color.withValues(alpha: 0.4),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'دخول',
+                                  style: TextStyle(
+                                    fontFamily: 'Cairo',
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    child: isLoading
-                        ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('دخول', style: TextStyle(fontFamily: 'Cairo')),
-                  );
-                },
+                  ),
+                ],
               ),
-            ],
+            ),
           );
         },
       ),
@@ -803,7 +933,7 @@ class _LoginScreenState extends State<LoginScreen>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF4D03F).withOpacity(0.15),
+                  color: const Color(0xFFF4D03F).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -831,7 +961,7 @@ class _LoginScreenState extends State<LoginScreen>
                       f['text'] as String,
                       style: TextStyle(
                         fontFamily: 'Cairo',
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         height: 1.4,
@@ -932,15 +1062,15 @@ class _HoverUserCardState extends State<_HoverUserCard> {
             decoration: BoxDecoration(
               color: _isHovered 
                 ? AppColors.surface 
-                : AppColors.surfaceVariant.withOpacity(0.5),
+                : AppColors.surfaceVariant.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: _isHovered ? color : AppColors.border.withOpacity(0.5),
+                color: _isHovered ? color : AppColors.border.withValues(alpha: 0.5),
                 width: _isHovered ? 2 : 1,
               ),
               boxShadow: _isHovered ? [
                 BoxShadow(
-                  color: color.withOpacity(0.2),
+                  color: color.withValues(alpha: 0.2),
                   blurRadius: 15,
                   offset: const Offset(0, 8),
                 )
@@ -989,7 +1119,7 @@ class _HoverUserCardState extends State<_HoverUserCard> {
                           style: TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 11,
-                            color: color.withOpacity(0.8),
+                            color: color.withValues(alpha: 0.8),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -998,7 +1128,7 @@ class _HoverUserCardState extends State<_HoverUserCard> {
                   ),
                   Icon(
                     Icons.chevron_right_rounded,
-                    color: color.withOpacity(0.3),
+                    color: color.withValues(alpha: 0.3),
                     size: 20,
                   ),
                 ],

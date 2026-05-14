@@ -27,7 +27,7 @@ class SqliteService {
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 14, // Added payroll & salary_slips tables
+        version: 15, // Added passwordHash to users
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -58,6 +58,7 @@ class SqliteService {
         isActive INTEGER DEFAULT 1,
         deviceId TEXT DEFAULT '',
         salary REAL DEFAULT 3000.0,
+        passwordHash TEXT DEFAULT '',
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
       )
@@ -376,6 +377,11 @@ class SqliteService {
         )
       ''');
     }
+    if (oldVersion < 15) {
+      try {
+        await db.execute("ALTER TABLE users ADD COLUMN passwordHash TEXT DEFAULT ''");
+      } catch (e) { /* column may already exist */ }
+    }
   }
 
   /// تنفيذ عملية في معاملة - Run operation in a transaction
@@ -606,5 +612,17 @@ class SqliteService {
     final backupPath = p.join(appDir.path, 'backup_${DateTime.now().millisecondsSinceEpoch}.db');
     await File(dbPath).copy(backupPath);
     return backupPath;
+  }
+
+  /// التحقق من بيانات الدخول محلياً (للدخول بدون إنترنت)
+  Future<Map<String, dynamic>?> validateLocalLogin(String email, String passwordHash) async {
+    final db = await database;
+    final results = await db.query(
+      'users',
+      where: 'email = ? AND passwordHash = ?',
+      whereArgs: [email.trim(), passwordHash],
+    );
+    if (results.isEmpty) return null;
+    return results.first;
   }
 }

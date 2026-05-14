@@ -2,25 +2,64 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_typography.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../cubit/attendance_cubit.dart';
 import '../cubit/attendance_state.dart';
 import '../../data/models/attendance_model.dart';
 
-class AttendanceRecordsList extends StatelessWidget {
+class AttendanceRecordsList extends StatefulWidget {
   final AttendanceState state;
 
   const AttendanceRecordsList({super.key, required this.state});
 
   @override
+  State<AttendanceRecordsList> createState() => _AttendanceRecordsListState();
+}
+
+class _AttendanceRecordsListState extends State<AttendanceRecordsList> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_isBottom && widget.state is AttendanceLoaded) {
+      final loadedState = widget.state as AttendanceLoaded;
+      if (loadedState.hasMore && !loadedState.isLoadingMore) {
+        context.read<AttendanceCubit>().loadMoreAttendance();
+      }
+    }
+  }
+
+  bool get _isBottom {
+    if (!_scrollController.hasClients) return false;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.offset;
+    return currentScroll >= (maxScroll * 0.9);
+  }
+
+  @override
   Widget build(BuildContext context) {
     List<AttendanceModel> records = [];
-    if (state is AttendanceLoaded) {
-      records = (state as AttendanceLoaded).filteredRecords;
+    bool isLoadingMore = false;
+    
+    if (widget.state is AttendanceLoaded) {
+      final loadedState = widget.state as AttendanceLoaded;
+      records = loadedState.filteredRecords;
+      isLoadingMore = loadedState.isLoadingMore;
     }
 
-    if (state is AttendanceLoading) {
+    if (widget.state is AttendanceLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
@@ -33,9 +72,20 @@ class AttendanceRecordsList extends StatelessWidget {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(top: 8),
-      itemCount: records.length,
-      itemBuilder: (context, index) => _attendanceCard(context, records[index]),
+      controller: _scrollController,
+      padding: const EdgeInsets.only(top: 8, bottom: 80),
+      itemCount: isLoadingMore ? records.length + 1 : records.length,
+      itemBuilder: (context, index) {
+        if (index >= records.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        return _attendanceCard(context, records[index]);
+      },
     );
   }
 
