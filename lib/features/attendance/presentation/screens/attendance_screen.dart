@@ -10,7 +10,6 @@ import '../cubit/attendance_state.dart';
 import '../widgets/attendance_summary_cards.dart';
 import '../widgets/attendance_session_panel.dart';
 import '../widgets/attendance_analytics_chart.dart';
-import '../widgets/attendance_table.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/widgets/dialogs/loading_dialog.dart';
 import '../../../reports/presentation/screens/report_preview_screen.dart';
@@ -110,8 +109,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   children: [
                     _buildTopHeader(),
                     const SizedBox(height: 24),
-                    AttendanceSummaryCards(state: state),
-                    const SizedBox(height: 24),
+                    if (context.read<AuthCubit>().currentUser?.role.isAdmin ?? false) ...[
+                      AttendanceSummaryCards(state: state),
+                      const SizedBox(height: 24),
+                    ],
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -133,18 +134,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     ),
                     const SizedBox(height: 24),
                     const Text(
-                      'سجلات حضور اليوم',
+                      'سجل الحضور الشخصي',
                       style: TextStyle(
+                        fontFamily: 'Cairo',
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    AttendanceTable(
-                      state: state,
-                      isPersonal: !(context.read<AuthCubit>().currentUser?.role.isAdmin ?? false),
-                    ),
+                    _buildPersonalHistory(state),
                   ],
                 ),
               );
@@ -230,6 +229,122 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
+    );
+  }
+
+  Widget _buildPersonalHistory(AttendanceLoaded state) {
+    final user = context.read<AuthCubit>().currentUser;
+    final records = state.records.where((r) => r.userId == user?.id).toList();
+
+    if (records.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(40),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Center(
+          child: Column(
+            children: [
+              Icon(Icons.history_rounded, size: 48, color: AppColors.textHint),
+              SizedBox(height: 12),
+              Text('لا يوجد سجل حضور حالياً', style: TextStyle(fontFamily: 'Cairo')),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: records.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final record = records[index];
+        final duration = record.checkOutTime?.difference(record.checkInTime);
+        
+        final hours = duration?.inHours ?? 0;
+        final minutes = (duration?.inMinutes ?? 0) % 60;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.event_available_rounded, color: AppColors.primary, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      record.date,
+                      style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      'الدخول: ${DateFormat('hh:mm a', 'ar').format(record.checkInTime)}',
+                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (record.checkOutTime != null) ...[
+                    Text(
+                      '$hours ساعة و $minutes دقيقة',
+                      style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.success,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      'انصراف: ${DateFormat('hh:mm a', 'ar').format(record.checkOutTime!)}',
+                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textHint),
+                    ),
+                  ] else ...[
+                    const Text(
+                      'قيد العمل...',
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.secondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

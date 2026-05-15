@@ -44,7 +44,11 @@ class AuthRepositoryImpl extends FirebaseBase implements IAuthRepository {
           }
         }
 
-        // تحديث نسخة المستخدم محلياً
+        // تحديث نسخة المستخدم محلياً - مع الحفاظ على كلمة المرور المحلية للأوفلاين
+        if (localUser != null && localUser.passwordHash != null && localUser.passwordHash!.isNotEmpty) {
+          user = user.copyWith(passwordHash: localUser.passwordHash);
+        }
+        
         await SqliteService.instance.saveUser(user.toSqliteMap());
         return user;
       }
@@ -91,9 +95,8 @@ class AuthRepositoryImpl extends FirebaseBase implements IAuthRepository {
           }
         }
 
-        final sqliteData = user.toSqliteMap();
-        sqliteData['passwordHash'] = hash;
-        await SqliteService.instance.saveUser(sqliteData);
+        final userWithHash = user.copyWith(passwordHash: hash);
+        await SqliteService.instance.saveUser(userWithHash.toSqliteMap());
       }
     }
 
@@ -105,7 +108,7 @@ class AuthRepositoryImpl extends FirebaseBase implements IAuthRepository {
     final hash = sha256.convert(utf8.encode(password)).toString();
     final localData = await SqliteService.instance.validateLocalLogin(email, hash);
     if (localData != null) {
-      return UserModel.fromMap(localData, localData['id'] as String);
+      return UserModel.fromSqliteMap(localData);
     }
     return null;
   }

@@ -613,15 +613,28 @@ class SyncManager {
         await batch.commit(noResult: true);
       });
 
-      // 2. Users
+      // 2. Users - Preserve passwordHash during cloud download
       _emitProgress('الموظفين...', icon: '👥', step: 2, total: totalSteps);
       final users = await _firebaseService.getAllUsers().timeout(const Duration(seconds: 45));
       _emitProgress('الموظفين — ${users.length} سجل', icon: '👥', step: 2, total: totalSteps);
-      await db.transaction((txn) async {
+      
+      // Fetch existing password hashes to preserve them
+      final existingUsers = await db.query('users', columns: ['id', 'passwordHash']);
+      final Map<String, String> hashes = {
+        for (var row in existingUsers) 
+          if (row['passwordHash'] != null && (row['passwordHash'] as String).isNotEmpty)
+            row['id'] as String: row['passwordHash'] as String
+      };
 
+      await db.transaction((txn) async {
         final batch = txn.batch();
         for (var u in users) {
-          batch.insert('users', u.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+          final userMap = u.toSqliteMap();
+          // Restore hash if it exists locally
+          if (hashes.containsKey(u.id)) {
+            userMap['passwordHash'] = hashes[u.id];
+          }
+          batch.insert('users', userMap, conflictAlgorithm: ConflictAlgorithm.replace);
         }
         await batch.commit(noResult: true);
       });

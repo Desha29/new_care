@@ -1,5 +1,3 @@
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/services/firebase/firebase_service.dart';
 import '../../../../core/services/local/sqlite_service.dart';
 import '../../../../core/services/sync/sync_manager.dart';
@@ -65,18 +63,40 @@ class CasesRepositoryImpl implements ICasesRepository {
   Future<PaginatedResult<CaseModel>> getCasesPaginated({
     String? nurseId,
     int limit = 20,
-    DocumentSnapshot? startAfter,
+    dynamic startAfter,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    // We prioritize remote for paginated queries to handle large datasets correctly
-    // with server-side filters.
-    return await _remote.getCasesPaginated(
-      nurseId: nurseId,
-      limit: limit,
-      startAfter: startAfter,
-      startDate: startDate,
-      endDate: endDate,
+    // OFFLINE FIRST: Fetch from SQLite!
+    // This prevents UI reverting to old data while SyncManager processes the queue.
+    final allCases = await getAllCases(nurseId: nurseId);
+    
+    var filtered = allCases.where((c) {
+      if (startDate != null && c.caseDate.isBefore(startDate)) return false;
+      if (endDate != null && c.caseDate.isAfter(endDate)) return false;
+      return true;
+    }).toList();
+    
+    // Sort descending by date
+    filtered.sort((a, b) => b.caseDate.compareTo(a.caseDate));
+
+    final offset = (startAfter as int?) ?? 0;
+    
+    if (offset >= filtered.length) {
+      return PaginatedResult<CaseModel>(
+        items: [],
+        hasMore: false,
+        lastDocument: offset,
+      );
+    }
+
+    final end = (offset + limit < filtered.length) ? (offset + limit) : filtered.length;
+    final sliced = filtered.sublist(offset, end);
+    
+    return PaginatedResult<CaseModel>(
+      items: sliced,
+      hasMore: end < filtered.length,
+      lastDocument: end,
     );
   }
 

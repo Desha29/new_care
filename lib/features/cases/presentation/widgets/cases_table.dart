@@ -7,9 +7,7 @@ import '../../data/models/case_model.dart';
 import '../cubit/cases_cubit.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
-import '../../../dashboard/presentation/cubit/dashboard_cubit.dart';
-import '../../../financials/presentation/cubit/financials_cubit.dart';
-import '../../../payroll/presentation/cubit/payroll_cubit.dart';
+
 import '../cubit/cases_state.dart';
 import 'case_form_dialog.dart';
 import 'case_card.dart';
@@ -62,6 +60,10 @@ class _CasesTableState extends State<CasesTable> {
         ? (casesCubit.state as CasesLoaded).isLoadingMore
         : false;
 
+    final authState = context.watch<AuthCubit>().state;
+    final isAdmin = authState is AuthAuthenticated ? authState.user.role.isAdmin : false;
+    final userId = authState is AuthAuthenticated ? authState.user.id : '';
+
     return ListView.builder(
       controller: _scrollController,
       itemCount: widget.cases.length + (isLoadingMore ? 1 : 0),
@@ -75,8 +77,8 @@ class _CasesTableState extends State<CasesTable> {
               context: context,
               builder: (_) => InvoicePreviewDialog(caseData: c),
             ),
-            onEdit: () => _showCaseDialog(context, caseData: c),
-            onDelete: () => _confirmDelete(context, c),
+            onEdit: (isAdmin || c.nurseId == userId) ? () => _showCaseDialog(context, caseData: c) : null,
+            onDelete: isAdmin ? () => _confirmDelete(context, c) : null,
           );
         } else {
           return const Padding(
@@ -109,22 +111,7 @@ class _CasesTableState extends State<CasesTable> {
       if (confirmed == true && context.mounted) {
         context.read<CasesCubit>().deleteCase(c);
 
-        final authState = context.read<AuthCubit>().state;
-        final user = authState is AuthAuthenticated ? authState.user : null;
-
-        if (user != null) {
-          if (user.role.isAdmin) {
-            context.read<DashboardCubit>().loadDashboardData(force: true);
-          } else {
-            context.read<DashboardCubit>().loadNurseDashboardData(
-              user.id,
-              force: true,
-            );
-          }
-        }
-
-        context.read<FinancialsCubit>().loadFinancials(force: true);
-        context.read<PayrollCubit>().loadPayroll(force: true);
+        // Connected features will automatically reload via CaseChangeNotifier
       }
     });
   }

@@ -36,9 +36,13 @@ class _MainLayoutState extends State<MainLayout> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   List<Widget> _getAvailableScreens(String role) {
+    final dashboard = DashboardScreen(
+      onViewAllCases: () => setState(() => _selectedIndex = 1),
+    );
+
     if (role == 'admin' || role == 'super_admin') {
       return [
-        const DashboardScreen(), // 0
+        dashboard, // 0
         const CasesScreen(), // 1
         const AttendanceScreen(), // 2 - الحضور والانصراف
         const ShiftManagementScreen(), // 3 - إدارة الورديات
@@ -54,7 +58,7 @@ class _MainLayoutState extends State<MainLayout> {
       ];
     } else {
       return [
-        const DashboardScreen(),
+        dashboard,
         const CasesScreen(),
         const AttendanceScreen(), // الحضور متاح للممرضين
       ];

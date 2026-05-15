@@ -27,7 +27,7 @@ class SqliteService {
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 18, // Added lastError, lastAttempt to pending_sync
+        version: 19, // Added passwordHash column check and case-insensitive login
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -404,6 +404,11 @@ class SqliteService {
         await db.execute("ALTER TABLE pending_sync ADD COLUMN lastAttempt TEXT");
       } catch (e) { /* columns may already exist */ }
     }
+    if (oldVersion < 19) {
+      try {
+        await db.execute("ALTER TABLE users ADD COLUMN passwordHash TEXT DEFAULT ''");
+      } catch (e) { /* column may already exist */ }
+    }
   }
 
   /// تنفيذ عملية في معاملة - Run operation in a transaction
@@ -652,7 +657,7 @@ class SqliteService {
     final db = await database;
     final results = await db.query(
       'users',
-      where: 'email = ? AND passwordHash = ?',
+      where: 'LOWER(email) = LOWER(?) AND passwordHash = ?',
       whereArgs: [email.trim(), passwordHash],
     );
     if (results.isEmpty) return null;

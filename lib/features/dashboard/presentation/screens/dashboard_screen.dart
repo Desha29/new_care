@@ -14,7 +14,8 @@ import 'package:new_care/features/dashboard/presentation/widgets/dashboard_reven
 import 'package:new_care/features/dashboard/presentation/widgets/dashboard_recent_cases.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final VoidCallback? onViewAllCases;
+  const DashboardScreen({super.key, this.onViewAllCases});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -33,7 +34,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isAdmin = user?.role.isAdmin ?? false;
 
     if (!isAdmin) {
-      return const NurseDashboardScreen();
+      return NurseDashboardScreen(onViewAll: widget.onViewAllCases);
     }
 
     final padding = ResponsiveHelper.getScreenPadding(context);

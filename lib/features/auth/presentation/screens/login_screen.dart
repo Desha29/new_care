@@ -6,6 +6,7 @@ import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/services/firebase/firebase_service.dart';
+import '../../../../core/services/local/sqlite_service.dart';
 import '../../data/models/user_model.dart';
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
@@ -43,19 +44,33 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _fetchUsers() async {
     setState(() => _isLoadingUsers = true);
     try {
+      // 1. محاولة الجلب من السيرفر - Try online first
       final users = await FirebaseService.instance.getAllUsers();
-      // Filter out inactive users
       final activeUsers = users.where((u) => u.isActive).toList();
-      debugPrint('[Login] Fetched ${activeUsers.length} active users for quick login');
-      if (mounted) {
-        setState(() {
-          _allUsers = activeUsers;
-          _isLoadingUsers = false;
-        });
-      }
+      debugPrint('[Login] Fetched ${activeUsers.length} active users from cloud');
+      _updateUsersState(activeUsers);
     } catch (e) {
-      debugPrint('[Login] Error fetching users: $e');
-      if (mounted) setState(() => _isLoadingUsers = false);
+      debugPrint('[Login] Cloud fetch failed, attempting local fallback: $e');
+      try {
+        // 2. المحاولة من قاعدة البيانات المحلية - Fallback to local SQLite
+        final db = await SqliteService.instance.database;
+        final localData = await db.query('users', where: 'isActive = 1', orderBy: 'name');
+        final localUsers = localData.map((u) => UserModel.fromSqliteMap(u)).toList();
+        debugPrint('[Login] Fetched ${localUsers.length} active users from local database');
+        _updateUsersState(localUsers);
+      } catch (localError) {
+        debugPrint('[Login] Local fetch failed: $localError');
+        if (mounted) setState(() => _isLoadingUsers = false);
+      }
+    }
+  }
+
+  void _updateUsersState(List<UserModel> users) {
+    if (mounted) {
+      setState(() {
+        _allUsers = users;
+        _isLoadingUsers = false;
+      });
     }
   }
 

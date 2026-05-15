@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/services/firebase/firebase_service.dart';
 import '../../data/models/case_model.dart';
 
@@ -12,7 +11,7 @@ abstract class ICasesRepository {
   Future<PaginatedResult<CaseModel>> getCasesPaginated({
     String? nurseId,
     int limit = 20,
-    DocumentSnapshot? startAfter,
+    dynamic startAfter,
     DateTime? startDate,
     DateTime? endDate,
   });

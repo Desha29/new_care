@@ -17,34 +17,37 @@ class CaseChangeNotifier {
   Stream<CaseChangeEvent> get onCaseChanged => _caseChangeController.stream;
 
   /// Notify all listeners that a case was added
-  void notifyCaseAdded(String caseId) {
+  void notifyCaseAdded(String caseId, {bool isLocal = false}) {
     _caseChangeController.add(
       CaseChangeEvent(
         type: CaseChangeType.added,
         caseId: caseId,
         timestamp: DateTime.now(),
+        isLocal: isLocal,
       ),
     );
   }
 
   /// Notify all listeners that a case was updated
-  void notifyCaseUpdated(String caseId) {
+  void notifyCaseUpdated(String caseId, {bool isLocal = false}) {
     _caseChangeController.add(
       CaseChangeEvent(
         type: CaseChangeType.updated,
         caseId: caseId,
         timestamp: DateTime.now(),
+        isLocal: isLocal,
       ),
     );
   }
 
   /// Notify all listeners that a case was deleted
-  void notifyCaseDeleted(String caseId) {
+  void notifyCaseDeleted(String caseId, {bool isLocal = false}) {
     _caseChangeController.add(
       CaseChangeEvent(
         type: CaseChangeType.deleted,
         caseId: caseId,
         timestamp: DateTime.now(),
+        isLocal: isLocal,
       ),
     );
   }
@@ -60,10 +63,12 @@ class CaseChangeEvent {
   final CaseChangeType type;
   final String caseId;
   final DateTime timestamp;
+  final bool isLocal;
 
   CaseChangeEvent({
     required this.type,
     required this.caseId,
     required this.timestamp,
+    this.isLocal = false,
   });
 }

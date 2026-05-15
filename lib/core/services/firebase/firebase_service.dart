@@ -796,7 +796,7 @@ class FirebaseService {
 /// نتيجة البحث مع الصفحات - Paginated Result wrapper
 class PaginatedResult<T> {
   final List<T> items;
-  final DocumentSnapshot? lastDocument;
+  final dynamic lastDocument;
   final bool hasMore;
 
   PaginatedResult({

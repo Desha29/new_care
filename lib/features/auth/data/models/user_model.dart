@@ -11,6 +11,7 @@ class UserModel extends Equatable {
   final String deviceId; // معرف الجهاز الحالي
   final List<String> allowedDeviceIds; // الأجهزة المسموح بها
   final double salary;
+  final String? passwordHash;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -24,6 +25,7 @@ class UserModel extends Equatable {
     this.deviceId = '',
     this.allowedDeviceIds = const [],
     this.salary = 3000.0,
+    this.passwordHash,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -42,6 +44,7 @@ class UserModel extends Equatable {
       deviceId: map['deviceId'] ?? '',
       allowedDeviceIds: List<String>.from(map['allowedDeviceIds'] ?? []),
       salary: (map['salary'] ?? 3000.0).toDouble(),
+      passwordHash: map['passwordHash'] as String?,
       createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
     );
@@ -74,6 +77,7 @@ class UserModel extends Equatable {
       'isActive': isActive ? 1 : 0,
       'deviceId': deviceId,
       'salary': salary,
+      'passwordHash': passwordHash ?? '',
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -90,6 +94,7 @@ class UserModel extends Equatable {
       isActive: (map['isActive'] ?? 1) == 1,
       deviceId: map['deviceId'] ?? '',
       salary: (map['salary'] ?? 3000.0).toDouble(),
+      passwordHash: map['passwordHash'] as String?,
       createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
     );
@@ -105,6 +110,7 @@ class UserModel extends Equatable {
     String? deviceId,
     List<String>? allowedDeviceIds,
     double? salary,
+    String? passwordHash,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -118,6 +124,7 @@ class UserModel extends Equatable {
       deviceId: deviceId ?? this.deviceId,
       allowedDeviceIds: allowedDeviceIds ?? this.allowedDeviceIds,
       salary: salary ?? this.salary,
+      passwordHash: passwordHash ?? this.passwordHash,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -134,6 +141,7 @@ class UserModel extends Equatable {
     deviceId,
     allowedDeviceIds,
     salary,
+    passwordHash,
     createdAt,
     updatedAt,
   ];

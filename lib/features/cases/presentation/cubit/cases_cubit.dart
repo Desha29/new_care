@@ -29,6 +29,8 @@ class CasesCubit extends Cubit<CasesState> {
        super(CasesInitial()) {
     // Listen for external case changes (e.g. outside_cases from nurse app)
     _caseChangeSub = CaseChangeNotifier().onCaseChanged.listen((event) {
+      // Ignore events triggered by our own local updates
+      if (event.isLocal) return;
       // إعادة تحميل بنفس الفلتر المحفوظ - Reload with the stored filter
       _reloadCases();
     });
@@ -273,7 +275,7 @@ class CasesCubit extends Cubit<CasesState> {
       }
 
       // 6. Notify all screens AFTER deductions and state updates are done
-      CaseChangeNotifier().notifyCaseAdded(newCase.id);
+      CaseChangeNotifier().notifyCaseAdded(newCase.id, isLocal: true);
       DataChangeNotifier().notifyLocalDataChanged();
     } catch (e) {
       emit(CasesError('خطأ: ${e.toString()}'));
@@ -301,7 +303,7 @@ class CasesCubit extends Cubit<CasesState> {
       );
 
       // Notify all screens about case update
-      CaseChangeNotifier().notifyCaseUpdated(updatedCase.id);
+      CaseChangeNotifier().notifyCaseUpdated(updatedCase.id, isLocal: true);
       DataChangeNotifier().notifyLocalDataChanged();
 
       // Update local state directly (no re-fetch from Firestore)
@@ -339,7 +341,7 @@ class CasesCubit extends Cubit<CasesState> {
       );
 
       // Notify all screens about case deletion
-      CaseChangeNotifier().notifyCaseDeleted(c.id);
+      CaseChangeNotifier().notifyCaseDeleted(c.id, isLocal: true);
       DataChangeNotifier().notifyLocalDataChanged();
 
       // Update local state directly (no re-fetch from Firestore)

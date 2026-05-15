@@ -18,9 +18,7 @@ import '../../../procedures/presentation/cubit/procedures_cubit.dart';
 import '../../../procedures/presentation/cubit/procedures_state.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
-import '../../../dashboard/presentation/cubit/dashboard_cubit.dart';
-import '../../../financials/presentation/cubit/financials_cubit.dart';
-import '../../../payroll/presentation/cubit/payroll_cubit.dart';
+
 import '../../data/models/case_model.dart';
 import '../cubit/cases_cubit.dart';
 import 'package:uuid/uuid.dart' as uuid;
@@ -774,17 +772,12 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
         totalPrice: state.totalPrice,
         services: state.services,
         suppliesUsed: state.supplies,
-        caseDate: DateTime.now(),
+        caseDate: _isEdit ? widget.caseData!.caseDate : DateTime.now(),
         createdAt: _isEdit ? widget.caseData!.createdAt : DateTime.now(),
         updatedAt: DateTime.now(),
         createdBy: _isEdit ? widget.caseData!.createdBy : 'desktop_admin',
       );
       final casesCubit = context.read<CasesCubit>();
-      final dashboardCubit = context.read<DashboardCubit>();
-      final financialsCubit = context.read<FinancialsCubit>();
-      final inventoryCubit = context.read<InventoryCubit>();
-      final payrollCubit = context.read<PayrollCubit>();
-      final authCubit = context.read<AuthCubit>();
 
       if (_isEdit) {
         await casesCubit.updateCase(newCase);
@@ -801,21 +794,8 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
         return;
       }
 
-      // Refresh all connected features based on user role
-      final authState = authCubit.state;
-      final user = authState is AuthAuthenticated ? authState.user : null;
+      // Connected features will automatically reload via CaseChangeNotifier
 
-      if (user != null) {
-        if (user.role.isAdmin) {
-          dashboardCubit.loadDashboardData(force: true);
-        } else {
-          dashboardCubit.loadNurseDashboardData(user.id, force: true);
-        }
-      }
-
-      financialsCubit.loadFinancials(force: true);
-      inventoryCubit.loadInventory(force: true);
-      payrollCubit.loadPayroll(force: true);
 
       _hasChanges = false;
       if (context.mounted) Navigator.pop(context, true);

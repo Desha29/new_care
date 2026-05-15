@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 import '../../data/models/case_model.dart';
 import '../../../../core/enums/case_status.dart';
@@ -25,7 +24,7 @@ class CasesLoaded extends CasesState {
   final DateTime? customEndDate;   // Added for custom date filtering
   final bool isLoadingMore;
   final bool hasMore;
-  final DocumentSnapshot? lastDocument;
+  final dynamic lastDocument;
 
   const CasesLoaded({
     required this.cases,
@@ -77,7 +76,7 @@ class CasesLoaded extends CasesState {
     DateTime? customEndDate,
     bool? isLoadingMore,
     bool? hasMore,
-    DocumentSnapshot? lastDocument,
+    dynamic lastDocument,
     bool clearTypeFilter = false,
     bool clearProcedureFilter = false,
   }) {

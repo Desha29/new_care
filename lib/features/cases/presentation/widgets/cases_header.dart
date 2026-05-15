@@ -13,6 +13,8 @@ import '../cubit/cases_cubit.dart';
 import '../cubit/cases_state.dart';
 import '../../../../core/enums/case_status.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../attendance/presentation/cubit/attendance_cubit.dart';
+import '../../../attendance/presentation/cubit/attendance_state.dart';
 import 'case_form_dialog.dart';
 
 class CasesHeader extends StatelessWidget {
@@ -56,8 +58,7 @@ class CasesHeader extends StatelessWidget {
                 ),
               ],
             ),
-            if (!isMobile &&
-                (context.read<AuthCubit>().currentUser?.role.isAdmin ?? false))
+            if (!isMobile)
               PrimaryButton(
                 label: AppStrings.addCase,
                 icon: Icons.add_rounded,
@@ -121,16 +122,14 @@ class CasesHeader extends StatelessWidget {
               Row(
                 children: [
                   Expanded(child: _buildTimeFilters(context)),
-                  if (isMobile) ...[
-                    const SizedBox(width: 8),
-                    if (context.read<AuthCubit>().currentUser?.role.isAdmin ??
-                        false)
+                    if (isMobile) ...[
+                      const SizedBox(width: 8),
                       PrimaryButton(
                         label: '',
                         icon: Icons.add_rounded,
                         onPressed: () => _showCaseDialog(context),
                       ),
-                  ],
+                    ],
                 ],
               ),
             ],
@@ -322,6 +321,27 @@ class CasesHeader extends StatelessWidget {
   }
 
   void _showCaseDialog(BuildContext context) {
+    final user = context.read<AuthCubit>().currentUser;
+    final attState = context.read<AttendanceCubit>().state;
+    
+    // Check if nurse is attended
+    if (user != null && !user.role.isAdmin) {
+      bool isCheckedIn = false;
+      if (attState is AttendanceLoaded) {
+        isCheckedIn = attState.isCheckedIn;
+      }
+      
+      if (!isCheckedIn) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('يجب تسجيل الحضور أولاً لتتمكن من إضافة حالة', style: TextStyle(fontFamily: 'Cairo')),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
