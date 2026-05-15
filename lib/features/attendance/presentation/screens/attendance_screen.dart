@@ -27,7 +27,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<AttendanceCubit>().init();
+    final user = context.read<AuthCubit>().currentUser;
+    context.read<AttendanceCubit>().init(
+      userId: user?.role.isAdmin ?? true ? null : user?.id,
+    );
   }
 
   Future<void> _generateMonthlyReport() async {
@@ -112,11 +115,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          flex: 2,
-                          child: AttendanceSessionPanel(state: state),
-                        ),
-                        const SizedBox(width: 24),
+                        if (context.read<AuthCubit>().currentUser?.role.isAdmin ?? false) ...[
+                          Expanded(
+                            flex: 2,
+                            child: AttendanceSessionPanel(state: state),
+                          ),
+                          const SizedBox(width: 24),
+                        ],
                         Expanded(
                           flex: 3,
                           child: AttendanceAnalyticsChart(
@@ -136,7 +141,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    AttendanceTable(state: state),
+                    AttendanceTable(
+                      state: state,
+                      isPersonal: !(context.read<AuthCubit>().currentUser?.role.isAdmin ?? false),
+                    ),
                   ],
                 ),
               );
@@ -178,13 +186,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               onPressed: () => context.read<AttendanceCubit>().init(),
               isOutlined: true,
             ),
-            const SizedBox(width: 12),
-            _buildHeaderButton(
-              icon: Icons.file_download_outlined,
-              label: 'تصدير تقرير الشهر',
-              onPressed: _generateMonthlyReport,
-              isOutlined: false,
-            ),
+            if (context.read<AuthCubit>().currentUser?.role.isAdmin ?? false) ...[
+              const SizedBox(width: 12),
+              _buildHeaderButton(
+                icon: Icons.file_download_outlined,
+                label: 'تصدير تقرير الشهر',
+                onPressed: _generateMonthlyReport,
+                isOutlined: false,
+              ),
+            ],
           ],
         ),
       ],

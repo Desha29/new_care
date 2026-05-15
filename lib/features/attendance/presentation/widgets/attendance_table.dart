@@ -7,8 +7,13 @@ import '../cubit/attendance_state.dart';
 
 class AttendanceTable extends StatelessWidget {
   final AttendanceLoaded state;
+  final bool isPersonal;
 
-  const AttendanceTable({super.key, required this.state});
+  const AttendanceTable({
+    super.key,
+    required this.state,
+    this.isPersonal = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -30,13 +35,15 @@ class AttendanceTable extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         child: DataTable(
           headingRowColor: WidgetStateProperty.all(AppColors.primary.withValues(alpha: 0.05)),
-          columns: const [
-            DataColumn(label: Text('الموظف', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('الحالة', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('وقت الحضور', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('وقت الانصراف', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('التأخير', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('المدة', style: TextStyle(fontWeight: FontWeight.bold))),
+          columns: [
+            if (!isPersonal)
+              const DataColumn(label: Text('الموظف', style: TextStyle(fontWeight: FontWeight.bold))),
+            const DataColumn(label: Text('التاريخ', style: TextStyle(fontWeight: FontWeight.bold))),
+            const DataColumn(label: Text('الحالة', style: TextStyle(fontWeight: FontWeight.bold))),
+            const DataColumn(label: Text('وقت الحضور', style: TextStyle(fontWeight: FontWeight.bold))),
+            const DataColumn(label: Text('وقت الانصراف', style: TextStyle(fontWeight: FontWeight.bold))),
+            const DataColumn(label: Text('التأخير', style: TextStyle(fontWeight: FontWeight.bold))),
+            const DataColumn(label: Text('المدة', style: TextStyle(fontWeight: FontWeight.bold))),
           ],
           rows: records.map((record) => _buildRow(record)).toList(),
         ),
@@ -50,20 +57,24 @@ class AttendanceTable extends StatelessWidget {
         ? DateFormat('hh:mm a', 'ar').format(record.checkOutTime!)
         : '---';
 
+    final date = DateFormat('yyyy/MM/dd', 'ar').format(record.checkInTime);
+
     return DataRow(cells: [
-      DataCell(
-        Row(
-          children: [
-            CircleAvatar(
-              radius: 14,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-              child: const Icon(Icons.person, size: 16, color: AppColors.primary),
-            ),
-            const SizedBox(width: 12),
-            Text(record.userName),
-          ],
+      if (!isPersonal)
+        DataCell(
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 14,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                child: const Icon(Icons.person, size: 16, color: AppColors.primary),
+              ),
+              const SizedBox(width: 12),
+              Text(record.userName),
+            ],
+          ),
         ),
-      ),
+      DataCell(Text(date)),
       DataCell(_buildStatusBadge(record.status)),
       DataCell(Text(checkIn)),
       DataCell(Text(checkOut)),

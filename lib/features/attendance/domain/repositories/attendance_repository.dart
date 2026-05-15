@@ -62,5 +62,5 @@ abstract class IAttendanceRepository {
   // === Analytics ===
 
   /// جلب إحصائيات الحضور للأيام الأخيرة - Get attendance stats for last X days
-  Future<Map<DateTime, int>> getAttendanceStats({int days = 7});
+  Future<Map<DateTime, int>> getAttendanceStats({int days = 7, String? userId});
 }

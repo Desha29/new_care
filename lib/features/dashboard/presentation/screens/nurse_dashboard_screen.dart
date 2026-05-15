@@ -17,6 +17,7 @@ import 'package:new_care/features/attendance/presentation/widgets/attendance_sca
 import 'package:new_care/features/attendance/presentation/cubit/attendance_cubit.dart';
 import 'package:new_care/features/attendance/presentation/cubit/attendance_state.dart';
 import '../../../../core/services/local/sqlite_service.dart';
+import '../widgets/dashboard_weekly_chart.dart';
 
 class NurseDashboardScreen extends StatefulWidget {
   const NurseDashboardScreen({super.key});
@@ -103,6 +104,11 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
                             builder: (context, state) {
                               return _buildAttendanceStatus(state);
                             },
+                          ),
+                          const SizedBox(height: 24),
+                          // Weekly Chart
+                          DashboardWeeklyChart(
+                            weeklyCounts: state.chartData['counts'] ?? List.filled(7, 0.0),
                           ),
                           const SizedBox(height: 24),
                           // Reactive Today's Schedule

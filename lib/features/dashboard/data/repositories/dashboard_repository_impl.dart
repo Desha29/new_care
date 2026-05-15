@@ -83,12 +83,24 @@ class DashboardRepositoryImpl implements IDashboardRepository {
           )
         : null;
 
+    // Get base salary for nurse
+    final nurseResults = await db.query(
+      'users',
+      where: 'id = ?',
+      whereArgs: [nurseId],
+      limit: 1,
+    );
+    final baseSalary = nurseResults.isNotEmpty 
+        ? (nurseResults.first['salary'] as num? ?? 0.0).toDouble() 
+        : 0.0;
+
     return {
       'monthlyCases': monthlyCases.length,
       'totalIncome': monthlyCases.fold(
         0.0,
         (total, c) => total + (c.totalPrice - c.discount),
       ),
+      'estimatedSalary': baseSalary, // Base salary from user profile
       'todayCases': todayCases.length,
       'todayCasesList': todayCases,
       'attendance': attendance,
@@ -96,7 +108,7 @@ class DashboardRepositoryImpl implements IDashboardRepository {
   }
 
   @override
-  Future<Map<String, List<double>>> getDashboardChartData() async {
+  Future<Map<String, List<double>>> getDashboardChartData({String? nurseId}) async {
     final now = DateTime.now();
     final sevenDaysAgo = DateTime(
       now.year,
@@ -106,9 +118,13 @@ class DashboardRepositoryImpl implements IDashboardRepository {
 
     // For charts, we use local data if available
     final results = await _local.getAllCases();
-    final allCases = results
+    var allCases = results
         .map((m) => CaseModel.fromMap(m, m['id'] as String))
         .toList();
+
+    if (nurseId != null) {
+      allCases = allCases.where((c) => c.nurseId == nurseId).toList();
+    }
 
     List<double> counts = List.filled(7, 0.0);
     List<double> revenues = List.filled(7, 0.0);

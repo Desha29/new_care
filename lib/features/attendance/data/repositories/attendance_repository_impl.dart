@@ -239,7 +239,7 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
   // === Analytics ===
 
   @override
-  Future<Map<DateTime, int>> getAttendanceStats({int days = 7}) async {
+  Future<Map<DateTime, int>> getAttendanceStats({int days = 7, String? userId}) async {
     final now = DateTime.now();
     final Map<DateTime, int> stats = {};
 
@@ -247,11 +247,15 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
       final date = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
       final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
       
-      final snapshot = await FirebaseFirestore.instance
+      var query = FirebaseFirestore.instance
           .collection('attendance')
-          .where('date', isEqualTo: dateStr)
-          .get();
+          .where('date', isEqualTo: dateStr);
       
+      if (userId != null) {
+        query = query.where('userId', isEqualTo: userId);
+      }
+          
+      final snapshot = await query.get();
       stats[date] = snapshot.docs.length;
     }
 

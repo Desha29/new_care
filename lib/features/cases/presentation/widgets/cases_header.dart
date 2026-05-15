@@ -12,6 +12,7 @@ import '../../../procedures/presentation/cubit/procedures_state.dart';
 import '../cubit/cases_cubit.dart';
 import '../cubit/cases_state.dart';
 import '../../../../core/enums/case_status.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
 import 'case_form_dialog.dart';
 
 class CasesHeader extends StatelessWidget {
@@ -39,7 +40,9 @@ class CasesHeader extends StatelessWidget {
                   children: [
                     Text(
                       'الحالات / المرضى',
-                      style: AppTypography.pageTitle.copyWith(fontSize: titleSize),
+                      style: AppTypography.pageTitle.copyWith(
+                        fontSize: titleSize,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     _buildRefreshButton(context),
@@ -53,7 +56,8 @@ class CasesHeader extends StatelessWidget {
                 ),
               ],
             ),
-            if (!isMobile)
+            if (!isMobile &&
+                (context.read<AuthCubit>().currentUser?.role.isAdmin ?? false))
               PrimaryButton(
                 label: AppStrings.addCase,
                 icon: Icons.add_rounded,
@@ -62,7 +66,7 @@ class CasesHeader extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 24),
-        
+
         // Search and Main Filters Row
         Container(
           padding: const EdgeInsets.all(16),
@@ -86,7 +90,8 @@ class CasesHeader extends StatelessWidget {
                     flex: 3,
                     child: AppSearchBar(
                       hintText: 'البحث باسم المريض أو الهاتف...',
-                      onChanged: (v) => context.read<CasesCubit>().searchCases(v),
+                      onChanged: (v) =>
+                          context.read<CasesCubit>().searchCases(v),
                     ),
                   ),
                   if (!isMobile) ...[
@@ -94,12 +99,18 @@ class CasesHeader extends StatelessWidget {
                     _buildDropdownFilter<CaseType>(
                       value: state.typeFilter,
                       hint: 'نوع الحالة',
-                      items: CaseType.values.map((t) => DropdownMenuItem(
-                        value: t,
-                        child: Text(t.label),
-                      )).toList(),
-                      onChanged: (v) => context.read<CasesCubit>().filterByType(v),
-                      onClear: () => context.read<CasesCubit>().filterByType(null),
+                      items: CaseType.values
+                          .map(
+                            (t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(t.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) =>
+                          context.read<CasesCubit>().filterByType(v),
+                      onClear: () =>
+                          context.read<CasesCubit>().filterByType(null),
                     ),
                     const SizedBox(width: 16),
                     _buildProceduresFilter(context),
@@ -112,11 +123,13 @@ class CasesHeader extends StatelessWidget {
                   Expanded(child: _buildTimeFilters(context)),
                   if (isMobile) ...[
                     const SizedBox(width: 8),
-                    PrimaryButton(
-                      label: '',
-                      icon: Icons.add_rounded,
-                      onPressed: () => _showCaseDialog(context),
-                    ),
+                    if (context.read<AuthCubit>().currentUser?.role.isAdmin ??
+                        false)
+                      PrimaryButton(
+                        label: '',
+                        icon: Icons.add_rounded,
+                        onPressed: () => _showCaseDialog(context),
+                      ),
                   ],
                 ],
               ),
@@ -134,11 +147,19 @@ class CasesHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: IconButton(
-        onPressed: () => context.read<CasesCubit>().loadCases(
-              force: true,
-              timeFilter: state.timeFilter,
-            ),
-        icon: const Icon(Icons.refresh_rounded, color: AppColors.primary, size: 20),
+        onPressed: () {
+          final user = context.read<AuthCubit>().currentUser;
+          context.read<CasesCubit>().loadCases(
+            force: true,
+            nurseId: user?.role.isAdmin ?? true ? null : user?.id,
+            timeFilter: state.timeFilter,
+          );
+        },
+        icon: const Icon(
+          Icons.refresh_rounded,
+          color: AppColors.primary,
+          size: 20,
+        ),
         padding: const EdgeInsets.all(8),
         constraints: const BoxConstraints(),
       ),
@@ -175,14 +196,20 @@ class CasesHeader extends StatelessWidget {
             end: state.customEndDate,
           );
           if (picked != null && context.mounted) {
+            final user = context.read<AuthCubit>().currentUser;
             context.read<CasesCubit>().loadCases(
+              nurseId: user?.role.isAdmin ?? true ? null : user?.id,
               timeFilter: TimeFilter.custom,
               customStartDate: picked.start,
               customEndDate: picked.end,
             );
           }
         } else {
-          context.read<CasesCubit>().loadCases(timeFilter: filter);
+          final user = context.read<AuthCubit>().currentUser;
+          context.read<CasesCubit>().loadCases(
+            nurseId: user?.role.isAdmin ?? true ? null : user?.id,
+            timeFilter: filter,
+          );
         }
       },
       borderRadius: BorderRadius.circular(12),
@@ -190,10 +217,14 @@ class CasesHeader extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surfaceVariant.withValues(alpha: 0.3),
+          color: isSelected
+              ? AppColors.primary
+              : AppColors.surfaceVariant.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border.withValues(alpha: 0.5),
+            color: isSelected
+                ? AppColors.primary
+                : AppColors.border.withValues(alpha: 0.5),
           ),
         ),
         child: Text(
@@ -230,11 +261,23 @@ class CasesHeader extends StatelessWidget {
           DropdownButtonHideUnderline(
             child: DropdownButton<T>(
               value: value,
-              hint: Text(hint, style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, color: AppColors.textSecondary)),
+              hint: Text(
+                hint,
+                style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
               items: items,
               onChanged: onChanged,
               icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-              style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 13,
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
               dropdownColor: Colors.white,
               borderRadius: BorderRadius.circular(12),
             ),
@@ -242,7 +285,11 @@ class CasesHeader extends StatelessWidget {
           if (value != null) ...[
             const SizedBox(width: 4),
             IconButton(
-              icon: const Icon(Icons.close_rounded, size: 14, color: AppColors.error),
+              icon: const Icon(
+                Icons.close_rounded,
+                size: 14,
+                color: AppColors.error,
+              ),
               onPressed: onClear,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
@@ -258,10 +305,9 @@ class CasesHeader extends StatelessWidget {
       builder: (context, proceduresState) {
         List<DropdownMenuItem<String>> items = [];
         if (proceduresState is ProceduresLoaded) {
-          items = proceduresState.procedures.map((p) => DropdownMenuItem(
-            value: p.name,
-            child: Text(p.name),
-          )).toList();
+          items = proceduresState.procedures
+              .map((p) => DropdownMenuItem(value: p.name, child: Text(p.name)))
+              .toList();
         }
 
         return _buildDropdownFilter<String>(

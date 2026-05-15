@@ -35,9 +35,9 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   }
 
   /// تحميل البيانات الأولية - Initialize attendance module
-  void init() {
-    loadTodayAttendance();
-    loadAnalytics();
+  void init({String? userId}) {
+    loadTodayAttendance(userId: userId);
+    loadAnalytics(userId: userId);
     listenToActiveSession();
   }
 
@@ -67,13 +67,13 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
   // === Analytics ===
 
-  Future<void> loadAnalytics() async {
+  Future<void> loadAnalytics({String? userId}) async {
     if (state is! AttendanceLoaded) return;
     final currentState = state as AttendanceLoaded;
     
     emit(currentState.copyWith(isLoadingStats: true));
     try {
-      final stats = await _attendanceRepository.getAttendanceStats(days: 7);
+      final stats = await _attendanceRepository.getAttendanceStats(days: 7, userId: userId);
       emit((state as AttendanceLoaded).copyWith(
         stats: stats,
         isLoadingStats: false,
@@ -169,17 +169,22 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   }
 
   /// تحميل سجلات حضور اليوم بشكل تفاعلي - Reactive Load today's attendance records
-  void loadTodayAttendance() {
+  void loadTodayAttendance({String? userId}) {
     _todayAttendanceSub?.cancel();
     _todayAttendanceSub = _attendanceRepository
         .streamTodayAttendanceRecords()
         .listen(
           (records) {
+            // تصفية السجلات حسب المستخدم إذا وجد - Filter records by userId if provided
+            final filteredRecords = userId != null
+                ? records.where((r) => r.userId == userId).toList()
+                : records;
+
             if (state is AttendanceLoaded) {
               final s = state as AttendanceLoaded;
-              emit(s.copyWith(records: records));
+              emit(s.copyWith(records: filteredRecords));
             } else {
-              emit(AttendanceLoaded(records: records));
+              emit(AttendanceLoaded(records: filteredRecords));
             }
           },
           onError: (e) {

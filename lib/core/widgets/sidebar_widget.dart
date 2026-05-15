@@ -80,6 +80,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
     'المالية والرواتب',
     _SidebarItem(icon: Icons.account_balance_rounded, label: 'المالية', index: 5, roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.payments_rounded, label: 'الرواتب', index: 6, roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.payments_rounded, label: 'راتبي الشخصي', index: 6, roles: ['nurse']),
     
     'النظام والتقارير',
     _SidebarItem(icon: Icons.assessment_rounded, label: 'التقارير', index: 7, roles: ['admin', 'super_admin']),

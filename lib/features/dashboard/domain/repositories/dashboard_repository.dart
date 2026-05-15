@@ -10,7 +10,7 @@ abstract class IDashboardRepository {
   Future<Map<String, dynamic>> getNurseDashboardStats(String nurseId, {DateTime? date});
 
   /// بيانات الرسم البياني للأسبوع - Weekly chart data
-  Future<Map<String, List<double>>> getDashboardChartData();
+  Future<Map<String, List<double>>> getDashboardChartData({String? nurseId});
 
   /// قائمة الحالات الأخيرة - Recent cases
   Future<List<CaseModel>> getRecentCases(int limit);

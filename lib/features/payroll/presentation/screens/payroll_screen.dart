@@ -109,66 +109,69 @@ class _PayrollScreenState extends State<PayrollScreen> {
               ],
             ),
             Text(
-              'إدارة وحساب رواتب الموظفين الشهرية',
+              (context.read<AuthCubit>().currentUser?.role.isAdmin ?? false) 
+                ? 'إدارة وحساب رواتب الموظفين الشهرية' 
+                : 'استعراض تفاصيل راتبك الشخصي ومستحقاتك',
               style: AppTypography.pageSubtitle.copyWith(
                 fontSize: ResponsiveHelper.getSubtitleFontSize(context),
               ),
             ),
           ],
         ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Outside Case Fee Editor
-            FutureBuilder<double>(
-              future: SqliteService.instance.getOutsideCaseFee(),
-              builder: (context, snapshot) {
-                final fee = snapshot.data ?? 15.0;
-                return TextButton.icon(
-                  onPressed: () => _showFeeEditDialog(context, fee),
-                  icon: const Icon(Icons.edit_note_rounded, size: 20),
-                  label: Text(
-                    'بدل العملية: ${fee.toStringAsFixed(0)} E.P',
-                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.secondary,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: () => context.read<PayrollCubit>().calculateMonthlyPayroll(
-                year: _selectedYear,
-                month: _selectedMonth,
+        if (context.read<AuthCubit>().currentUser?.role.isAdmin ?? false)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Outside Case Fee Editor
+              FutureBuilder<double>(
+                future: SqliteService.instance.getOutsideCaseFee(),
+                builder: (context, snapshot) {
+                  final fee = snapshot.data ?? 15.0;
+                  return TextButton.icon(
+                    onPressed: () => _showFeeEditDialog(context, fee),
+                    icon: const Icon(Icons.edit_note_rounded, size: 20),
+                    label: Text(
+                      'بدل العملية: ${fee.toStringAsFixed(0)} E.P',
+                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.secondary,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  );
+                },
               ),
-              icon: const Icon(Icons.calculate_rounded, size: 20),
-              label: Text(
-                isMobile ? 'حساب' : 'حساب الرواتب',
-                style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-            ),
-            if (!isMobile) ...[
               const SizedBox(width: 12),
-              IconButton(
-                onPressed: _generatePayrollReport,
-                icon: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.error, size: 28),
-                tooltip: 'طباعة التقرير الشهري',
+              ElevatedButton.icon(
+                onPressed: () => context.read<PayrollCubit>().calculateMonthlyPayroll(
+                  year: _selectedYear,
+                  month: _selectedMonth,
+                ),
+                icon: const Icon(Icons.calculate_rounded, size: 20),
+                label: Text(
+                  isMobile ? 'حساب' : 'حساب الرواتب',
+                  style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
               ),
+              if (!isMobile) ...[
+                const SizedBox(width: 12),
+                IconButton(
+                  onPressed: _generatePayrollReport,
+                  icon: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.error, size: 28),
+                  tooltip: 'طباعة التقرير الشهري',
+                ),
+              ],
             ],
-          ],
-        ),
+          ),
       ],
     );
   }
@@ -391,8 +394,22 @@ class _PayrollScreenState extends State<PayrollScreen> {
       // Desktop layout: show table full width and use Dialog for details
       final isDesktop = ResponsiveHelper.isDesktop(context);
 
+      final user = context.read<AuthCubit>().currentUser;
+      final isAdmin = user?.role.isAdmin ?? false;
+      final filteredPayrolls = isAdmin 
+          ? state.payrolls 
+          : state.payrolls.where((p) => p.userId == user?.id).toList();
+
+      if (filteredPayrolls.isEmpty && !isAdmin) {
+         return EmptyStateWidget(
+           icon: Icons.payments_rounded,
+           title: 'لا يوجد بيانات راتب لك هذا الشهر',
+           subtitle: 'سيقوم المسؤول بحساب الرواتب فور انتهاء الشهر',
+         );
+      }
+
       return PayrollTable(
-        payrolls: state.payrolls,
+        payrolls: filteredPayrolls,
         selectedId: _selectedPayroll?.id,
         topToolbar: _buildMonthSelector(),
         onSelect: (p) {
@@ -403,8 +420,8 @@ class _PayrollScreenState extends State<PayrollScreen> {
             _showPayrollDetailSheet(context, p);
           }
         },
-        onApprove: (p) => context.read<PayrollCubit>().approvePayroll(p.id),
-        onPay: (p) => context.read<PayrollCubit>().markAsPaid(p.id),
+        onApprove: isAdmin ? (p) => context.read<PayrollCubit>().approvePayroll(p.id) : null,
+        onPay: isAdmin ? (p) => context.read<PayrollCubit>().markAsPaid(p.id) : null,
       );
     }
     return const SizedBox.shrink();

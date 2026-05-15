@@ -53,7 +53,7 @@ class DashboardCubit extends Cubit<DashboardState> {
         date: targetDate,
       );
       final chartData = await _dashboardRepository
-          .getDashboardChartData(); // Usually for trend, can stay same or be monthly
+          .getDashboardChartData(nurseId: null); // All data for admin
       final recentCases = await _dashboardRepository.getRecentCases(5);
       final activeStaff = await _dashboardRepository
           .getActiveStaff(); // Active staff is usually current, but could be filtered
@@ -96,10 +96,12 @@ class DashboardCubit extends Cubit<DashboardState> {
         date: targetDate,
       );
 
+      final chartData = await _dashboardRepository.getDashboardChartData(nurseId: nurseId);
+
       emit(
         DashboardLoaded(
           stats: stats,
-          chartData: const {},
+          chartData: chartData,
           recentCases: const [],
           activeStaff: const [],
           selectedDate: targetDate,

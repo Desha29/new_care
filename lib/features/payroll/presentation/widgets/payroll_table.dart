@@ -10,9 +10,9 @@ import '../../data/models/payroll_model.dart';
 class PayrollTable extends StatelessWidget {
   final List<PayrollModel> payrolls;
   final String? selectedId;
-  final Function(PayrollModel) onSelect;
-  final Function(PayrollModel) onApprove;
-  final Function(PayrollModel) onPay;
+  final void Function(PayrollModel) onSelect;
+  final void Function(PayrollModel)? onApprove;
+  final void Function(PayrollModel)? onPay;
   final Widget? topToolbar;
 
   const PayrollTable({
@@ -20,8 +20,8 @@ class PayrollTable extends StatelessWidget {
     required this.payrolls,
     this.selectedId,
     required this.onSelect,
-    required this.onApprove,
-    required this.onPay,
+    this.onApprove,
+    this.onPay,
     this.topToolbar,
   });
 
@@ -228,19 +228,19 @@ class PayrollTable extends StatelessWidget {
                     onPressed: () => onSelect(payroll),
                   ),
                   const SizedBox(width: 4),
-                  if (payroll.status == 'draft')
+                  if (payroll.status == 'draft' && onApprove != null)
                     IconActionButton(
                       icon: Icons.check_circle_rounded,
                       tooltip: 'اعتماد',
                       color: AppColors.success,
-                      onPressed: () => onApprove(payroll),
+                      onPressed: () => onApprove!(payroll),
                     ),
-                  if (payroll.status == 'approved')
+                  if (payroll.status == 'approved' && onPay != null)
                     IconActionButton(
                       icon: Icons.payments_rounded,
                       tooltip: 'تسجيل الدفع',
                       color: AppColors.primary,
-                      onPressed: () => onPay(payroll),
+                      onPressed: () => onPay!(payroll),
                     ),
                 ],
               ),
