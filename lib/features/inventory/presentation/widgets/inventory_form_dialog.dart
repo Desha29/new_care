@@ -31,6 +31,7 @@ class _InventoryFormDialogState extends State<InventoryFormDialog> {
   late final TextEditingController _priceCtrl;
   late final TextEditingController _categoryCtrl;
   late final TextEditingController _unitCtrl;
+  DateTime? _expiryDate;
 
   bool get _isEdit => widget.item != null;
 
@@ -43,6 +44,7 @@ class _InventoryFormDialogState extends State<InventoryFormDialog> {
     _priceCtrl = TextEditingController(text: widget.item?.price.toString() ?? '');
     _categoryCtrl = TextEditingController(text: widget.item?.category ?? '');
     _unitCtrl = TextEditingController(text: widget.item?.unit ?? 'قطعة');
+    _expiryDate = widget.item?.expiryDate;
   }
 
   @override
@@ -142,6 +144,10 @@ class _InventoryFormDialogState extends State<InventoryFormDialog> {
                   isNumber: true,
                   isRequired: true,
                 ),
+                const SizedBox(height: 12),
+                _datePickerField('تاريخ انتهاء الصلاحية', _expiryDate, (date) {
+                  setState(() => _expiryDate = date);
+                }),
                 const SizedBox(height: 24),
                 Row(
                   children: [
@@ -167,6 +173,7 @@ class _InventoryFormDialogState extends State<InventoryFormDialog> {
                               quantity: int.tryParse(_qtyCtrl.text) ?? 0,
                               minStock: int.tryParse(_minCtrl.text) ?? 5,
                               price: double.tryParse(_priceCtrl.text) ?? 0,
+                              expiryDate: _expiryDate,
                               createdAt: widget.item?.createdAt ?? DateTime.now(),
                               updatedAt: DateTime.now(),
                               createdBy: widget.item?.createdBy ??
@@ -219,6 +226,71 @@ class _InventoryFormDialogState extends State<InventoryFormDialog> {
           validator: isRequired ? (v) => v == null || v.trim().isEmpty ? 'مطلوب' : null : null,
           decoration: InputDecoration(
             prefixIcon: Icon(icon, size: 18, color: AppColors.textHint),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _datePickerField(String label, DateTime? value, Function(DateTime) onSelected) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: value ?? DateTime.now().add(const Duration(days: 365)),
+              firstDate: DateTime.now().subtract(const Duration(days: 365)),
+              lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: const ColorScheme.light(primary: AppColors.primary),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+            if (date != null) onSelected(date);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_month_rounded, size: 18, color: AppColors.textHint),
+                const SizedBox(width: 12),
+                Text(
+                  value != null ? value.toString().split(' ')[0] : 'اختر التاريخ (اختياري)',
+                  style: TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 14,
+                    color: value != null ? AppColors.textPrimary : AppColors.textHint,
+                  ),
+                ),
+                const Spacer(),
+                if (value != null)
+                  IconButton(
+                    onPressed: () => setState(() => _expiryDate = null),
+                    icon: const Icon(Icons.close, size: 16),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+              ],
+            ),
           ),
         ),
       ],

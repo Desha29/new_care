@@ -60,7 +60,7 @@ class InventoryScreen extends StatelessWidget {
       );
     } else if (state is InventoryLoaded) {
       return InventoryTable(
-        items: state.items,
+        items: state.filteredItems,
         onEdit: (item) => _showItemDialog(context, item: item),
         onAddStock: (item) => _showAddStockDialog(context, item),
         onDelete: (item) => _confirmDelete(context, item),

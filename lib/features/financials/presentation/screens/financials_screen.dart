@@ -11,6 +11,7 @@ import '../widgets/financials_stats.dart';
 import '../widgets/expenses_table.dart';
 import '../widgets/income_summary.dart';
 import '../widgets/add_expense_dialog.dart';
+import '../widgets/financial_charts.dart';
 import '../../../../core/utils/ui_feedback.dart';
 
 class FinancialsScreen extends StatelessWidget {
@@ -59,6 +60,8 @@ class _FinancialsView extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   FinancialsStats(state: state),
+                  const SizedBox(height: 24),
+                  FinancialCharts(state: state),
                   const SizedBox(height: 24),
                   if (isSmall) ...[
                     ExpensesTable(

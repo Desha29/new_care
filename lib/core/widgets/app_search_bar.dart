@@ -47,22 +47,13 @@ class AppSearchBar extends StatelessWidget {
             size: 20,
           ),
           suffixIcon: onFilterTap != null
-              ? Container(
-                  margin: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+              ? IconButton(
+                  icon: const Icon(
+                    Icons.filter_list_rounded,
+                    color: AppColors.primary,
+                    size: 24,
                   ),
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.filter_list_rounded, // Use 3-bar icon
-                      color: AppColors.primary,
-                      size: 18,
-                    ),
-                    onPressed: onFilterTap,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
+                  onPressed: onFilterTap,
                 )
               : null,
           border: InputBorder.none,

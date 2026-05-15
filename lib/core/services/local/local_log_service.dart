@@ -40,6 +40,17 @@ class LocalLogService {
     await _sqlite.insert('logs', log.toSqliteMap());
   }
 
+  /// تسجيل خطأ - Log error
+  Future<void> logError(String action, String message) async {
+    await logActivity(
+      userId: 'system',
+      userName: 'System',
+      action: action,
+      actionLabel: 'خطأ تقني',
+      details: message,
+    );
+  }
+
   /// جلب جميع السجلات - Get all logs
   Future<List<LogModel>> getAllLogs({int limit = 200}) async {
     final db = await _sqlite.database;

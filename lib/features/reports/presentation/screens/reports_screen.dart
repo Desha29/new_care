@@ -11,7 +11,6 @@ import 'package:new_care/features/auth/presentation/cubit/auth_state.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:new_care/features/cases/data/models/case_model.dart';
 import 'package:new_care/features/cases/domain/repositories/cases_repository.dart';
-import 'package:new_care/features/invoice/presentation/screens/invoice_preview_screen.dart';
 import 'package:new_care/core/services/firebase/firebase_service.dart';
 import 'package:new_care/core/services/pdf/report_service.dart';
 import 'package:new_care/core/services/notifications/case_change_notifier.dart';
@@ -19,6 +18,7 @@ import 'package:new_care/features/attendance/data/models/attendance_model.dart';
 import 'package:new_care/core/utils/ui_feedback.dart';
 import 'package:new_care/core/widgets/app_search_bar.dart';
 import 'package:new_care/features/invoice/presentation/widgets/invoice_card.dart';
+import '../../../invoice/presentation/widgets/invoice_preview_dialog.dart';
 import 'report_preview_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:get_it/get_it.dart';
@@ -45,8 +45,18 @@ class _ReportsScreenState extends State<ReportsScreen>
   StreamSubscription? _caseChangeSub;
 
   static const _months = [
-    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+    'يناير',
+    'فبراير',
+    'مارس',
+    'أبريل',
+    'مايو',
+    'يونيو',
+    'يوليو',
+    'أغسطس',
+    'سبتمبر',
+    'أكتوبر',
+    'نوفمبر',
+    'ديسمبر',
   ];
 
   @override
@@ -63,7 +73,8 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   void _onInvoiceScroll() {
-    if (_invoiceScrollController.position.pixels >= _invoiceScrollController.position.maxScrollExtent * 0.9) {
+    if (_invoiceScrollController.position.pixels >=
+        _invoiceScrollController.position.maxScrollExtent * 0.9) {
       _loadMoreInvoices();
     }
   }
@@ -89,10 +100,17 @@ class _ReportsScreenState extends State<ReportsScreen>
       final nurseId = isAdmin ? null : user?.id;
 
       final repo = GetIt.I<ICasesRepository>();
-      
+
       // Calculate start and end of selected month
       final startOfMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
-      final endOfMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0, 23, 59, 59);
+      final endOfMonth = DateTime(
+        _selectedDate.year,
+        _selectedDate.month + 1,
+        0,
+        23,
+        59,
+        59,
+      );
 
       final result = await repo.getCasesPaginated(
         nurseId: nurseId,
@@ -104,9 +122,11 @@ class _ReportsScreenState extends State<ReportsScreen>
       // Attendance
       List<AttendanceModel> attendance = [];
       try {
-        attendance = await FirebaseService.instance
-            .getMonthlyAttendanceRecords(_selectedDate.year, _selectedDate.month);
-        
+        attendance = await FirebaseService.instance.getMonthlyAttendanceRecords(
+          _selectedDate.year,
+          _selectedDate.month,
+        );
+
         if (!isAdmin && user != null) {
           attendance = attendance.where((a) => a.userId == user.id).toList();
         }
@@ -140,9 +160,16 @@ class _ReportsScreenState extends State<ReportsScreen>
       final nurseId = isAdmin ? null : user?.id;
 
       final repo = GetIt.I<ICasesRepository>();
-      
+
       final startOfMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
-      final endOfMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0, 23, 59, 59);
+      final endOfMonth = DateTime(
+        _selectedDate.year,
+        _selectedDate.month + 1,
+        0,
+        23,
+        59,
+        59,
+      );
 
       final result = await repo.getCasesPaginated(
         nurseId: nurseId,
@@ -201,22 +228,38 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildHeader() {
     final titleSize = ResponsiveHelper.getTitleFontSize(context);
+    final canPop = Navigator.canPop(context);
+
     return Wrap(
       spacing: 12,
       runSpacing: 12,
       alignment: WrapAlignment.spaceBetween,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'التقارير والفواتير',
-              style: AppTypography.pageTitle.copyWith(fontSize: titleSize),
-            ),
-            Text(
-              'معاينة الفواتير وتقارير أداء الطاقم الطبي',
-              style: AppTypography.pageSubtitle,
+            if (canPop) ...[
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                color: AppColors.primary,
+                tooltip: 'رجوع',
+              ),
+              const SizedBox(width: 8),
+            ],
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'التقارير والفواتير',
+                  style: AppTypography.pageTitle.copyWith(fontSize: titleSize),
+                ),
+                Text(
+                  'معاينة الفواتير وتقارير أداء الطاقم الطبي',
+                  style: AppTypography.pageSubtitle,
+                ),
+              ],
             ),
           ],
         ),
@@ -253,7 +296,10 @@ class _ReportsScreenState extends State<ReportsScreen>
         .toList();
 
     if (todayCases.isEmpty) {
-      UIFeedback.showWarning(context, 'لا توجد حالات مسجلة اليوم لإصدار تقرير بها');
+      UIFeedback.showWarning(
+        context,
+        'لا توجد حالات مسجلة اليوم لإصدار تقرير بها',
+      );
       return;
     }
 
@@ -392,8 +438,8 @@ class _ReportsScreenState extends State<ReportsScreen>
       if (_searchQuery.isEmpty) return true;
       final q = _searchQuery.toLowerCase();
       return c.patientName.toLowerCase().contains(q) ||
-             c.patientPhone.contains(q) ||
-             c.nurseName.toLowerCase().contains(q);
+          c.patientPhone.contains(q) ||
+          c.nurseName.toLowerCase().contains(q);
     }).toList();
 
     return Column(
@@ -416,12 +462,18 @@ class _ReportsScreenState extends State<ReportsScreen>
                   icon: const Icon(Icons.description_rounded, size: 18),
                   label: const Text(
                     'إنشاء تقرير عمل شهري',
-                    style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontFamily: 'Cairo',
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -434,8 +486,12 @@ class _ReportsScreenState extends State<ReportsScreen>
           child: filtered.isEmpty && !_isLoading
               ? EmptyStateWidget(
                   icon: Icons.receipt_long_rounded,
-                  title: _searchQuery.isEmpty ? 'لا توجد فواتير لهذا الشهر' : 'لا توجد نتائج بحث',
-                  subtitle: _searchQuery.isEmpty ? 'سيتم عرض فواتير الحالات المسجلة هنا' : 'جرب البحث بكلمات أخرى',
+                  title: _searchQuery.isEmpty
+                      ? 'لا توجد فواتير لهذا الشهر'
+                      : 'لا توجد نتائج بحث',
+                  subtitle: _searchQuery.isEmpty
+                      ? 'سيتم عرض فواتير الحالات المسجلة هنا'
+                      : 'جرب البحث بكلمات أخرى',
                 )
               : ListView.builder(
                   controller: _invoiceScrollController,
@@ -450,12 +506,15 @@ class _ReportsScreenState extends State<ReportsScreen>
                           context: context,
                           builder: (_) => InvoicePreviewDialog(caseData: c),
                         ),
-                        onPrint: () => ReportService.instance.generateCaseInvoice(c),
+                        onPrint: () =>
+                            ReportService.instance.generateCaseInvoice(c),
                       );
                     } else {
                       return const Padding(
                         padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        child: Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       );
                     }
                   },
@@ -464,7 +523,6 @@ class _ReportsScreenState extends State<ReportsScreen>
       ],
     );
   }
-
 
   Widget _buildAttendanceReportTab() {
     if (_attendance.isEmpty) {
@@ -500,12 +558,18 @@ class _ReportsScreenState extends State<ReportsScreen>
               icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
               label: const Text(
                 'تحميل تقرير PDF شامل',
-                style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -528,7 +592,9 @@ class _ReportsScreenState extends State<ReportsScreen>
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+                  border: Border.all(
+                    color: AppColors.border.withValues(alpha: 0.5),
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.03),
@@ -542,10 +608,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                   child: IntrinsicHeight(
                     child: Row(
                       children: [
-                        Container(
-                          width: 6,
-                          color: AppColors.secondary,
-                        ),
+                        Container(width: 6, color: AppColors.secondary),
                         Expanded(
                           child: InkWell(
                             onTap: () {
@@ -584,9 +647,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                                 children: [
                                   CircleAvatar(
                                     radius: 22,
-                                    backgroundColor: AppColors.secondary.withValues(
-                                      alpha: 0.1,
-                                    ),
+                                    backgroundColor: AppColors.secondary
+                                        .withValues(alpha: 0.1),
                                     child: const Icon(
                                       Icons.person_rounded,
                                       color: AppColors.secondary,
@@ -595,8 +657,10 @@ class _ReportsScreenState extends State<ReportsScreen>
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Text(
                                           name,
@@ -625,7 +689,9 @@ class _ReportsScreenState extends State<ReportsScreen>
                                       vertical: 8,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.success.withValues(alpha: 0.1),
+                                      color: AppColors.success.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(
@@ -661,7 +727,8 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   Future<void> _generateWorkReport(List<CaseModel> cases) async {
-    final monthName = '${_months[_selectedDate.month - 1]} ${_selectedDate.year}';
+    final monthName =
+        '${_months[_selectedDate.month - 1]} ${_selectedDate.year}';
 
     Navigator.push(
       context,
@@ -727,4 +794,3 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
   }
 }
-

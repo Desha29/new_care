@@ -279,13 +279,14 @@ class SyncManager {
           await db.delete('pending_sync', where: 'id = ?', whereArgs: [id]);
         }
 
-        // Break the loop if it's a network/connection error to avoid multiple quick failures
+        // Break the loop if it's a network/connection error or permission issue to avoid multiple quick failures
         if (e.toString().contains('network') ||
             e.toString().contains('connection') ||
             e.toString().contains('disconnected') ||
+            e.toString().contains('permission-denied') ||
             e.toString().contains('socket')) {
           log(
-            '[SyncManager] 🔌 Connection error detected. Stopping sync cycle.',
+            '[SyncManager] 🔌 Connection or permission error detected. Stopping sync cycle.',
           );
           break;
         }

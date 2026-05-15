@@ -44,10 +44,12 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _isLoadingUsers = true);
     try {
       final users = await FirebaseService.instance.getAllUsers();
-      debugPrint('[Login] Fetched ${users.length} users for quick login');
+      // Filter out inactive users
+      final activeUsers = users.where((u) => u.isActive).toList();
+      debugPrint('[Login] Fetched ${activeUsers.length} active users for quick login');
       if (mounted) {
         setState(() {
-          _allUsers = users;
+          _allUsers = activeUsers;
           _isLoadingUsers = false;
         });
       }
@@ -57,9 +59,75 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  OverlayEntry? _loadingOverlay;
+
+  void _showLoading() {
+    _hideLoading();
+    _loadingOverlay = OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          const ModalBarrier(dismissible: false, color: Colors.transparent),
+          Positioned(
+            bottom: 30,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A3F6B),
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Text(
+                        'جاري التحقق من البيانات...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Cairo',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    Overlay.of(context).insert(_loadingOverlay!);
+  }
+
+  void _hideLoading() {
+    _loadingOverlay?.remove();
+    _loadingOverlay = null;
+  }
 
   @override
   void dispose() {
+    _hideLoading();
     _emailController.dispose();
     _passwordController.dispose();
     _animController.dispose();
@@ -73,12 +141,16 @@ class _LoginScreenState extends State<LoginScreen>
 
     return BlocListener<AuthCubit, AuthState>(
       listener: (context, state) {
-        if (state is AuthAuthenticated) {
-          UIFeedback.showSuccess(context, 'مرحباً بك، ${state.user.name}');
+        if (state is AuthLoading) {
+          _showLoading();
+        } else if (state is AuthAuthenticated) {
+          _hideLoading();
+          UIFeedback.showSuccess(context, 'تم تسجيل الدخول بنجاح. مرحباً بك ${state.user.name}');
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const MainLayout()),
           );
         } else if (state is AuthError) {
+          _hideLoading();
           UIFeedback.showError(context, state.message);
         }
       },
@@ -573,9 +645,9 @@ class _LoginScreenState extends State<LoginScreen>
                       alignment: Alignment.center,
                       children: [
                         Positioned(
-                          top: 40,
+                          top: 30,
                           child: Container(
-                            padding: const EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: AppColors.surface,
                               shape: BoxShape.circle,
@@ -587,7 +659,20 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               ],
                             ),
-                            child: Icon(Icons.lock_person_rounded, color: color, size: 48),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Image.asset(
+                                'assets/images/logo.png',
+                                width: 64,
+                                height: 64,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) => Icon(
+                                  Icons.lock_person_rounded,
+                                  color: color,
+                                  size: 64,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],

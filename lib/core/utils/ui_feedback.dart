@@ -27,6 +27,16 @@ class UIFeedback {
     AppToast.showInfo(context, message);
   }
 
+  /// عرض حالة تحميل - Show Loading
+  static void showLoading(BuildContext context, String message) {
+    AppToast.showLoading(context, message);
+  }
+
+  /// إخفاء حالة التحميل - Hide Loading
+  static void hideLoading(BuildContext context) {
+    AppToast.hideLoading(context);
+  }
+
   /// عرض حوار تأكيد - Confirmation Dialog (Modern Design)
   static Future<bool> showConfirmDialog({
     required BuildContext context,

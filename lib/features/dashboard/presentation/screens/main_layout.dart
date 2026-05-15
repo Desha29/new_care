@@ -18,7 +18,7 @@ import 'package:new_care/features/settings/presentation/screens/data_status_scre
 import 'package:new_care/features/attendance/presentation/screens/attendance_screen.dart';
 import 'package:new_care/features/shifts/presentation/screens/shift_management_screen.dart';
 import 'package:new_care/features/payroll/presentation/screens/payroll_screen.dart';
-import 'package:new_care/features/reports/presentation/screens/reports_screen.dart';
+import 'package:new_care/features/invoice/presentation/screens/invoices_screen.dart';
 
 /// التخطيط الرئيسي - Main Layout
 /// يحتوي على الشريط الجانبي والمحتوى الرئيسي
@@ -45,7 +45,7 @@ class _MainLayoutState extends State<MainLayout> {
         const ProceduresScreen(), // 4
         const FinancialsScreen(), // 5
         const PayrollScreen(), // 6 - الرواتب
-        const ReportsScreen(), // 7 - التقارير
+        const InvoicesScreen(), // 7 - التقارير والفواتير
         const UsersScreen(), // 8
         const InventoryScreen(), // 9
         const LogsScreen(), // 10

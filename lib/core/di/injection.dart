@@ -101,7 +101,7 @@ Future<void> initDI() async {
   // === البلوك / كيوبيت - Bloc / Cubit ===
   // ============================================
 
-  sl.registerFactory(() => AuthCubit(authRepository: sl()));
+  sl.registerLazySingleton(() => AuthCubit(authRepository: sl()));
   sl.registerFactory(() => ConnectivityCubit());
   sl.registerFactory(() => ErrorCubit());
   sl.registerFactory(() => CasesCubit(casesRepository: sl()));
@@ -111,7 +111,6 @@ Future<void> initDI() async {
   sl.registerFactory(() => ShiftCubit(shiftsRepository: sl()));
   sl.registerFactory(() => AttendanceCubit(
         attendanceRepository: sl(),
-        shiftsRepository: sl(),
       ));
   sl.registerFactory(() => PayrollCubit(payrollRepository: sl()));
   sl.registerFactory(() => DashboardCubit(dashboardRepository: sl()));

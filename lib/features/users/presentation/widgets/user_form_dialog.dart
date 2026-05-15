@@ -74,9 +74,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
         final repo = sl<IUsersRepository>();
 
         if (_isEdit) {
-          final salary = _role == UserRole.nurse
-              ? (double.tryParse(_salaryCtrl.text.trim()) ?? 3000.0)
-              : widget.user!.salary;
+          final salary = double.tryParse(_salaryCtrl.text.trim()) ?? widget.user!.salary;
           final updatedUser = widget.user!.copyWith(
             name: _nameCtrl.text.trim(),
             email: email,
@@ -92,9 +90,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
             _passCtrl.text.trim(),
           );
 
-          final salary = _role == UserRole.nurse
-              ? (double.tryParse(_salaryCtrl.text.trim()) ?? 3000.0)
-              : 0.0;
+          final salary = double.tryParse(_salaryCtrl.text.trim()) ?? 3000.0;
           final newUser = UserModel(
             id: uid,
             name: _nameCtrl.text.trim(),
@@ -216,26 +212,20 @@ class _UserFormDialogState extends State<UserFormDialog> {
                           _roleChip('مشرف', UserRole.admin),
                         ],
                       ),
-                      // حقل المرتب - يظهر فقط عندما يكون الدور ممرض
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        child: _role == UserRole.nurse
-                            ? Column(
-                                children: [
-                                  const SizedBox(height: 12),
-                                  _field(
-                                    'المرتب الأساسي (جنيه)',
-                                    _salaryCtrl,
-                                    Icons.payments_rounded,
-                                    dir: TextDirection.ltr,
-                                    isRequired: true,
-                                    hint: 'مثال: 3000',
-                                    isNumber: true,
-                                  ),
-                                ],
-                              )
-                            : const SizedBox.shrink(),
+                      // حقل المرتب - يظهر للجميع لإدارته من قبل المدير
+                      Column(
+                        children: [
+                          const SizedBox(height: 12),
+                          _field(
+                            'المرتب الأساسي (جنيه)',
+                            _salaryCtrl,
+                            Icons.payments_rounded,
+                            dir: TextDirection.ltr,
+                            isRequired: true,
+                            hint: 'مثال: 3000',
+                            isNumber: true,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 24),
                       Row(

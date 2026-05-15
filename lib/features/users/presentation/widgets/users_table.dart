@@ -13,6 +13,7 @@ class UsersTable extends StatelessWidget {
   final Function(UserModel) onResetPassword;
   final Function(UserModel) onToggleStatus;
   final Function(UserModel) onDelete;
+  final String? currentUserId;
 
   const UsersTable({
     super.key,
@@ -21,6 +22,7 @@ class UsersTable extends StatelessWidget {
     required this.onResetPassword,
     required this.onToggleStatus,
     required this.onDelete,
+    this.currentUserId,
   });
 
   @override
@@ -80,164 +82,172 @@ class UsersTable extends StatelessWidget {
                             itemCount: users.length,
                             separatorBuilder: (context, index) =>
                                 const Divider(height: 1, color: AppColors.borderLight),
-                            itemBuilder: (_, i) {
+                            itemBuilder: (context, i) {
                               final u = users[i];
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        color: i.isEven
-                            ? Colors.transparent
-                            : AppColors.surfaceVariant.withValues(alpha: 0.3),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 16,
-                                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                                    child: Text(
-                                      u.name.isNotEmpty ? u.name.substring(0, 1) : '?',
-                                      style: const TextStyle(
-                                        fontFamily: 'Cairo',
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      u.name,
-                                      style: const TextStyle(
-                                        fontFamily: 'Cairo',
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                u.email,
-                                style: const TextStyle(
-                                  fontFamily: 'Cairo',
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                ),
-                                textDirection: TextDirection.ltr,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                u.phone,
-                                style: const TextStyle(
-                                  fontFamily: 'Cairo',
-                                  fontSize: 12,
-                                ),
-                                textDirection: TextDirection.ltr,
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: RoleBadge(role: u.role.name, fontSize: 11),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                u.role == UserRole.nurse
-                                    ? NumberFormatter.currency(u.salary)
-                                    : '-',
-                                style: TextStyle(
-                                  fontFamily: 'Cairo',
-                                  fontSize: 12,
-                                  fontWeight: u.role == UserRole.nurse ? FontWeight.w600 : FontWeight.w400,
-                                  color: u.role == UserRole.nurse ? AppColors.primary : AppColors.textHint,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Container(
+                              return Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
+                                  horizontal: 20,
+                                  vertical: 12,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: u.isActive
-                                      ? AppColors.statusCompletedBg
-                                      : AppColors.statusCancelledBg,
-                                  borderRadius: BorderRadius.circular(12),
+                                color: i.isEven
+                                    ? Colors.transparent
+                                    : AppColors.surfaceVariant.withValues(alpha: 0.3),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 16,
+                                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                                            child: Text(
+                                              u.name.isNotEmpty ? u.name.substring(0, 1) : '?',
+                                              style: const TextStyle(
+                                                fontFamily: 'Cairo',
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Text(
+                                              u.name,
+                                              style: const TextStyle(
+                                                fontFamily: 'Cairo',
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        u.email,
+                                        style: const TextStyle(
+                                          fontFamily: 'Cairo',
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                        textDirection: TextDirection.ltr,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        u.phone,
+                                        style: const TextStyle(
+                                          fontFamily: 'Cairo',
+                                          fontSize: 12,
+                                        ),
+                                        textDirection: TextDirection.ltr,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: RoleBadge(role: u.role.name, fontSize: 11),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        u.role == UserRole.nurse
+                                            ? NumberFormatter.currency(u.salary)
+                                            : '-',
+                                        style: TextStyle(
+                                          fontFamily: 'Cairo',
+                                          fontSize: 12,
+                                          fontWeight: u.role == UserRole.nurse ? FontWeight.w600 : FontWeight.w400,
+                                          color: u.role == UserRole.nurse ? AppColors.primary : AppColors.textHint,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 1,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: u.isActive
+                                              ? AppColors.statusCompletedBg
+                                              : AppColors.statusCancelledBg,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          u.isActive ? 'نشط' : 'معطل',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontFamily: 'Cairo',
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: u.isActive
+                                                ? AppColors.statusCompleted
+                                                : AppColors.statusCancelled,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Row(
+                                        children: [
+                                          _ab(
+                                            Icons.edit_rounded,
+                                            AppColors.warning,
+                                            'تعديل',
+                                            () => onEdit(u),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          _ab(
+                                            Icons.key_rounded,
+                                            AppColors.info,
+                                            'إرسال رابط إعادة تعيين كلمة المرور',
+                                            () => onResetPassword(u),
+                                          ),
+                                          if (!u.role.isAdmin) ...[
+                                            const SizedBox(width: 4),
+                                            _ab(
+                                              u.isActive ? Icons.block_rounded : Icons.check_circle_rounded,
+                                              u.isActive ? AppColors.error : AppColors.success,
+                                              u.isActive ? 'تعطيل' : 'تفعيل',
+                                              () => onToggleStatus(u),
+                                            ),
+                                          ],
+                                          const SizedBox(width: 4),
+                                          _ab(
+                                            u.id == currentUserId
+                                                ? Icons.person_pin_rounded // Different icon for current user
+                                                : u.role == UserRole.superAdmin
+                                                    ? Icons.lock_outline_rounded
+                                                    : Icons.delete_outline_rounded,
+                                            u.id == currentUserId
+                                                ? AppColors.info // Blue/Info for self
+                                                : u.role == UserRole.superAdmin
+                                                    ? AppColors.textHint
+                                                    : AppColors.error,
+                                            u.id == currentUserId 
+                                                ? 'حسابك الشخصي (لا يمكن حذفه)' 
+                                                : 'حذف',
+                                            (u.role == UserRole.superAdmin || u.id == currentUserId) ? null : () => onDelete(u),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                child: Text(
-                                  u.isActive ? 'نشط' : 'معطل',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontFamily: 'Cairo',
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: u.isActive
-                                        ? AppColors.statusCompleted
-                                        : AppColors.statusCancelled,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Row(
-                                children: [
-                                  _ab(
-                                    Icons.edit_rounded,
-                                    AppColors.warning,
-                                    'تعديل',
-                                    () => onEdit(u),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  _ab(
-                                    Icons.key_rounded,
-                                    AppColors.info,
-                                    'إرسال رابط إعادة تعيين كلمة المرور',
-                                    () => onResetPassword(u),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  _ab(
-                                    u.isActive ? Icons.block_rounded : Icons.check_circle_rounded,
-                                    u.isActive ? AppColors.error : AppColors.success,
-                                    u.isActive ? 'تعطيل' : 'تفعيل',
-                                    () => onToggleStatus(u),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  _ab(
-                                    u.role == UserRole.superAdmin
-                                        ? Icons.lock_outline_rounded
-                                        : Icons.delete_outline_rounded,
-                                    u.role == UserRole.superAdmin
-                                        ? AppColors.textHint
-                                        : AppColors.error,
-                                    'حذف',
-                                    u.role == UserRole.superAdmin ? null : () => onDelete(u),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                              );
+                            },
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                ),
-              ),
+                      ),
               ),
             ],
           );

@@ -3,6 +3,7 @@ import '../../../../core/services/local/sqlite_service.dart';
 import '../../../../core/services/sync/sync_manager.dart';
 import '../../domain/repositories/attendance_repository.dart';
 import '../models/attendance_model.dart';
+import '../models/attendance_session_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// تنفيذ مستودع الحالات (الجيل الثاني) - Attendance Repository Implementation v2
@@ -173,5 +174,87 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
       records.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
       return records;
     });
+  }
+
+  // === Session Management ===
+
+  @override
+  Future<void> startSession(AttendanceSessionModel session) async {
+    await FirebaseFirestore.instance
+        .collection('attendance_sessions')
+        .doc(session.id)
+        .set(session.toMap());
+  }
+
+  @override
+  Future<void> endSession(String sessionId) async {
+    await FirebaseFirestore.instance
+        .collection('attendance_sessions')
+        .doc(sessionId)
+        .update({
+      'isActive': false,
+      'endTime': DateTime.now().toIso8601String(),
+    });
+  }
+
+  @override
+  Future<AttendanceSessionModel?> getActiveSession() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('attendance_sessions')
+        .where('isActive', isEqualTo: true)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) return null;
+    return AttendanceSessionModel.fromMap(
+      snapshot.docs.first.data(),
+      snapshot.docs.first.id,
+    );
+  }
+
+  @override
+  Stream<AttendanceSessionModel?> streamActiveSession() {
+    final query = FirebaseFirestore.instance
+        .collection('attendance_sessions')
+        .where('isActive', isEqualTo: true)
+        .limit(1);
+
+    return _remote.safeStream(query).map((snapshot) {
+      if (snapshot.docs.isEmpty) return null;
+      return AttendanceSessionModel.fromMap(
+        snapshot.docs.first.data() as Map<String, dynamic>,
+        snapshot.docs.first.id,
+      );
+    });
+  }
+
+  @override
+  Future<void> updateSessionQr(String sessionId, String qrSecret) async {
+    await FirebaseFirestore.instance
+        .collection('attendance_sessions')
+        .doc(sessionId)
+        .update({'qrSecret': qrSecret});
+  }
+
+  // === Analytics ===
+
+  @override
+  Future<Map<DateTime, int>> getAttendanceStats({int days = 7}) async {
+    final now = DateTime.now();
+    final Map<DateTime, int> stats = {};
+
+    for (int i = 0; i < days; i++) {
+      final date = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+      final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      
+      final snapshot = await FirebaseFirestore.instance
+          .collection('attendance')
+          .where('date', isEqualTo: dateStr)
+          .get();
+      
+      stats[date] = snapshot.docs.length;
+    }
+
+    return stats;
   }
 }

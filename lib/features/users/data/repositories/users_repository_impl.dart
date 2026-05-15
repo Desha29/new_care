@@ -34,6 +34,8 @@ class UsersRepositoryImpl implements IUsersRepository {
       docId: user.id,
       data: user.toMap(),
     );
+    // محاولة مزامنة التغيير فوراً للأهمية (خاصة في حالة الحظر)
+    _sync.processQueue();
   }
 
   @override

@@ -24,9 +24,15 @@ import '../../features/payroll/presentation/cubit/payroll_state.dart';
 class _SidebarItem {
   final IconData icon;
   final String label;
+  final int index; // Real index in MainLayout screens
   final List<String>? roles;
 
-  const _SidebarItem({required this.icon, required this.label, this.roles});
+  const _SidebarItem({
+    required this.icon,
+    required this.label,
+    required this.index,
+    this.roles,
+  });
 }
 
 /// الشريط الجانبي - Sidebar Navigation Widget
@@ -59,26 +65,55 @@ class _SidebarWidgetState extends State<SidebarWidget> {
 
   static const double _showTextThreshold = 140.0;
 
-  final List<_SidebarItem> _items = [
-    _SidebarItem(icon: Icons.dashboard_rounded, label: AppStrings.dashboard),
-    _SidebarItem(icon: Icons.assignment_rounded, label: AppStrings.cases),
-    _SidebarItem(icon: Icons.fingerprint_rounded, label: 'الحضور والانصراف'),
-    _SidebarItem(icon: Icons.event_note_rounded, label: 'إدارة الورديات', roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.medical_services_rounded, label: 'الخدمات والإجراءات', roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.account_balance_rounded, label: 'المالية', roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.payments_rounded, label: 'الرواتب', roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.assessment_rounded, label: 'التقارير', roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.person_rounded, label: AppStrings.users, roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.inventory_2_rounded, label: AppStrings.inventory, roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.history_rounded, label: AppStrings.activityLogs, roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.settings_rounded, label: AppStrings.settings, roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.analytics_rounded, label: 'حالة البيانات', roles: ['admin', 'super_admin']),
+  final List<dynamic> _items = [
+    'الرئيسية',
+    _SidebarItem(icon: Icons.dashboard_rounded, label: AppStrings.dashboard, index: 0),
+    _SidebarItem(icon: Icons.assignment_rounded, label: AppStrings.cases, index: 1),
+    _SidebarItem(icon: Icons.fingerprint_rounded, label: 'الحضور والانصراف', index: 2),
+    
+    'إدارة المركز',
+    _SidebarItem(icon: Icons.event_note_rounded, label: 'إدارة الورديات', index: 3, roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.medical_services_rounded, label: 'الخدمات والإجراءات', index: 4, roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.person_rounded, label: AppStrings.users, index: 8, roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.inventory_2_rounded, label: AppStrings.inventory, index: 9, roles: ['admin', 'super_admin']),
+    
+    'المالية والرواتب',
+    _SidebarItem(icon: Icons.account_balance_rounded, label: 'المالية', index: 5, roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.payments_rounded, label: 'الرواتب', index: 6, roles: ['admin', 'super_admin']),
+    
+    'النظام والتقارير',
+    _SidebarItem(icon: Icons.assessment_rounded, label: 'التقارير', index: 7, roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.history_rounded, label: AppStrings.activityLogs, index: 10, roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.settings_rounded, label: AppStrings.settings, index: 11, roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.analytics_rounded, label: 'حالة البيانات', index: 12, roles: ['admin', 'super_admin']),
   ];
 
-  List<_SidebarItem> get _filteredItems => _items.where((item) {
-    if (item.roles == null) return true;
-    return item.roles!.contains(widget.userRole.toLowerCase());
-  }).toList();
+  List<dynamic> get _filteredItems {
+    final List<dynamic> filtered = [];
+    String? currentHeader;
+
+    for (var item in _items) {
+      if (item is String) {
+        currentHeader = item;
+        continue;
+      }
+      
+      final sidebarItem = item as _SidebarItem;
+      bool hasAccess = true;
+      if (sidebarItem.roles != null) {
+        hasAccess = sidebarItem.roles!.contains(widget.userRole.toLowerCase());
+      }
+
+      if (hasAccess) {
+        if (currentHeader != null) {
+          filtered.add(currentHeader);
+          currentHeader = null;
+        }
+        filtered.add(sidebarItem);
+      }
+    }
+    return filtered;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -120,14 +155,19 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                     vertical: 4,
                   ),
                   itemCount: _filteredItems.length,
-                  itemBuilder: (context, index) =>
-                      _buildMenuItem(index, isNarrow),
+                  itemBuilder: (context, index) {
+                    final item = _filteredItems[index];
+                    if (item is String) {
+                      return _buildSectionHeader(item, isNarrow);
+                    }
+                    return _buildMenuItem(index, isNarrow);
+                  },
                 ),
               ),
 
               // === معلومات المستخدم - User Info ===
               _buildUserInfo(isNarrow),
-              
+
               // === تسجيل الخروج - Logout ===
               _buildLogoutButton(isNarrow),
               const SizedBox(height: 12),
@@ -228,22 +268,22 @@ class _SidebarWidgetState extends State<SidebarWidget> {
   }
 
   /// عنصر القائمة - Menu Item
-  Widget _buildMenuItem(int index, bool isNarrow) {
-    final item = _filteredItems[index];
-    final isSelected = widget.selectedIndex == index;
-    final isHovered = _hoveredIndex == index;
+  Widget _buildMenuItem(int itemIndex, bool isNarrow) {
+    final item = _filteredItems[itemIndex] as _SidebarItem;
+    final isSelected = widget.selectedIndex == item.index;
+    final isHovered = _hoveredIndex == itemIndex;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: MouseRegion(
-        onEnter: (_) => setState(() => _hoveredIndex = index),
+        onEnter: (_) => setState(() => _hoveredIndex = itemIndex),
         onExit: (_) => setState(() => _hoveredIndex = -1),
         child: Tooltip(
           message: isNarrow ? item.label : '',
           preferBelow: false,
           waitDuration: const Duration(milliseconds: 400),
           child: GestureDetector(
-            onTap: () => widget.onItemSelected(index),
+            onTap: () => widget.onItemSelected(item.index),
             child: AnimatedContainer(
               duration: AppConstants.animationFast,
               padding: EdgeInsets.symmetric(
@@ -342,16 +382,43 @@ class _SidebarWidgetState extends State<SidebarWidget> {
     );
   }
 
+  Widget _buildSectionHeader(String title, bool isNarrow) {
+    if (isNarrow) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Divider(
+          color: Colors.white.withValues(alpha: 0.1),
+          indent: 8,
+          endIndent: 8,
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 8, right: 16),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.4),
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Cairo',
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+
   /// Case counter badge widget
   Widget _buildCasesCounter() {
     return BlocBuilder<CasesCubit, CasesState>(
       builder: (context, state) {
         if (state is CasesLoaded && state.cases.isNotEmpty) {
-          final isAdmin = widget.userRole.toLowerCase() == 'admin' || 
-                         widget.userRole.toLowerCase() == 'super_admin';
-          
-          final count = isAdmin 
-              ? state.cases.length 
+          final isAdmin =
+              widget.userRole.toLowerCase() == 'admin' ||
+              widget.userRole.toLowerCase() == 'super_admin';
+
+          final count = isAdmin
+              ? state.cases.length
               : state.cases.where((c) => c.nurseId == widget.userId).length;
 
           if (count == 0) return const SizedBox.shrink();
@@ -569,10 +636,14 @@ class _SidebarWidgetState extends State<SidebarWidget> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: (isOnline ? Colors.green : Colors.red).withValues(alpha: 0.1),
+            color: (isOnline ? Colors.green : Colors.red).withValues(
+              alpha: 0.1,
+            ),
             borderRadius: BorderRadius.circular(4),
             border: Border.all(
-              color: (isOnline ? Colors.green : Colors.red).withValues(alpha: 0.3),
+              color: (isOnline ? Colors.green : Colors.red).withValues(
+                alpha: 0.3,
+              ),
               width: 0.5,
             ),
           ),
@@ -587,7 +658,9 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: (isOnline ? Colors.green : Colors.red).withValues(alpha: 0.5),
+                      color: (isOnline ? Colors.green : Colors.red).withValues(
+                        alpha: 0.5,
+                      ),
                       blurRadius: 4,
                     ),
                   ],
@@ -609,8 +682,6 @@ class _SidebarWidgetState extends State<SidebarWidget> {
       },
     );
   }
-
-
 
   /// زر تسجيل الخروج - Logout Button
   Widget _buildLogoutButton(bool isNarrow) {
@@ -674,4 +745,3 @@ class _SidebarWidgetState extends State<SidebarWidget> {
     );
   }
 }
-

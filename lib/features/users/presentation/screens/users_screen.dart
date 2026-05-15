@@ -150,6 +150,7 @@ class _UsersScreenState extends State<UsersScreen> {
                         Expanded(
                           child: UsersTable(
                             users: state.filteredUsers,
+                            currentUserId: context.read<AuthCubit>().currentUser?.id,
                             onEdit: (u) => _showUserDialog(context, user: u),
                             onResetPassword: (u) => _resetPassword(context, u),
                             onToggleStatus: (u) => context.read<UsersCubit>().toggleUserStatus(u),

@@ -20,7 +20,9 @@ enum ShiftRole {
 /// حالة الحضور - Attendance Status
 enum AttendanceStatus {
   checkedIn('checked_in', 'حاضر'),
+  late('late', 'متأخر'),
   checkedOut('checked_out', 'انصرف'),
+  earlyLeave('early_leave', 'انصراف مبكر'),
   absent('absent', 'غائب');
 
   final String value;

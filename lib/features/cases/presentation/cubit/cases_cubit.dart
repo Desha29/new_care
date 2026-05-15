@@ -42,7 +42,17 @@ class CasesCubit extends Cubit<CasesState> {
 
   /// إعادة تحميل داخلي بنفس الفلتر - Internal reload with stored filter
   void _reloadCases() {
-    _loadCasesInternal(force: true);
+    if (state is CasesLoaded) {
+      final s = state as CasesLoaded;
+      _loadCasesInternal(
+        force: true,
+        timeFilter: s.timeFilter,
+        customStartDate: s.customStartDate,
+        customEndDate: s.customEndDate,
+      );
+    } else {
+      _loadCasesInternal(force: true);
+    }
   }
 
   /// تحميل الحالات من الشاشة - Load cases from screen (sets/resets filter)
@@ -150,6 +160,18 @@ class CasesCubit extends Cubit<CasesState> {
         return {
           'start': today.subtract(const Duration(days: 7)),
           'end': today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1)),
+        };
+      case TimeFilter.thisMonth:
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        final nextMonth = now.month == 12 ? DateTime(now.year + 1, 1, 1) : DateTime(now.year, now.month + 1, 1);
+        return {
+          'start': startOfMonth,
+          'end': nextMonth.subtract(const Duration(milliseconds: 1)),
+        };
+      case TimeFilter.thisYear:
+        return {
+          'start': DateTime(now.year, 1, 1),
+          'end': DateTime(now.year, 12, 31, 23, 59, 59, 999),
         };
       case TimeFilter.custom:
         if (customStart != null && customEnd != null) {

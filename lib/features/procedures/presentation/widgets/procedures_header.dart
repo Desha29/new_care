@@ -16,7 +16,6 @@ class ProceduresHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ProceduresCubit, ProceduresState>(
       builder: (context, state) {
-        final isLoading = state is ProceduresLoading;
         final loadedState = state is ProceduresLoaded ? state : null;
 
         return Column(

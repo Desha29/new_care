@@ -27,7 +27,7 @@ class SqliteService {
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 15, // Added passwordHash to users
+        version: 18, // Added lastError, lastAttempt to pending_sync
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -103,6 +103,7 @@ class SqliteService {
         notes TEXT DEFAULT '',
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
+        expiryDate TEXT,
         createdBy TEXT DEFAULT ''
       )
     ''');
@@ -163,7 +164,10 @@ class SqliteService {
         deviceId TEXT DEFAULT '',
         location TEXT DEFAULT '',
         status TEXT DEFAULT 'checked_in',
-        notes TEXT DEFAULT ''
+        notes TEXT DEFAULT '',
+        sessionId TEXT,
+        delayMinutes INTEGER DEFAULT 0,
+        earlyLeaveMinutes INTEGER DEFAULT 0
       )
     ''');
 
@@ -382,6 +386,24 @@ class SqliteService {
         await db.execute("ALTER TABLE users ADD COLUMN passwordHash TEXT DEFAULT ''");
       } catch (e) { /* column may already exist */ }
     }
+    if (oldVersion < 16) {
+      try {
+        await db.execute("ALTER TABLE inventory ADD COLUMN expiryDate TEXT");
+      } catch (e) { /* column may already exist */ }
+    }
+    if (oldVersion < 17) {
+      try {
+        await db.execute("ALTER TABLE attendance ADD COLUMN sessionId TEXT");
+        await db.execute("ALTER TABLE attendance ADD COLUMN delayMinutes INTEGER DEFAULT 0");
+        await db.execute("ALTER TABLE attendance ADD COLUMN earlyLeaveMinutes INTEGER DEFAULT 0");
+      } catch (e) { /* columns may already exist */ }
+    }
+    if (oldVersion < 18) {
+      try {
+        await db.execute("ALTER TABLE pending_sync ADD COLUMN lastError TEXT");
+        await db.execute("ALTER TABLE pending_sync ADD COLUMN lastAttempt TEXT");
+      } catch (e) { /* columns may already exist */ }
+    }
   }
 
   /// تنفيذ عملية في معاملة - Run operation in a transaction
@@ -558,6 +580,17 @@ class SqliteService {
     final db = await database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM pending_sync');
     return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// هل يوجد عملية مزامنة معلقة لهذا السجل؟ - Is there a pending sync for this record?
+  Future<bool> hasPendingSync(String tableName, String docId) async {
+    final db = await database;
+    final result = await db.query(
+      'pending_sync',
+      where: 'tableName = ? AND docId = ?',
+      whereArgs: [tableName, docId],
+    );
+    return result.isNotEmpty;
   }
 
   /// جلب عدد سجلات الرواتب - Get payroll records count

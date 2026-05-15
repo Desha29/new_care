@@ -7,7 +7,7 @@ abstract class IAuthRepository {
   User? get currentFirebaseUser;
 
   /// الحصول على بيانات المستخدم من Firestore
-  Future<UserModel?> getUser(String uid);
+  Future<UserModel?> getUser(String uid, {bool forceRefresh = false});
 
   /// إنشاء مستخدم جديد في Firestore
   Future<void> createUser(UserModel user);
@@ -29,4 +29,7 @@ abstract class IAuthRepository {
 
   /// مراقبة حالة المصادقة
   Stream<User?> get authStateChanges;
+
+  /// مراقبة حالة المستخدم في الوقت الفعلي
+  Stream<UserModel?> watchUserStatus(String uid);
 }

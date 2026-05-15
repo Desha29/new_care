@@ -3,7 +3,7 @@ import 'package:equatable/equatable.dart';
 import '../../data/models/case_model.dart';
 import '../../../../core/enums/case_status.dart';
 
-enum TimeFilter { today, yesterday, last7Days, all, custom }
+enum TimeFilter { today, yesterday, last7Days, thisMonth, thisYear, all, custom }
 
 abstract class CasesState extends Equatable {
   const CasesState();

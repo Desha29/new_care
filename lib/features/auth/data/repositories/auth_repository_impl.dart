@@ -19,19 +19,40 @@ class AuthRepositoryImpl extends FirebaseBase implements IAuthRepository {
   User? get currentFirebaseUser => _firebaseAuth.currentUser;
 
   @override
-  Future<UserModel?> getUser(String uid) async {
-    final doc = await _usersRef.doc(uid).get();
-    if (doc.exists) {
-      final user = UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-      // تحديث نسخة المستخدم محلياً - Update local user copy
-      await SqliteService.instance.saveUser(user.toSqliteMap());
-      return user;
+  Future<UserModel?> getUser(String uid, {bool forceRefresh = false}) async {
+    // 1. جلب النسخة المحلية أولاً للتحقق من وجود تغييرات معلقة
+    final localData = await SqliteService.instance.getUser(uid);
+    UserModel? localUser;
+    if (localData != null) {
+      localUser = UserModel.fromSqliteMap(localData);
     }
-    // Try getting from local if online fails (implicitly handled by firestore cache usually, but we want explicit)
-    final local = await SqliteService.instance.getUser(uid);
-    if (local != null) return UserModel.fromMap(local, uid);
+
+    try {
+      final doc = await _usersRef.doc(uid).get(
+        GetOptions(source: forceRefresh ? Source.server : Source.serverAndCache),
+      );
+      
+      if (doc.exists) {
+        var user = UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+        
+        // إذا كان المستخدم معطلاً محلياً ولكن السيرفر يقول أنه نشط، نتحقق من طابور المزامنة
+        if (localUser != null && !localUser.isActive && user.isActive) {
+          final hasPending = await SqliteService.instance.hasPendingSync('users', uid);
+          if (hasPending) {
+            // نثق في الحالة المحلية لأنها أحدث (بانتظار الرفع)
+            user = user.copyWith(isActive: false);
+          }
+        }
+
+        // تحديث نسخة المستخدم محلياً
+        await SqliteService.instance.saveUser(user.toSqliteMap());
+        return user;
+      }
+    } catch (e) {
+      // فشل الاتصال أو خطأ آخر - العودة للنسخة المحلية
+    }
     
-    return null;
+    return localUser;
   }
 
   @override
@@ -49,10 +70,27 @@ class AuthRepositoryImpl extends FirebaseBase implements IAuthRepository {
 
     // تحديث كلمة المرور المحلية عند النجاح - Update local password hash on success
     if (credential.user != null) {
+      final uid = credential.user!.uid;
       final hash = sha256.convert(utf8.encode(password)).toString();
-      final userDoc = await _usersRef.doc(credential.user!.uid).get();
+      
+      // جلب البيانات المحلية الحالية للتحقق من الحالة
+      final localData = await SqliteService.instance.getUser(uid);
+      
+      final userDoc = await _usersRef.doc(uid).get();
       if (userDoc.exists) {
-        final user = UserModel.fromMap(userDoc.data() as Map<String, dynamic>, userDoc.id);
+        var user = UserModel.fromMap(userDoc.data() as Map<String, dynamic>, userDoc.id);
+        
+        // التحقق من طابور المزامنة لمنع الكتابة فوق حالة الحظر المحلية
+        if (localData != null) {
+          final localUser = UserModel.fromSqliteMap(localData);
+          if (!localUser.isActive && user.isActive) {
+            final hasPending = await SqliteService.instance.hasPendingSync('users', uid);
+            if (hasPending) {
+              user = user.copyWith(isActive: false);
+            }
+          }
+        }
+
         final sqliteData = user.toSqliteMap();
         sqliteData['passwordHash'] = hash;
         await SqliteService.instance.saveUser(sqliteData);
@@ -100,4 +138,17 @@ class AuthRepositoryImpl extends FirebaseBase implements IAuthRepository {
 
   @override
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
+
+  @override
+  Stream<UserModel?> watchUserStatus(String uid) {
+    return _usersRef.doc(uid).snapshots().map((doc) {
+      if (doc.exists && doc.data() != null) {
+        final user = UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+        // Also update local storage when status changes
+        SqliteService.instance.saveUser(user.toSqliteMap());
+        return user;
+      }
+      return null;
+    });
+  }
 }

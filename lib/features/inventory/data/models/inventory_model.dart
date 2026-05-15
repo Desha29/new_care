@@ -12,6 +12,7 @@ class InventoryModel extends Equatable {
   final String notes;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? expiryDate;
   final String createdBy;
 
   const InventoryModel({
@@ -25,6 +26,7 @@ class InventoryModel extends Equatable {
     this.notes = '',
     required this.createdAt,
     required this.updatedAt,
+    this.expiryDate,
     this.createdBy = '',
   });
 
@@ -41,6 +43,15 @@ class InventoryModel extends Equatable {
     return 'متوفر';
   }
 
+  /// هل انتهت الصلاحية؟
+  bool get isExpired => expiryDate != null && expiryDate!.isBefore(DateTime.now());
+
+  /// هل ستنتهي الصلاحية قريباً؟ (خلال 30 يوم)
+  bool get isExpiringSoon =>
+      expiryDate != null &&
+      !isExpired &&
+      expiryDate!.isBefore(DateTime.now().add(const Duration(days: 30)));
+
   /// من Firestore Map
   factory InventoryModel.fromMap(Map<String, dynamic> map, String id) {
     return InventoryModel(
@@ -54,6 +65,7 @@ class InventoryModel extends Equatable {
       notes: map['notes'] ?? '',
       createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
+      expiryDate: map['expiryDate'] != null ? DateTime.tryParse(map['expiryDate']) : null,
       createdBy: map['createdBy'] ?? '',
     );
   }
@@ -70,6 +82,7 @@ class InventoryModel extends Equatable {
       'notes': notes,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'expiryDate': expiryDate?.toIso8601String(),
       'createdBy': createdBy,
     };
   }
@@ -95,6 +108,7 @@ class InventoryModel extends Equatable {
       notes: map['notes'] ?? '',
       createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
+      expiryDate: map['expiryDate'] != null ? DateTime.tryParse(map['expiryDate']) : null,
       createdBy: map['createdBy'] ?? '',
     );
   }
@@ -110,6 +124,7 @@ class InventoryModel extends Equatable {
     String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? expiryDate,
     String? createdBy,
   }) {
     return InventoryModel(
@@ -123,10 +138,11 @@ class InventoryModel extends Equatable {
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      expiryDate: expiryDate ?? this.expiryDate,
       createdBy: createdBy ?? this.createdBy,
     );
   }
 
   @override
-  List<Object?> get props => [id, name, unit, quantity, minStock, price, category, notes, createdAt, updatedAt, createdBy];
+  List<Object?> get props => [id, name, unit, quantity, minStock, price, category, notes, createdAt, updatedAt, expiryDate, createdBy];
 }

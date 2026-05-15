@@ -25,6 +25,7 @@ import 'features/users/presentation/cubit/users_cubit.dart';
 
 class NewCareApp extends StatelessWidget {
   static final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   
   const NewCareApp({super.key});
 
@@ -49,6 +50,7 @@ class NewCareApp extends StatelessWidget {
         title: AppStrings.appName,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
+        navigatorKey: navigatorKey,
         scaffoldMessengerKey: messengerKey,
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
@@ -60,6 +62,7 @@ class NewCareApp extends StatelessWidget {
           Locale('en', ''),
         ],
         locale: const Locale('ar'),
+        routes: const {},
         builder: (context, child) {
           return Directionality(
             textDirection: TextDirection.rtl,
@@ -115,10 +118,11 @@ class NewCareApp extends StatelessWidget {
         },
         home: BlocBuilder<AuthCubit, AuthState>(
           builder: (context, state) {
+            final authCubit = context.read<AuthCubit>();
             if (state is AuthAuthenticated) {
               return const MainLayout();
             }
-            if (state is AuthLoading) {
+            if (state is AuthInitial || (state is AuthLoading && authCubit.currentUser == null)) {
               return const _SplashScreen();
             }
             return const LoginScreen();
@@ -199,4 +203,3 @@ class _SplashScreen extends StatelessWidget {
     );
   }
 }
-

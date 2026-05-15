@@ -13,6 +13,9 @@ class AttendanceModel extends Equatable {
   final String location; // GPS or WiFi network name
   final AttendanceStatus status;
   final String notes;
+  final String sessionId;
+  final int delayMinutes;
+  final int earlyLeaveMinutes;
 
   const AttendanceModel({
     required this.id,
@@ -25,13 +28,16 @@ class AttendanceModel extends Equatable {
     this.location = '',
     this.status = AttendanceStatus.checkedIn,
     this.notes = '',
+    this.sessionId = '',
+    this.delayMinutes = 0,
+    this.earlyLeaveMinutes = 0,
   });
 
   /// هل تم تسجيل الحضور؟ - Is checked in?
-  bool get isCheckedIn => status == AttendanceStatus.checkedIn;
+  bool get isCheckedIn => status == AttendanceStatus.checkedIn || status == AttendanceStatus.late;
 
   /// هل تم تسجيل الانصراف؟ - Is checked out?
-  bool get isCheckedOut => status == AttendanceStatus.checkedOut;
+  bool get isCheckedOut => status == AttendanceStatus.checkedOut || status == AttendanceStatus.earlyLeave;
 
   /// مدة الوردية - Shift duration
   Duration? get shiftDuration {
@@ -63,6 +69,9 @@ class AttendanceModel extends Equatable {
       location: map['location'] ?? '',
       status: AttendanceStatus.fromString(map['status'] ?? 'checked_in'),
       notes: map['notes'] ?? '',
+      sessionId: map['sessionId'] ?? '',
+      delayMinutes: map['delayMinutes'] ?? 0,
+      earlyLeaveMinutes: map['earlyLeaveMinutes'] ?? 0,
     );
   }
 
@@ -78,6 +87,9 @@ class AttendanceModel extends Equatable {
       'location': location,
       'status': status.value,
       'notes': notes,
+      'sessionId': sessionId,
+      'delayMinutes': delayMinutes,
+      'earlyLeaveMinutes': earlyLeaveMinutes,
     };
   }
 
@@ -100,6 +112,9 @@ class AttendanceModel extends Equatable {
     String? location,
     AttendanceStatus? status,
     String? notes,
+    String? sessionId,
+    int? delayMinutes,
+    int? earlyLeaveMinutes,
   }) {
     return AttendanceModel(
       id: id ?? this.id,
@@ -112,12 +127,15 @@ class AttendanceModel extends Equatable {
       location: location ?? this.location,
       status: status ?? this.status,
       notes: notes ?? this.notes,
+      sessionId: sessionId ?? this.sessionId,
+      delayMinutes: delayMinutes ?? this.delayMinutes,
+      earlyLeaveMinutes: earlyLeaveMinutes ?? this.earlyLeaveMinutes,
     );
   }
 
   @override
   List<Object?> get props => [
     id, userId, userName, date, checkInTime, checkOutTime,
-    deviceId, location, status, notes,
+    deviceId, location, status, notes, sessionId, delayMinutes, earlyLeaveMinutes,
   ];
 }

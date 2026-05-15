@@ -61,6 +61,20 @@ class InventoryCubit extends Cubit<InventoryState> {
     }
   }
 
+  void setStockFilter(String filter) {
+    if (state is InventoryLoaded) {
+      final s = state as InventoryLoaded;
+      emit(s.copyWith(stockFilter: filter));
+    }
+  }
+
+  void setExpiryFilter(String filter) {
+    if (state is InventoryLoaded) {
+      final s = state as InventoryLoaded;
+      emit(s.copyWith(expiryFilter: filter));
+    }
+  }
+
   Future<void> addOrUpdateItem(InventoryModel item) async {
     try {
       await _inventoryRepository.updateInventoryItem(item);

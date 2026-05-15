@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/services/firebase/firebase_service.dart';
 import '../../data/models/attendance_model.dart';
+import '../../data/models/attendance_session_model.dart';
 
 /// واجهة مستودع الحضور والانصراف - Attendance Repository Interface
 abstract class IAttendanceRepository {
@@ -40,4 +41,26 @@ abstract class IAttendanceRepository {
 
   /// بث حالة حضور مستخدم معين لليوم - Stream user's today attendance
   Stream<List<AttendanceModel>> streamTodayAttendance(String userId);
+
+  // === Session Management ===
+
+  /// بدء جلسة حضور جديدة - Start a new attendance session
+  Future<void> startSession(AttendanceSessionModel session);
+
+  /// إنهاء جلسة حضور - End an attendance session
+  Future<void> endSession(String sessionId);
+
+  /// جلب الجلسة النشطة الحالية - Get current active session
+  Future<AttendanceSessionModel?> getActiveSession();
+
+  /// بث الجلسة النشطة - Stream active session
+  Stream<AttendanceSessionModel?> streamActiveSession();
+
+  /// تحديث رمز QR للجلسة - Update session QR secret
+  Future<void> updateSessionQr(String sessionId, String qrSecret);
+
+  // === Analytics ===
+
+  /// جلب إحصائيات الحضور للأيام الأخيرة - Get attendance stats for last X days
+  Future<Map<DateTime, int>> getAttendanceStats({int days = 7});
 }

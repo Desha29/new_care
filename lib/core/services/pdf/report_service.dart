@@ -52,27 +52,52 @@ class ReportService {
 
   String _shape(String text) {
     if (text.isEmpty) return text;
+    
     // Check if text contains Arabic characters
     final hasArabic = RegExp(r'[\u0600-\u06FF]').hasMatch(text);
     if (!hasArabic) return text;
 
     // Step 1: Reshape to join letters (initial, medial, final forms)
+    // The reshaper handles the complex joining rules of Arabic script
     final reshaped = ArabicReshaper().reshape(text);
     
-    // Step 2: Handle mixed text (numbers should not be reversed)
-    // We'll split by words/numbers and only reverse the Arabic parts
+    // Step 2: Handle mixed text (numbers/dates should remain LTR)
+    // We split by spaces to isolate words, then reverse the characters of Arabic words
+    // while keeping numbers and symbols in their original order.
     final words = reshaped.split(' ');
     final processedWords = words.map((word) {
-      // If word is numeric (or contains numbers/symbols like 2026 or 15.0)
-      if (RegExp(r'^[0-9\.\,]+$').hasMatch(word)) {
-        return word; // Keep as is
+      if (word.isEmpty) return '';
+      
+      // If word is numeric, date, or currency (English numbers/symbols)
+      // These should remain Left-to-Right
+      if (RegExp(r'^[0-9\.\,/\-\:\#\+]+$').hasMatch(word)) {
+        return word; 
       }
-      // If word is Arabic, reverse it
-      return word.split('').reversed.join();
+      
+      // Handle parentheses carefully (swap them for RTL)
+      if (word.startsWith('(') && word.endsWith(')')) {
+        final content = word.substring(1, word.length - 1);
+        return ') ${content.split('').reversed.join()} (';
+      }
+
+      // Keep punctuation and separators as is
+      if (word.length == 1 && RegExp(r'[\-\–\—\:\.\,]').hasMatch(word)) {
+        return word;
+      }
+
+      // If word contains Arabic (now reshaped), reverse its characters 
+      // because the PDF renderer will place them from left to right.
+      // By reversing them, they appear in the correct RTL order.
+      return word.trim().split('').reversed.join();
     }).toList();
 
-    // Rejoin words in reverse order because the whole sentence is RTL
-    return processedWords.reversed.join(' ');
+    // Rejoin words in reverse order because the whole sentence must be RTL.
+    // Example: "Home Visit" (Arabic: زيارة منزلية)
+    // 1. Reshape -> [Glyphs for Z-Y-A-R-T] [Glyphs for M-N-Z-L-Y-H]
+    // 2. Reverse chars -> [T-R-A-Y-Z] [H-Y-L-Z-N-M]
+    // 3. Reverse word order -> [H-Y-L-Z-N-M] [T-R-A-Y-Z]
+    // Result: [H-Y-L-Z-N-M] [T-R-A-Y-Z] which displays as "زيارة منزلية" RTL
+    return processedWords.where((w) => w.isNotEmpty).toList().reversed.join(' ');
   }
 
   pw.Widget _buildHeader(
@@ -791,14 +816,7 @@ class ReportService {
                     pw.Row(
                       children: [
                         pw.Text(
-                          _shape('${subtitle.split(':').first}:'),
-                          style: pw.TextStyle(
-                            fontSize: 12,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
-                        pw.Text(
-                          ' ${subtitle.split(':').last}',
+                          _shape(subtitle),
                           style: pw.TextStyle(
                             fontSize: 12,
                             fontWeight: pw.FontWeight.bold,
@@ -809,23 +827,14 @@ class ReportService {
                     pw.Row(
                       children: [
                         pw.Text(
-                          '${_shape('تاريخ الاستخراج')}: ',
-                          style: const pw.TextStyle(
-                            fontSize: 10,
-                            color: PdfColors.grey600,
-                          ),
-                        ),
-                        pw.Text(
-                          intl.DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
-                          style: const pw.TextStyle(
-                            fontSize: 10,
-                            color: PdfColors.grey600,
-                          ),
+                          _shape('تاريخ الاستخراج: ${intl.DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}'),
+                          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
                         ),
                       ],
                     ),
                   ],
                 ),
+                pw.SizedBox(height: 20),
                 pw.SizedBox(height: 20),
 
                 pw.TableHelper.fromTextArray(
@@ -846,6 +855,15 @@ class ReportService {
                     color: PdfColors.blueGrey800,
                   ),
                   cellPadding: const pw.EdgeInsets.all(8),
+                  cellStyle: const pw.TextStyle(fontSize: 10),
+                  cellAlignments: {
+                    0: pw.Alignment.center,
+                    1: pw.Alignment.center,
+                    2: pw.Alignment.centerLeft,
+                    3: pw.Alignment.center,
+                    4: pw.Alignment.centerLeft,
+                    5: pw.Alignment.center,
+                  },
                   data: List<List<dynamic>>.generate(cases.length, (index) {
                     final c = cases[index];
                     return [

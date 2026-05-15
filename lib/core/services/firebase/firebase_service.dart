@@ -225,12 +225,21 @@ class FirebaseService {
       query = query.where('nurseId', isEqualTo: nurseId);
     }
 
-    if (startDate != null) {
-      query = query.where('caseDate', isGreaterThanOrEqualTo: startDate.toIso8601String());
-    }
-    
-    if (endDate != null) {
-      query = query.where('caseDate', isLessThanOrEqualTo: endDate.toIso8601String());
+    if (startDate != null && endDate != null && startDate.year == endDate.year && startDate.month == endDate.month && startDate.day == endDate.day) {
+      // Robust prefix matching for a single day
+      final datePrefix = startDate.toIso8601String().split('T')[0];
+      query = query.where('caseDate', isGreaterThanOrEqualTo: datePrefix)
+                   .where('caseDate', isLessThanOrEqualTo: '$datePrefix\uf8ff');
+    } else {
+      if (startDate != null) {
+        final datePrefix = startDate.toIso8601String().split('T')[0];
+        query = query.where('caseDate', isGreaterThanOrEqualTo: datePrefix);
+      }
+      
+      if (endDate != null) {
+        final datePrefix = endDate.toIso8601String().split('T')[0];
+        query = query.where('caseDate', isLessThanOrEqualTo: '$datePrefix\uf8ff');
+      }
     }
 
     if (startAfter != null) {
