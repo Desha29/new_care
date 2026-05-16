@@ -111,6 +111,14 @@ class NewCareApp extends StatelessWidget {
                     }
                   },
                 ),
+                // الاستماع لأخطاء المصادقة - Auth Listener
+                BlocListener<AuthCubit, AuthState>(
+                  listener: (context, state) {
+                    if (state is AuthError) {
+                      UIFeedback.showError(context, state.message);
+                    }
+                  },
+                ),
               ],
               child: child!,
             ),

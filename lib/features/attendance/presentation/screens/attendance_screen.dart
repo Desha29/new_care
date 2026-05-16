@@ -8,7 +8,6 @@ import '../../../../core/utils/ui_feedback.dart';
 import '../cubit/attendance_cubit.dart';
 import '../cubit/attendance_state.dart';
 import '../widgets/attendance_summary_cards.dart';
-import '../widgets/attendance_session_panel.dart';
 import '../widgets/attendance_analytics_chart.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/widgets/dialogs/loading_dialog.dart';
@@ -118,18 +117,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (context
-                                .read<AuthCubit>()
-                                .currentUser
-                                ?.role
-                                .isAdmin ??
-                            false) ...[
-                          Expanded(
-                            flex: 2,
-                            child: AttendanceSessionPanel(state: state),
-                          ),
-                          const SizedBox(width: 24),
-                        ],
+
                         Expanded(
                           flex: 3,
                           child: AttendanceAnalyticsChart(

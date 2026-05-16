@@ -7,6 +7,7 @@ import '../../data/models/attendance_model.dart';
 import '../../data/models/attendance_session_model.dart';
 import '../../domain/repositories/attendance_repository.dart';
 import '../../../auth/data/models/user_model.dart';
+import '../../../shifts/data/models/shift_model.dart';
 import 'attendance_state.dart';
 
 class AttendanceCubit extends Cubit<AttendanceState> {
@@ -38,7 +39,9 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   void init({String? userId}) {
     loadTodayAttendance(userId: userId);
     loadAnalytics(userId: userId);
-    listenToActiveSession();
+    // Only listen to session if specifically needed (e.g. nurse app or explicit admin action)
+    // For now, disabling to prevent unnecessary polling/generation on desktop
+    // listenToActiveSession();
   }
 
   /// تحميل جميع سجلات الحضور بصفحات - Load all attendance records paginated
@@ -439,7 +442,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       // But for now, returning records is the priority
       return {
         'records': records,
-        'shifts': [], // Placeholder if shifts are needed
+        'shifts': <ShiftModel>[], 
       };
     } catch (e) {
       return null;

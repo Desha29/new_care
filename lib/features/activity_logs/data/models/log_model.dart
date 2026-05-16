@@ -36,7 +36,7 @@ class LogModel extends Equatable {
       targetType: map['targetType'] ?? '',
       targetId: map['targetId'] ?? '',
       details: map['details'] ?? '',
-      timestamp: DateTime.tryParse(map['timestamp'] ?? '') ?? DateTime.now(),
+      timestamp: AppDateUtils.parseDynamic(map['timestamp']),
     );
   }
 

@@ -11,6 +11,7 @@ import '../../data/models/user_model.dart';
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
 import '../../../dashboard/presentation/screens/main_layout.dart';
+import '../widgets/qr_attendance_view.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -26,6 +27,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isQuickLogin = true; // الوضع الافتراضي الجديد هى البطاقات
+  bool _showAttendanceQr = false; // عرض بصمة الـ QR
   List<UserModel> _allUsers = [];
   bool _isLoadingUsers = false;
   late AnimationController _animController;
@@ -263,10 +265,12 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
 
-          // === نموذج تسجيل الدخول ===
+          // === نموذج تسجيل الدخول أو البصمة ===
           Padding(
             padding: const EdgeInsets.all(20),
-            child: _buildLoginForm(maxWidth: double.infinity),
+            child: _showAttendanceQr 
+                ? QrAttendanceView(onBack: () => setState(() => _showAttendanceQr = false))
+                : _buildLoginForm(maxWidth: double.infinity),
           ),
         ],
       ),
@@ -285,7 +289,12 @@ class _LoginScreenState extends State<LoginScreen>
             child: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
-                child: _buildLoginForm(maxWidth: isTablet ? 380 : 420),
+                child: _showAttendanceQr 
+                    ? ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        child: QrAttendanceView(onBack: () => setState(() => _showAttendanceQr = false)),
+                      )
+                    : _buildLoginForm(maxWidth: isTablet ? 380 : 420),
               ),
             ),
           ),
@@ -527,6 +536,13 @@ class _LoginScreenState extends State<LoginScreen>
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                // Toggle between Card view and QR view
+                IconButton(
+                  onPressed: () => setState(() => _showAttendanceQr = true),
+                  icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.secondary),
+                  tooltip: 'نظام البصمة',
+                ),
+                const SizedBox(width: 4),
                 TextButton.icon(
                   onPressed: () => setState(() => _isQuickLogin = !_isQuickLogin),
                   icon: Icon(_isQuickLogin ? Icons.keyboard_rounded : Icons.grid_view_rounded, size: 18),

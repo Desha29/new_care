@@ -210,6 +210,13 @@ class FirebaseService {
         .toList();
   }
 
+  Future<CaseModel?> getCaseById(String id) async {
+    _incRead();
+    final doc = await _casesRef.doc(id).get();
+    if (!doc.exists) return null;
+    return CaseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+  }
+
   /// جلب الحالات بصفحات - Get paginated cases
   Future<PaginatedResult<CaseModel>> getCasesPaginated({
     String? nurseId,
@@ -452,6 +459,13 @@ class FirebaseService {
         .toList();
   }
 
+  Future<InventoryModel?> getInventoryItemById(String id) async {
+    _incRead();
+    final doc = await _inventoryRef.doc(id).get();
+    if (!doc.exists) return null;
+    return InventoryModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+  }
+
   // ============================================
   // === الإجراءات - Procedures ===
   // ============================================
@@ -580,6 +594,13 @@ class FirebaseService {
           ),
         )
         .toList();
+  }
+
+  Future<AttendanceModel?> getAttendanceById(String id) async {
+    _incRead();
+    final doc = await _attendanceRef.doc(id).get();
+    if (!doc.exists) return null;
+    return AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
   }
 
   // ============================================

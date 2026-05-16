@@ -8,12 +8,15 @@ import 'app.dart';
 import 'core/services/local/sqlite_service.dart';
 import 'core/services/network/connectivity_service.dart';
 import 'core/services/notifications/notification_service.dart';
+import 'core/services/notifications/case_change_notifier.dart';
+import 'core/services/notifications/data_change_notifier.dart';
 import 'core/app_bloc_observer.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'firebase_options.dart';
 import 'core/di/injection.dart';
 import 'core/services/sync/sync_manager.dart';
 import 'core/services/sync/outside_cases_listener.dart';
+import 'core/services/sync/realtime_update_listener.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,5 +68,75 @@ void main() async {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     SyncManager.instance.downloadFromCloud();
     OutsideCasesListener.instance.startListening();
+
+    // === Real-time Update Listener (10s poll, cost-optimized) ===
+    // Routes mobile events through surgical sync → cubits auto-react
+    final rtListener = RealtimeUpdateListener.instance;
+
+    // الحالات - Targeted Case Sync
+    rtListener.onCaseAdded = (id) async {
+      final model = await SyncManager.instance.downloadCase(id);
+      CaseChangeNotifier().notifyCaseAdded(id, model: model);
+      DataChangeNotifier().notifyLocalDataChanged(); // Trigger dashboard stats refresh
+      
+      // Redundant Sync: Ensure inventory used in this case is also updated immediately
+      if (model != null) {
+        for (var supply in model.suppliesUsed) {
+          await SyncManager.instance.downloadInventoryItem(supply.inventoryId);
+        }
+      }
+
+      NotificationService.instance.showNotification(
+        title: 'حالة جديدة 🏥',
+        body: 'تم إضافة حالة جديدة من التطبيق. جاري تحديث البيانات...',
+      );
+    };
+    rtListener.onCaseUpdated = (id) async {
+      final model = await SyncManager.instance.downloadCase(id);
+      CaseChangeNotifier().notifyCaseUpdated(id, model: model);
+      DataChangeNotifier().notifyLocalDataChanged();
+    };
+    rtListener.onCaseDeleted = (id) async {
+      await SyncManager.instance.deleteCaseLocally(id);
+      CaseChangeNotifier().notifyCaseDeleted(id);
+      DataChangeNotifier().notifyLocalDataChanged();
+    };
+
+    // الحضور - Targeted Attendance Sync
+    rtListener.onAttendanceChanged = (id) async {
+      await SyncManager.instance.downloadAttendance(id);
+      DataChangeNotifier().notifyLocalDataChanged();
+    };
+
+    // المخزون - Targeted Inventory Sync
+    rtListener.onInventoryChanged = (id) async {
+      await SyncManager.instance.downloadInventoryItem(id);
+      DataChangeNotifier().notifyLocalDataChanged();
+    };
+
+    // Fallbacks for other modules (using full sync for now)
+    rtListener.onPayrollChanged = (_) async {
+      await SyncManager.instance.downloadFromCloud();
+      DataChangeNotifier().notifyLocalDataChanged();
+    };
+    rtListener.onShiftsChanged = (_) async {
+      await SyncManager.instance.downloadFromCloud();
+      DataChangeNotifier().notifyLocalDataChanged();
+    };
+    rtListener.onUsersChanged = (_) async {
+      await SyncManager.instance.downloadFromCloud();
+      DataChangeNotifier().notifyLocalDataChanged();
+    };
+    rtListener.onExpensesChanged = (_) async {
+      await SyncManager.instance.downloadFromCloud();
+      DataChangeNotifier().notifyLocalDataChanged();
+    };
+    rtListener.onProceduresChanged = (_) async {
+      await SyncManager.instance.downloadFromCloud();
+      DataChangeNotifier().notifyLocalDataChanged();
+    };
+
+    rtListener.startListening();
   });
 }
+

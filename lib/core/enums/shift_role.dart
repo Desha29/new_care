@@ -30,6 +30,8 @@ enum AttendanceStatus {
   const AttendanceStatus(this.value, this.label);
 
   static AttendanceStatus fromString(String value) {
+    if (value == 'active') return AttendanceStatus.checkedIn;
+    if (value == 'completed') return AttendanceStatus.checkedOut;
     return AttendanceStatus.values.firstWhere(
       (status) => status.value == value,
       orElse: () => AttendanceStatus.absent,

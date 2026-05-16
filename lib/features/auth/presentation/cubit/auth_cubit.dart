@@ -101,6 +101,18 @@ class AuthCubit extends Cubit<AuthState> {
             emit(const AuthError('تم تعطيل حسابك. تواصل مع المدير'));
             return;
           }
+
+          // === Nurse Attendance Check ===
+          // Nurses must check in (attend) before they can login to the dashboard
+          if (user.role.isNurse) {
+            final attendance = await _authRepository.getTodayAttendance(user.id);
+            if (attendance == null || !attendance.isCheckedIn) {
+              await _authRepository.signOut();
+              emit(const AuthError('عذراً، يجب تسجيل الحضور (البصمة) أولاً قبل الدخول إلى الحساب'));
+              return;
+            }
+          }
+
           _currentUser = user;
           _startStatusMonitoring(user.id);
           await _logActivity(user, 'login', 'تسجيل دخول');

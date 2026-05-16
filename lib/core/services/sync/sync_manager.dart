@@ -191,6 +191,59 @@ class SyncManager {
     }
   }
 
+  /// تنزيل حالة محددة من السحابة - Download a specific case from cloud
+  Future<CaseModel?> downloadCase(String id) async {
+    try {
+      final c = await _firebaseService.getCaseById(id);
+      if (c != null) {
+        await _sqliteService.saveCase(c.toSqliteMap());
+        log('[SyncManager] ✓ Successfully synced case $id from cloud');
+        return c;
+      }
+      return null;
+    } catch (e) {
+      log('[SyncManager] Error syncing case $id: $e');
+      return null;
+    }
+  }
+
+  /// تنزيل سجل حضور محدد - Download a specific attendance record
+  Future<void> downloadAttendance(String id) async {
+    try {
+      final a = await _firebaseService.getAttendanceById(id);
+      if (a != null) {
+        await _sqliteService.insert('attendance', a.toSqliteMap());
+        await _sqliteService.cleanupDuplicateAttendance();
+        log('[SyncManager] ✓ Successfully synced attendance $id from cloud');
+      }
+    } catch (e) {
+      log('[SyncManager] Error syncing attendance $id: $e');
+    }
+  }
+
+  /// تنزيل صنف مخزون محدد - Download a specific inventory item
+  Future<void> downloadInventoryItem(String id) async {
+    try {
+      final i = await _firebaseService.getInventoryItemById(id);
+      if (i != null) {
+        await _sqliteService.insert('inventory', i.toSqliteMap());
+        log('[SyncManager] ✓ Successfully synced inventory item $id from cloud');
+      }
+    } catch (e) {
+      log('[SyncManager] Error syncing inventory item $id: $e');
+    }
+  }
+
+  /// حذف حالة محلياً - Delete a case locally
+  Future<void> deleteCaseLocally(String id) async {
+    try {
+      await _sqliteService.delete('cases', where: 'id = ?', whereArgs: [id]);
+      log('[SyncManager] ✓ Successfully deleted case $id locally');
+    } catch (e) {
+      log('[SyncManager] Error deleting case $id locally: $e');
+    }
+  }
+
   /// رفع التغييرات المحلية - Upload pending changes to Firebase
   Future<void> _uploadPendingChanges() async {
     final db = await _sqliteService.database;
@@ -355,10 +408,11 @@ class SyncManager {
           break;
         case 'attendance':
           try {
-            final model = AttendanceModel.fromMap(data, id);
             if (op == 'update') {
+              // checkOut logic handles timestamp directly on Firebase
               await _firebaseService.checkOut(id);
             } else {
+              final model = AttendanceModel.fromMap(data, id);
               await _firebaseService.checkIn(model);
             }
             log('[SyncManager] Attendance operation completed: $op on $id');
@@ -690,6 +744,8 @@ class SyncManager {
         }
         await batch.commit(noResult: true);
       });
+      // مسح التكرارات المحتملة بعد المزامنة
+      await _sqliteService.cleanupDuplicateAttendance();
 
       // 7. Payroll
       _emitProgress('الرواتب...', icon: '💰', step: 7, total: totalSteps);

@@ -65,11 +65,9 @@ class InventoryModel extends Equatable {
       price: (map['price'] ?? 0).toDouble(),
       category: map['category'] ?? '',
       notes: map['notes'] ?? '',
-      createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
-      expiryDate: map['expiryDate'] != null
-          ? DateTime.tryParse(map['expiryDate'])
-          : null,
+      createdAt: AppDateUtils.parseDynamic(map['createdAt']),
+      updatedAt: AppDateUtils.parseDynamic(map['updatedAt']),
+      expiryDate: AppDateUtils.parseDynamicNullable(map['expiryDate']),
       createdBy: map['createdBy'] ?? '',
     );
   }

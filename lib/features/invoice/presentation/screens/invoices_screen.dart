@@ -1098,11 +1098,42 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           final name = nurses[index];
           final nurseCases = grouped[name]!;
           final totalCases = nurseCases.length;
-// Estimated hours or simple count
+
+          // Calculate actual hours from attendance records
+          double totalHours = 0.0;
+          
+          // If we have a specific time filter like Today, filter attendance for that day too
+          final relevantAttendance = _attendance.where((a) {
+            final matchesName = a.userName == name;
+            if (!matchesName) return false;
+            
+            if (state.timeFilter == TimeFilter.today) {
+              final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+              return a.date == todayStr;
+            } else if (state.timeFilter == TimeFilter.yesterday) {
+              final yesterdayStr = DateFormat('yyyy-MM-dd').format(DateTime.now().subtract(const Duration(days: 1)));
+              return a.date == yesterdayStr;
+            }
+            // For other filters, we use the month data we already fetched
+            return true;
+          });
+
+          for (var a in relevantAttendance) {
+            final duration = a.shiftDuration;
+            if (duration != null) {
+              totalHours += duration.inMinutes / 60.0;
+            }
+          }
+
+          // If no attendance found but there are cases, show a minimum of 0.5h or totalCases * 0.5 if it's a mock view
+          if (totalHours == 0 && totalCases > 0) {
+            totalHours = totalCases * 0.5; // Fallback estimate
+          }
+
           return _buildNurseReportCard(
             userId: '', // No ID for derived cases yet
             name: name,
-            hours: totalCases * 0.5, // Mock estimate: 30 mins per case
+            hours: totalHours,
             salary: nurseCases.fold(
               0.0,
               (sum, c) => sum + (c.totalPrice * 0.1),

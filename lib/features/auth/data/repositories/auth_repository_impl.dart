@@ -7,6 +7,7 @@ import '../../../../core/services/local/sqlite_service.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../models/user_model.dart';
+import '../../../attendance/data/models/attendance_model.dart';
 
 /// تنفيذ مستودع المصادقة - Auth Repository Implementation
 class AuthRepositoryImpl extends FirebaseBase implements IAuthRepository {
@@ -57,6 +58,29 @@ class AuthRepositoryImpl extends FirebaseBase implements IAuthRepository {
     }
     
     return localUser;
+  }
+
+  @override
+  Future<AttendanceModel?> getTodayAttendance(String userId) async {
+    try {
+      final today = todayString();
+      final snapshot = await firestore
+          .collection('attendance')
+          .where('date', isEqualTo: today)
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      if (snapshot.docs.isEmpty) return null;
+
+      final records = snapshot.docs
+          .map((doc) => AttendanceModel.fromMap(doc.data(), doc.id))
+          .toList();
+
+      records.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
+      return records.first;
+    } catch (e) {
+      return null;
+    }
   }
 
   @override

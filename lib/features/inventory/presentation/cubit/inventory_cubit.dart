@@ -10,19 +10,23 @@ class InventoryCubit extends Cubit<InventoryState> {
   final IInventoryRepository _inventoryRepository;
   StreamSubscription? _caseChangeSubscription;
 
+  StreamSubscription? _dataChangeSubscription;
+
   InventoryCubit({required IInventoryRepository inventoryRepository})
     : _inventoryRepository = inventoryRepository,
       super(InventoryInitial()) {
-    _setupCaseChangeListener();
+    _setupChangeListeners();
   }
 
-  /// Listen to case changes and reload inventory automatically
-  /// (since cases deduct inventory supplies)
-  void _setupCaseChangeListener() {
-    _caseChangeSubscription = CaseChangeNotifier().onCaseChanged.listen((
-      event,
-    ) {
-      // Reload inventory when any case is added, updated, or deleted
+  /// Listen to case changes and general data changes
+  void _setupChangeListeners() {
+    _caseChangeSubscription = CaseChangeNotifier().onCaseChanged.listen((event) {
+      if (state is InventoryLoaded) {
+        loadInventory(force: true);
+      }
+    });
+
+    _dataChangeSubscription = DataChangeNotifier().onDataChanged.listen((_) {
       if (state is InventoryLoaded) {
         loadInventory(force: true);
       }
@@ -32,6 +36,7 @@ class InventoryCubit extends Cubit<InventoryState> {
   @override
   Future<void> close() {
     _caseChangeSubscription?.cancel();
+    _dataChangeSubscription?.cancel();
     return super.close();
   }
 

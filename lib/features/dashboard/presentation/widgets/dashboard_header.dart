@@ -5,6 +5,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/responsive_helper.dart';
+import '../../../../core/services/sync/sync_manager.dart';
+import '../../../../core/utils/ui_feedback.dart';
 import '../cubit/dashboard_cubit.dart';
 import '../cubit/dashboard_state.dart';
 
@@ -77,11 +79,49 @@ class DashboardHeader extends StatelessWidget {
                 ),
               ],
             ),
-            Text(
-              'نظرة عامة على أداء المركز',
-              style: AppTypography.pageSubtitle.copyWith(
-                fontSize: ResponsiveHelper.getSubtitleFontSize(context),
-              ),
+            Row(
+              children: [
+                Text(
+                  'نظرة عامة على أداء المركز',
+                  style: AppTypography.pageSubtitle.copyWith(
+                    fontSize: ResponsiveHelper.getSubtitleFontSize(context),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                InkWell(
+                  onTap: () async {
+                    UIFeedback.showInfo(context, 'جاري تحديث كافة البيانات من السحابة...');
+                    await SyncManager.instance.downloadFromCloud();
+                    if (context.mounted) {
+                      context.read<DashboardCubit>().loadDashboardData(force: true);
+                      UIFeedback.showSuccess(context, 'تم تحديث البيانات بنجاح ✅');
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.sync_rounded, size: 14, color: AppColors.secondary),
+                        SizedBox(width: 4),
+                        Text(
+                          'تحديث الآن',
+                          style: TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.secondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

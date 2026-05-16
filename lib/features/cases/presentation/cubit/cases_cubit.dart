@@ -31,7 +31,27 @@ class CasesCubit extends Cubit<CasesState> {
     _caseChangeSub = CaseChangeNotifier().onCaseChanged.listen((event) {
       // Ignore events triggered by our own local updates
       if (event.isLocal) return;
-      // إعادة تحميل بنفس الفلتر المحفوظ - Reload with the stored filter
+
+      // === Surgical UI Update (Instant) ===
+      // If we have the full model, inject it directly into state
+      if (event.model != null && state is CasesLoaded) {
+        final currentState = state as CasesLoaded;
+        if (event.type == CaseChangeType.added) {
+          // Check if already exists (deduplication)
+          if (!currentState.cases.any((c) => c.id == event.model!.id)) {
+            final updatedCases = [event.model!, ...currentState.cases];
+            emit(currentState.copyWith(cases: updatedCases));
+          }
+        } else if (event.type == CaseChangeType.updated) {
+          final updatedCases = currentState.cases.map((c) {
+            return c.id == event.model!.id ? event.model! : c;
+          }).toList();
+          emit(currentState.copyWith(cases: updatedCases));
+        }
+        return; // Surgical update done
+      }
+      
+      // Fallback: Full reload with the stored filter if model is missing
       _reloadCases();
     });
   }

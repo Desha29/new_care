@@ -462,6 +462,51 @@ class SqliteService {
 
   // --- عمليات خاصة - Specific Operations ---
 
+  /// تنظيف سجلات الحضور المكررة (الاحتفاظ بالأحدث فقط لكل مستخدم في نفس اليوم)
+  /// Clean up duplicate attendance records, keeping only the latest per user per day
+  Future<void> cleanupDuplicateAttendance() async {
+    final db = await database;
+    final all = await db.query('attendance');
+    
+    final Map<String, Map<String, dynamic>> latestRecords = {};
+    final List<String> toDelete = [];
+
+    for (var row in all) {
+      final id = row['id'] as String;
+      final userId = row['userId'] as String;
+      final date = row['date'] as String;
+      final checkInStr = row['checkInTime'] as String;
+      final checkInTime = DateTime.tryParse(checkInStr) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      
+      final key = '${userId}_$date';
+      
+      if (latestRecords.containsKey(key)) {
+        final existingStr = latestRecords[key]!['checkInTime'] as String;
+        final existingTime = DateTime.tryParse(existingStr) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        
+        if (checkInTime.isAfter(existingTime)) {
+          // The current row is newer, mark the existing one for deletion
+          toDelete.add(latestRecords[key]!['id'] as String);
+          latestRecords[key] = row;
+        } else {
+          // The current row is older, mark it for deletion
+          toDelete.add(id);
+        }
+      } else {
+        latestRecords[key] = row;
+      }
+    }
+
+    // Delete all marked duplicates
+    if (toDelete.isNotEmpty) {
+      final batch = db.batch();
+      for (var id in toDelete) {
+        batch.delete('attendance', where: 'id = ?', whereArgs: [id]);
+      }
+      await batch.commit(noResult: true);
+    }
+  }
+
   Future<void> saveUser(Map<String, dynamic> user) async {
     await insert('users', user);
   }

@@ -3,7 +3,7 @@ import '../../../attendance/data/models/attendance_model.dart';
 import '../../../cases/domain/repositories/cases_repository.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../../../../core/services/local/sqlite_service.dart';
-import '../../../../core/services/firebase/firebase_service.dart';
+
 
 /// تنفيذ مستودع لوحة التحكم (الجيل الثاني) - Dashboard Repository Implementation v2
 /// Optimized for speed using local data and reliable remote fallbacks.
@@ -17,26 +17,39 @@ class DashboardRepositoryImpl implements IDashboardRepository {
   @override
   Future<Map<String, dynamic>> getDashboardStats({DateTime? date}) async {
     final targetDate = date ?? DateTime.now();
+    final db = await _local.database;
     
-    // Server-side aggregation (Optimized for 5000+ records)
-    final aggregates = await FirebaseService.instance.getDailyAggregates(date: targetDate);
+    // Server-side aggregation was slow/delayed; compute from local SQLite for real-time speed.
+    final start = DateTime(targetDate.year, targetDate.month, targetDate.day).toIso8601String();
+    final end = DateTime(targetDate.year, targetDate.month, targetDate.day, 23, 59, 59).toIso8601String();
+
+    final todayCasesResult = await db.query(
+      'cases',
+      where: 'caseDate >= ? AND caseDate <= ?',
+      whereArgs: [start, end],
+    );
+
+    double totalRevenue = 0.0;
+    for (var c in todayCasesResult) {
+      final price = (c['totalPrice'] as num?)?.toDouble() ?? 0.0;
+      final discount = (c['discount'] as num?)?.toDouble() ?? 0.0;
+      totalRevenue += (price - discount);
+    }
     
     final totalPatients = await _local.getPatientsCount();
 
     // Get active nurses from local users cache
-    final nurses = await _local.database.then(
-      (db) => db.query(
-        'users',
-        where: 'role = ? AND isActive = 1',
-        whereArgs: ['nurse'],
-      ),
+    final nurses = await db.query(
+      'users',
+      where: 'role = ? AND isActive = 1',
+      whereArgs: ['nurse'],
     );
 
     return {
       'totalPatients': totalPatients,
-      'todayCases': aggregates['totalCases'],
+      'todayCases': todayCasesResult.length,
       'availableNurses': nurses.length,
-      'todayRevenue': aggregates['totalRevenue'],
+      'todayRevenue': totalRevenue,
     };
   }
 
@@ -158,13 +171,16 @@ class DashboardRepositoryImpl implements IDashboardRepository {
   @override
   Future<List<AttendanceModel>> getActiveStaff() async {
     final db = await _local.database;
+    final now = DateTime.now();
     final todayStr =
-        '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
+    // Get all attendance for today to show who is/was working
     final results = await db.query(
       'attendance',
-      where: 'date = ? AND status = ?',
-      whereArgs: [todayStr, 'checked_in'],
+      where: 'date = ?',
+      whereArgs: [todayStr],
+      orderBy: 'checkInTime DESC',
     );
 
     return results

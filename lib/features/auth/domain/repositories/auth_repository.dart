@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/models/user_model.dart';
+import '../../../attendance/data/models/attendance_model.dart';
 
 /// واجهة مستودع المصادقة - Auth Repository Interface
 abstract class IAuthRepository {
@@ -8,6 +9,9 @@ abstract class IAuthRepository {
 
   /// الحصول على بيانات المستخدم من Firestore
   Future<UserModel?> getUser(String uid, {bool forceRefresh = false});
+
+  /// الحصول على سجل الحضور لليوم - Get today's attendance record
+  Future<AttendanceModel?> getTodayAttendance(String userId);
 
   /// إنشاء مستخدم جديد في Firestore
   Future<void> createUser(UserModel user);

@@ -21,4 +21,7 @@ enum UserRole {
 
   /// هل المستخدم مدير عام؟
   bool get isSuperAdmin => this == UserRole.superAdmin;
+
+  /// هل المستخدم ممرض؟
+  bool get isNurse => this == UserRole.nurse;
 }
