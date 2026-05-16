@@ -14,6 +14,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/widgets/dialogs/loading_dialog.dart';
 import '../../../reports/presentation/screens/report_preview_screen.dart';
 import '../../../../core/services/pdf/report_service.dart';
+import '../widgets/attendance_table.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -109,14 +110,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   children: [
                     _buildTopHeader(),
                     const SizedBox(height: 24),
-                    if (context.read<AuthCubit>().currentUser?.role.isAdmin ?? false) ...[
+                    if (context.read<AuthCubit>().currentUser?.role.isAdmin ??
+                        false) ...[
                       AttendanceSummaryCards(state: state),
                       const SizedBox(height: 24),
                     ],
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (context.read<AuthCubit>().currentUser?.role.isAdmin ?? false) ...[
+                        if (context
+                                .read<AuthCubit>()
+                                .currentUser
+                                ?.role
+                                .isAdmin ??
+                            false) ...[
                           Expanded(
                             flex: 2,
                             child: AttendanceSessionPanel(state: state),
@@ -133,17 +140,34 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    const Text(
-                      'سجل الحضور الشخصي',
-                      style: TextStyle(
-                        fontFamily: 'Cairo',
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                    if (context.read<AuthCubit>().currentUser?.role.isAdmin ??
+                        false) ...[
+                      const Text(
+                        'سجل الحضور العام',
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildPersonalHistory(state),
+                      const SizedBox(height: 16),
+                      AttendanceTable(state: state),
+                      const SizedBox(height: 32),
+                    ],
+                    if (!(context.read<AuthCubit>().currentUser?.role.isAdmin ?? false)) ...[
+                      const Text(
+                        'سجل الحضور الشخصي',
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildPersonalHistory(state),
+                    ],
                   ],
                 ),
               );
@@ -185,7 +209,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               onPressed: () => context.read<AttendanceCubit>().init(),
               isOutlined: true,
             ),
-            if (context.read<AuthCubit>().currentUser?.role.isAdmin ?? false) ...[
+            if (context.read<AuthCubit>().currentUser?.role.isAdmin ??
+                false) ...[
               const SizedBox(width: 12),
               _buildHeaderButton(
                 icon: Icons.file_download_outlined,
@@ -249,7 +274,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             children: [
               Icon(Icons.history_rounded, size: 48, color: AppColors.textHint),
               SizedBox(height: 12),
-              Text('لا يوجد سجل حضور حالياً', style: TextStyle(fontFamily: 'Cairo')),
+              Text(
+                'لا يوجد سجل حضور حالياً',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
             ],
           ),
         ),
@@ -264,7 +292,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       itemBuilder: (context, index) {
         final record = records[index];
         final duration = record.checkOutTime?.difference(record.checkInTime);
-        
+
         final hours = duration?.inHours ?? 0;
         final minutes = (duration?.inMinutes ?? 0) % 60;
 
@@ -290,7 +318,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   color: AppColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.event_available_rounded, color: AppColors.primary, size: 24),
+                child: const Icon(
+                  Icons.event_available_rounded,
+                  color: AppColors.primary,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -307,7 +339,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     ),
                     Text(
                       'الدخول: ${DateFormat('hh:mm a', 'ar').format(record.checkInTime)}',
-                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, color: AppColors.textSecondary),
+                      style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -327,7 +363,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     ),
                     Text(
                       'انصراف: ${DateFormat('hh:mm a', 'ar').format(record.checkOutTime!)}',
-                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textHint),
+                      style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 12,
+                        color: AppColors.textHint,
+                      ),
                     ),
                   ] else ...[
                     const Text(

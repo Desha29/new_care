@@ -164,10 +164,33 @@ class _PayrollScreenState extends State<PayrollScreen> {
               ),
               if (!isMobile) ...[
                 const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: () => context.read<PayrollCubit>().approveAllPayrolls(),
+                  icon: const Icon(Icons.check_circle_rounded, size: 20),
+                  label: const Text(
+                    'اعتماد الرواتب',
+                    style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 IconButton(
                   onPressed: _generatePayrollReport,
                   icon: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.error, size: 28),
                   tooltip: 'طباعة التقرير الشهري',
+                ),
+                IconButton(
+                  onPressed: _generateIncomeReport,
+                  icon: const Icon(Icons.summarize_rounded, color: AppColors.primary, size: 28),
+                  tooltip: 'تفاصيل دخل العمليات',
                 ),
               ],
             ],
@@ -420,8 +443,12 @@ class _PayrollScreenState extends State<PayrollScreen> {
             _showPayrollDetailSheet(context, p);
           }
         },
-        onApprove: isAdmin ? (p) => context.read<PayrollCubit>().approvePayroll(p.id) : null,
+        onApprove: isAdmin ? (p) => _generateIncomeReport(
+          nurseName: p.userName,
+          onApproveAction: () => context.read<PayrollCubit>().approvePayroll(p.id),
+        ) : null,
         onPay: isAdmin ? (p) => context.read<PayrollCubit>().markAsPaid(p.id) : null,
+        onViewIncomeDetails: (p) => _generateIncomeReport(nurseName: p.userName),
       );
     }
     return const SizedBox.shrink();
@@ -528,6 +555,71 @@ class _PayrollScreenState extends State<PayrollScreen> {
             year: _selectedYear,
             month: _selectedMonth,
             generatedBy: genBy,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _generateIncomeReport({String? nurseName, VoidCallback? onApproveAction}) async {
+    final state = context.read<PayrollCubit>().state;
+    if (state is! PayrollLoaded) return;
+
+    final authState = context.read<AuthCubit>().state;
+    String genBy = 'مدير النظام';
+    if (authState is AuthAuthenticated) genBy = authState.user.name;
+
+    // Fetch cases for the report
+    final cases = await context.read<PayrollCubit>().getMonthlyCases(_selectedYear, _selectedMonth);
+
+    if (!mounted) return;
+
+    final filteredCases = nurseName != null
+        ? cases.where((c) => c.nurseName == nurseName).toList()
+        : cases;
+
+    if (filteredCases.isEmpty) {
+      UIFeedback.showWarning(
+        context, 
+        nurseName != null 
+          ? 'لا توجد عمليات مسجلة للممرض $nurseName هذا الشهر' 
+          : 'لا توجد عمليات مسجلة لهذا الشهر'
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReportPreviewScreen(
+          title: nurseName != null 
+            ? 'مراجعة دخل العمليات: $nurseName - ${_months[_selectedMonth - 1]} $_selectedYear'
+            : 'تفاصيل دخل العمليات - ${_months[_selectedMonth - 1]} $_selectedYear',
+          fileName: nurseName != null
+            ? 'Income_${nurseName}_$_selectedYear$_selectedMonth'
+            : 'Income_Details_$_selectedYear$_selectedMonth',
+          extraActions: onApproveAction != null ? [
+            ElevatedButton.icon(
+              onPressed: () {
+                onApproveAction();
+                Navigator.pop(context);
+              },
+              icon: const Icon(Icons.check_circle_rounded),
+              label: const Text('تأكيد اعتماد الراتب', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ] : null,
+          buildReport: () => ReportService.instance.generateMonthlyIncomeReportBytes(
+            cases: cases,
+            year: _selectedYear,
+            month: _selectedMonth,
+            generatedBy: genBy,
+            nurseName: nurseName,
           ),
         ),
       ),

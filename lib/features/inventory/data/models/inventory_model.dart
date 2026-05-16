@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:new_care/core/utils/date_utils.dart';
 
 /// نموذج المستلزمات الطبية - Inventory Item Model
 class InventoryModel extends Equatable {
@@ -44,7 +45,8 @@ class InventoryModel extends Equatable {
   }
 
   /// هل انتهت الصلاحية؟
-  bool get isExpired => expiryDate != null && expiryDate!.isBefore(DateTime.now());
+  bool get isExpired =>
+      expiryDate != null && expiryDate!.isBefore(DateTime.now());
 
   /// هل ستنتهي الصلاحية قريباً؟ (خلال 30 يوم)
   bool get isExpiringSoon =>
@@ -65,7 +67,9 @@ class InventoryModel extends Equatable {
       notes: map['notes'] ?? '',
       createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
-      expiryDate: map['expiryDate'] != null ? DateTime.tryParse(map['expiryDate']) : null,
+      expiryDate: map['expiryDate'] != null
+          ? DateTime.tryParse(map['expiryDate'])
+          : null,
       createdBy: map['createdBy'] ?? '',
     );
   }
@@ -89,10 +93,7 @@ class InventoryModel extends Equatable {
 
   /// إلى SQLite Map
   Map<String, dynamic> toSqliteMap() {
-    return {
-      'id': id,
-      ...toMap(),
-    };
+    return {'id': id, ...toMap()};
   }
 
   /// من SQLite Map
@@ -106,9 +107,9 @@ class InventoryModel extends Equatable {
       price: (map['price'] ?? 0).toDouble(),
       category: map['category'] ?? '',
       notes: map['notes'] ?? '',
-      createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
-      expiryDate: map['expiryDate'] != null ? DateTime.tryParse(map['expiryDate']) : null,
+      createdAt: AppDateUtils.parseDynamic(map['createdAt']),
+      updatedAt: AppDateUtils.parseDynamic(map['updatedAt']),
+      expiryDate: AppDateUtils.parseDynamicNullable(map['expiryDate']),
       createdBy: map['createdBy'] ?? '',
     );
   }
@@ -144,5 +145,18 @@ class InventoryModel extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, name, unit, quantity, minStock, price, category, notes, createdAt, updatedAt, expiryDate, createdBy];
+  List<Object?> get props => [
+    id,
+    name,
+    unit,
+    quantity,
+    minStock,
+    price,
+    category,
+    notes,
+    createdAt,
+    updatedAt,
+    expiryDate,
+    createdBy,
+  ];
 }

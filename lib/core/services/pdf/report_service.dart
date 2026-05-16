@@ -1683,7 +1683,7 @@ class ReportService {
 
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4.landscape,
+        pageFormat: PdfPageFormat.a4,
         theme: pw.ThemeData.withFont(
           base: ttf,
           bold: boldTtf,
@@ -1737,24 +1737,36 @@ class ReportService {
               'خارجية',
               'مكافآت',
               'خصومات',
-              'صافي الراتب',
+              'الصافي',
               'الحالة',
             ].map((h) => _shape(h)).toList(),
             headerStyle: pw.TextStyle(
               font: boldTtf,
-              fontSize: 10,
+              fontSize: 9,
               color: PdfColors.white,
             ),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.blue900),
-            cellStyle: const pw.TextStyle(fontSize: 9),
+            columnWidths: {
+              0: const pw.FixedColumnWidth(20),
+              1: const pw.FlexColumnWidth(3),
+              2: const pw.FlexColumnWidth(1.5),
+              3: const pw.FlexColumnWidth(1.5),
+              4: const pw.FlexColumnWidth(1.2),
+              5: const pw.FlexColumnWidth(1.2),
+              6: const pw.FlexColumnWidth(1.2),
+              7: const pw.FlexColumnWidth(1.8),
+              8: const pw.FlexColumnWidth(1.5),
+            },
+            cellStyle: const pw.TextStyle(fontSize: 8),
             cellAlignments: {
               0: pw.Alignment.center,
+              1: pw.Alignment.centerRight,
               2: pw.Alignment.center,
-              3: pw.Alignment.centerLeft,
-              4: pw.Alignment.centerLeft,
-              5: pw.Alignment.centerLeft,
-              6: pw.Alignment.centerLeft,
-              7: pw.Alignment.centerLeft,
+              3: pw.Alignment.center,
+              4: pw.Alignment.center,
+              5: pw.Alignment.center,
+              6: pw.Alignment.center,
+              7: pw.Alignment.center,
               8: pw.Alignment.center,
             },
             data: List<List<dynamic>>.generate(payrolls.length, (index) {
@@ -1810,6 +1822,174 @@ class ReportService {
               children: [
                 pw.Text(
                   _shape('تقرير الرواتب - نيو كير'),
+                  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                ),
+                pw.Text(
+                  _shape('صفحة ${context.pageNumber} من ${context.pagesCount}'),
+                  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  /// تقرير تفاصيل الدخل (العمليات) - Income Details (Cases) Report
+  Future<Uint8List> generateMonthlyIncomeReportBytes({
+    required List<CaseModel> cases,
+    required int year,
+    required int month,
+    required String generatedBy,
+    String? nurseName,
+  }) async {
+    final pdf = pw.Document();
+    final ttf = await _getFont();
+    final boldTtf = await _getBoldFont();
+    final logo = await _getLogo();
+
+    final filteredCases = nurseName != null
+        ? cases.where((c) => c.nurseName == nurseName).toList()
+        : cases;
+
+    final months = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+    ];
+    final monthName = months[month - 1];
+
+    final reportTitle = nurseName != null
+        ? 'تفاصيل دخل العمليات: $nurseName - $monthName $year'
+        : 'تفاصيل دخل العمليات (جميع الممرضين) - $monthName $year';
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        theme: pw.ThemeData.withFont(
+          base: ttf,
+          bold: boldTtf,
+          fontFallback: [await _getFallbackFont()],
+        ),
+        header: (pw.Context context) => _buildHeader(
+          boldTtf,
+          logo,
+          reportTitle,
+        ),
+        build: (pw.Context context) => [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    _shape('الفترة: $monthName $year'),
+                    style: pw.TextStyle(font: boldTtf, fontSize: 14),
+                  ),
+                  if (nurseName != null)
+                    pw.Text(
+                      _shape('الممرض: $nurseName'),
+                      style: pw.TextStyle(font: boldTtf, fontSize: 12),
+                    ),
+                  pw.Text(
+                    _shape('تاريخ الاستخراج: ${intl.DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now())}'),
+                    style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                  ),
+                ],
+              ),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text(
+                    _shape('إجمالي الحالات: ${filteredCases.length}'),
+                    style: const pw.TextStyle(fontSize: 12),
+                  ),
+                  pw.Text(
+                    _shape('بواسطة: $generatedBy'),
+                    style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 20),
+
+          pw.TableHelper.fromTextArray(
+            headers: [
+              '#',
+              'التاريخ',
+              'اسم المريض',
+              'النوع',
+              if (nurseName == null) 'الممرض',
+              'المبلغ',
+            ].map((e) => _shape(e)).toList(),
+            headerStyle: pw.TextStyle(
+              font: boldTtf,
+              fontSize: 10,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey800),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            cellAlignments: {
+              0: pw.Alignment.center,
+              1: pw.Alignment.center,
+              2: pw.Alignment.centerRight,
+              3: pw.Alignment.center,
+              4: nurseName == null ? pw.Alignment.centerRight : pw.Alignment.center,
+              5: pw.Alignment.center,
+            },
+            data: List<List<dynamic>>.generate(filteredCases.length, (index) {
+              final c = filteredCases[index];
+              return [
+                index + 1,
+                intl.DateFormat('MM/dd').format(c.caseDate),
+                _shape(c.patientName),
+                _shape(c.caseType.label),
+                if (nurseName == null) _shape(c.nurseName),
+                (c.totalPrice - c.discount).toStringAsFixed(0),
+              ];
+            }),
+          ),
+
+          pw.SizedBox(height: 30),
+          
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              border: pw.Border.all(color: PdfColors.grey300),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.end,
+              children: [
+                pw.Text(
+                  _shape('إجمالي إيراد العمليات: '),
+                  style: pw.TextStyle(font: boldTtf, fontSize: 14),
+                ),
+                pw.Text(
+                  '${filteredCases.fold(0.0, (sum, c) => sum + (c.totalPrice - c.discount)).toStringAsFixed(2)} ${_shape(AppStrings.currency)}',
+                  style: pw.TextStyle(
+                    font: boldTtf,
+                    fontSize: 16,
+                    color: PdfColors.blue900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        footer: (pw.Context context) => pw.Column(
+          children: [
+            pw.Divider(),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  _shape('تقرير تفاصيل الدخل - نيو كير'),
                   style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
                 ),
                 pw.Text(

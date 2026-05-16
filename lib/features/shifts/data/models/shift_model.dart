@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../../../core/enums/shift_role.dart';
+import 'package:new_care/core/utils/date_utils.dart';
 
 /// نموذج صلاحيات الوردية - Shift Permissions Model
 class ShiftPermissions extends Equatable {
@@ -47,7 +48,10 @@ class ShiftPermissions extends Equatable {
       case ShiftRole.inventory:
         return const ShiftPermissions(canAccessInventory: true);
       case ShiftRole.externalVisits:
-        return const ShiftPermissions(canAccessCases: true, canGoExternal: true);
+        return const ShiftPermissions(
+          canAccessCases: true,
+          canGoExternal: true,
+        );
       case ShiftRole.all:
         return ShiftPermissions.full();
     }
@@ -68,7 +72,12 @@ class ShiftPermissions extends Equatable {
   }
 
   @override
-  List<Object?> get props => [canAccessCases, canAccessInventory, canGoExternal, canManageFinancials];
+  List<Object?> get props => [
+    canAccessCases,
+    canAccessInventory,
+    canGoExternal,
+    canManageFinancials,
+  ];
 }
 
 /// نموذج الوردية اليومية - Daily Shift Model
@@ -110,8 +119,8 @@ class ShiftModel extends Equatable {
       ),
       notes: map['notes'] ?? '',
       createdBy: map['createdBy'] ?? '',
-      createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
+      createdAt: AppDateUtils.parseDynamic(map['createdAt']),
+      updatedAt: AppDateUtils.parseDynamic(map['updatedAt']),
     );
   }
 
@@ -176,5 +185,16 @@ class ShiftModel extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, userId, userName, date, roleToday, permissions, notes, createdBy, createdAt, updatedAt];
+  List<Object?> get props => [
+    id,
+    userId,
+    userName,
+    date,
+    roleToday,
+    permissions,
+    notes,
+    createdBy,
+    createdAt,
+    updatedAt,
+  ];
 }

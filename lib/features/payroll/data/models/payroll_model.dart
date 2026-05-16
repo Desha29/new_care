@@ -1,3 +1,5 @@
+import 'package:new_care/core/utils/date_utils.dart';
+
 /// نموذج الرواتب - Payroll Model
 /// حساب الراتب بناءً على ساعات العمل
 class PayrollModel {
@@ -110,8 +112,8 @@ class PayrollModel {
       absentDays: map['absentDays'] ?? 0,
       status: map['status'] ?? 'draft',
       notes: map['notes'] ?? '',
-      createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
+      createdAt: AppDateUtils.parseDynamic(map['createdAt']),
+      updatedAt: AppDateUtils.parseDynamic(map['updatedAt']),
       createdBy: map['createdBy'] ?? '',
     );
   }

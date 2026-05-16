@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:new_care/core/utils/date_utils.dart';
 
 /// نموذج الإجراءات الطبية - Medical Procedure Model
 class ProcedureModel extends Equatable {
@@ -28,7 +29,8 @@ class ProcedureModel extends Equatable {
       'priceInside': priceInside,
       'priceOutside': priceOutside,
       'notes': notes,
-      'updatedAt': updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'updatedAt':
+          updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
   }
 
@@ -40,7 +42,8 @@ class ProcedureModel extends Equatable {
       'priceInside': priceInside,
       'priceOutside': priceOutside,
       'notes': notes,
-      'updatedAt': updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'updatedAt':
+          updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
   }
 
@@ -53,7 +56,7 @@ class ProcedureModel extends Equatable {
       priceInside: (map['priceInside'] ?? dPrice).toDouble(),
       priceOutside: (map['priceOutside'] ?? dPrice).toDouble(),
       notes: map['notes'] ?? '',
-      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
+      updatedAt: AppDateUtils.parseDynamicNullable(map['updatedAt']),
     );
   }
 
@@ -78,5 +81,13 @@ class ProcedureModel extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, name, defaultPrice, priceInside, priceOutside, notes, updatedAt];
+  List<Object?> get props => [
+    id,
+    name,
+    defaultPrice,
+    priceInside,
+    priceOutside,
+    notes,
+    updatedAt,
+  ];
 }

@@ -1,3 +1,5 @@
+import '../../../../core/utils/date_utils.dart';
+
 /// نموذج مسير الراتب - Salary Slip Model
 /// بيان الراتب التفصيلي للطباعة
 class SalarySlipModel {
@@ -123,16 +125,13 @@ class SalarySlipModel {
       grossSalary: (map['grossSalary'] ?? 0).toDouble(),
       netSalary: (map['netSalary'] ?? 0).toDouble(),
       notes: map['notes'] ?? '',
-      generatedAt: DateTime.tryParse(map['generatedAt'] ?? '') ?? DateTime.now(),
+      generatedAt: AppDateUtils.parseDynamic(map['generatedAt']),
       generatedBy: map['generatedBy'] ?? '',
     );
   }
 
   /// تحويل إلى خريطة SQLite - To SQLite map
   Map<String, dynamic> toSqliteMap() {
-    return {
-      'id': id,
-      ...toMap(),
-    };
+    return {'id': id, ...toMap()};
   }
 }

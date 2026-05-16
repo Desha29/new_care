@@ -7,12 +7,14 @@ class ReportPreviewScreen extends StatelessWidget {
   final String title;
   final String fileName;
   final Future<Uint8List> Function() buildReport;
+  final List<Widget>? extraActions;
 
   const ReportPreviewScreen({
     super.key,
     required this.title,
     required this.fileName,
     required this.buildReport,
+    this.extraActions,
   });
 
   @override
@@ -185,6 +187,10 @@ class ReportPreviewScreen extends StatelessWidget {
                         ],
                       ),
                     ),
+                    if (extraActions != null) ...[
+                      ...extraActions!,
+                      const SizedBox(width: 12),
+                    ],
                     const SizedBox(width: 12),
                     // Share button
                     OutlinedButton.icon(

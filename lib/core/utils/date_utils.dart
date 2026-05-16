@@ -40,6 +40,52 @@ class AppDateUtils {
     return DateTime.tryParse(iso);
   }
 
+  /// تحويل من أنواع مختلفة (String أو Timestamp) إلى DateTime
+  /// Robust conversion from dynamic (String, DateTime, or Firestore Timestamp)
+  static DateTime parseDynamic(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is DateTime) return value;
+    if (value is String) {
+      if (value.isEmpty) return DateTime.now();
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+    
+    // Firebase Timestamp check without direct dependency if possible
+    // but we have cloud_firestore in pubspec, so it's safe to use toDate() if we check runtimeType
+    try {
+      if (value.runtimeType.toString() == 'Timestamp') {
+        return value.toDate();
+      }
+      // Some versions of Firebase might return a map for Timestamp when using ffi/sqlite
+      if (value is Map && value.containsKey('_seconds')) {
+        return DateTime.fromMillisecondsSinceEpoch(value['_seconds'] * 1000);
+      }
+    } catch (_) {}
+
+    return DateTime.now();
+  }
+
+  /// تحويل من أنواع مختلفة (String أو Timestamp) إلى DateTime (Nullable)
+  static DateTime? parseDynamicNullable(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String) {
+      if (value.isEmpty) return null;
+      return DateTime.tryParse(value);
+    }
+    
+    try {
+      if (value.runtimeType.toString() == 'Timestamp') {
+        return value.toDate();
+      }
+      if (value is Map && value.containsKey('_seconds')) {
+        return DateTime.fromMillisecondsSinceEpoch(value['_seconds'] * 1000);
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
   /// تنسيق التاريخ للعرض في الجدول - Table display format
   /// مثال: 2026-04-19
   static String formatForTable(DateTime date) {

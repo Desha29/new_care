@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:new_care/core/utils/date_utils.dart';
 
 /// نموذج المصاريف - Expense Model
 class ExpenseModel extends Equatable {
@@ -27,7 +28,7 @@ class ExpenseModel extends Equatable {
       category: map['category'] ?? '',
       label: map['label'] ?? '',
       amount: (map['amount'] ?? 0).toDouble(),
-      date: DateTime.tryParse(map['date'] ?? '') ?? DateTime.now(),
+      date: AppDateUtils.parseDynamic(map['date']),
       createdBy: map['createdBy'] ?? '',
       notes: map['notes'] ?? '',
     );

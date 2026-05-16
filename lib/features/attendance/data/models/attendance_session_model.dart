@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// نموذج جلسة الحضور - Attendance Session Model
 class AttendanceSessionModel extends Equatable {
   final String id;
@@ -28,8 +30,8 @@ class AttendanceSessionModel extends Equatable {
     return AttendanceSessionModel(
       id: id,
       adminId: map['adminId'] ?? '',
-      startTime: DateTime.tryParse(map['startTime'] ?? '') ?? DateTime.now(),
-      endTime: map['endTime'] != null ? DateTime.tryParse(map['endTime']) : null,
+      startTime: AppDateUtils.parseDynamic(map['startTime']),
+      endTime: AppDateUtils.parseDynamicNullable(map['endTime']),
       isActive: map['isActive'] ?? false,
       qrSecret: map['qrSecret'] ?? '',
       latitude: (map['latitude'] ?? 0).toDouble(),
@@ -77,14 +79,14 @@ class AttendanceSessionModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        adminId,
-        startTime,
-        endTime,
-        isActive,
-        qrSecret,
-        latitude,
-        longitude,
-        radius,
-      ];
+    id,
+    adminId,
+    startTime,
+    endTime,
+    isActive,
+    qrSecret,
+    latitude,
+    longitude,
+    radius,
+  ];
 }

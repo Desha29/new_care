@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:new_care/core/enums/user_role.dart';
+import 'package:new_care/core/utils/date_utils.dart';
 
 class UserModel extends Equatable {
   final String id;
@@ -45,8 +46,8 @@ class UserModel extends Equatable {
       allowedDeviceIds: List<String>.from(map['allowedDeviceIds'] ?? []),
       salary: (map['salary'] ?? 3000.0).toDouble(),
       passwordHash: map['passwordHash'] as String?,
-      createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
+      createdAt: AppDateUtils.parseDynamic(map['createdAt']),
+      updatedAt: AppDateUtils.parseDynamic(map['updatedAt']),
     );
   }
 
@@ -95,8 +96,8 @@ class UserModel extends Equatable {
       deviceId: map['deviceId'] ?? '',
       salary: (map['salary'] ?? 3000.0).toDouble(),
       passwordHash: map['passwordHash'] as String?,
-      createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
+      createdAt: AppDateUtils.parseDynamic(map['createdAt']),
+      updatedAt: AppDateUtils.parseDynamic(map['updatedAt']),
     );
   }
 

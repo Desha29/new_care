@@ -13,6 +13,7 @@ class PayrollTable extends StatelessWidget {
   final void Function(PayrollModel) onSelect;
   final void Function(PayrollModel)? onApprove;
   final void Function(PayrollModel)? onPay;
+  final void Function(PayrollModel)? onViewIncomeDetails;
   final Widget? topToolbar;
 
   const PayrollTable({
@@ -22,6 +23,7 @@ class PayrollTable extends StatelessWidget {
     required this.onSelect,
     this.onApprove,
     this.onPay,
+    this.onViewIncomeDetails,
     this.topToolbar,
   });
 
@@ -227,6 +229,14 @@ class PayrollTable extends StatelessWidget {
                   IconActionButton.view(
                     onPressed: () => onSelect(payroll),
                   ),
+                  const SizedBox(width: 4),
+                  if (onViewIncomeDetails != null)
+                    IconActionButton(
+                      icon: Icons.receipt_long_rounded,
+                      tooltip: 'تفاصيل الدخل',
+                      color: AppColors.secondary,
+                      onPressed: () => onViewIncomeDetails!(payroll),
+                    ),
                   const SizedBox(width: 4),
                   if (payroll.status == 'draft' && onApprove != null)
                     IconActionButton(

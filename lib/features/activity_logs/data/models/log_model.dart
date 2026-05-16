@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:new_care/core/utils/date_utils.dart';
 
 /// نموذج سجل الأنشطة - Activity Log Model
 class LogModel extends Equatable {
@@ -72,7 +73,7 @@ class LogModel extends Equatable {
       targetType: map['targetType'] ?? '',
       targetId: map['targetId'] ?? '',
       details: map['details'] ?? '',
-      timestamp: DateTime.tryParse(map['timestamp'] ?? '') ?? DateTime.now(),
+      timestamp: AppDateUtils.parseDynamic(map['timestamp']),
     );
   }
 

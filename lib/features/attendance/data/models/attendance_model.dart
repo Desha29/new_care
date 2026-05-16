@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../../../core/enums/shift_role.dart';
+import 'package:new_care/core/utils/date_utils.dart';
 
 /// نموذج الحضور والانصراف - Attendance Model
 class AttendanceModel extends Equatable {
@@ -61,10 +62,8 @@ class AttendanceModel extends Equatable {
       userId: map['userId'] ?? '',
       userName: map['userName'] ?? '',
       date: map['date'] ?? '',
-      checkInTime: DateTime.tryParse(map['checkInTime'] ?? '') ?? DateTime.now(),
-      checkOutTime: map['checkOutTime'] != null
-          ? DateTime.tryParse(map['checkOutTime'])
-          : null,
+      checkInTime: AppDateUtils.parseDynamic(map['checkInTime']),
+      checkOutTime: AppDateUtils.parseDynamicNullable(map['checkOutTime']),
       deviceId: map['deviceId'] ?? '',
       location: map['location'] ?? '',
       status: AttendanceStatus.fromString(map['status'] ?? 'checked_in'),

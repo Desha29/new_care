@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/enums/case_status.dart';
 import '../../../../core/services/notifications/case_change_notifier.dart';
 import '../../../../core/services/notifications/data_change_notifier.dart';
+import '../../../cases/data/models/case_model.dart';
 import '../../domain/repositories/payroll_repository.dart';
 import '../../data/models/payroll_model.dart';
 import 'payroll_state.dart';
@@ -156,29 +157,36 @@ class PayrollCubit extends Cubit<PayrollState> {
 
       // === حساب سعر الساعة ===
       // سعر الساعة = الراتب الأساسي / (أيام العمل المتوقعة × ساعات اليوم)
-      final double expectedMonthlyHours = _expectedMonthlyDays * _expectedDailyHours;
+      final double expectedMonthlyHours =
+          _expectedMonthlyDays * _expectedDailyHours;
       final double hourlyRate = baseSalary / expectedMonthlyHours;
 
       // === حساب الساعات المتوقعة بناءً على أيام الحضور الفعلية ===
-      final double expectedHoursForAttendedDays = totalDays * _expectedDailyHours;
+      final double expectedHoursForAttendedDays =
+          totalDays * _expectedDailyHours;
 
       // === حساب الساعات الإضافية (Overtime) ===
       double overtimeHours = 0;
       double overtimeAmount = 0;
-      if (totalHours > expectedHoursForAttendedDays && expectedHoursForAttendedDays > 0) {
+      if (totalHours > expectedHoursForAttendedDays &&
+          expectedHoursForAttendedDays > 0) {
         overtimeHours = totalHours - expectedHoursForAttendedDays;
         overtimeAmount = overtimeHours * hourlyRate * _overtimeMultiplier;
       }
 
       // === حساب الخصومات (ساعات ناقصة) ===
       double deductions = 0;
-      if (totalHours < expectedHoursForAttendedDays && expectedHoursForAttendedDays > 0) {
+      if (totalHours < expectedHoursForAttendedDays &&
+          expectedHoursForAttendedDays > 0) {
         final missedHours = expectedHoursForAttendedDays - totalHours;
         deductions = missedHours * hourlyRate;
       }
 
       // === حساب أيام الغياب ===
-      final int absentDays = (_expectedMonthlyDays - totalDays).clamp(0, _expectedMonthlyDays);
+      final int absentDays = (_expectedMonthlyDays - totalDays).clamp(
+        0,
+        _expectedMonthlyDays,
+      );
 
       final outsideCasesCount = allCases
           .where(
@@ -190,7 +198,8 @@ class PayrollCubit extends Cubit<PayrollState> {
 
       // === حساب صافي الراتب ===
       // الصافي = الأساسي + العمليات الخارجية + الإضافي - الخصومات
-      final double netSalary = baseSalary + outsideCasesFees + overtimeAmount - deductions;
+      final double netSalary =
+          baseSalary + outsideCasesFees + overtimeAmount - deductions;
 
       generated.add(
         PayrollModel(
@@ -268,20 +277,57 @@ class PayrollCubit extends Cubit<PayrollState> {
           updatedAt: DateTime.now(),
         );
       }
+      final previousState = state;
       emit(const PayrollActionSuccess('تم اعتماد الراتب'));
 
-      final currentState = state;
-      if (currentState is PayrollLoaded) {
+      if (previousState is PayrollLoaded) {
         emit(
           PayrollLoaded(
             payrolls: List.from(_currentPayrolls),
-            selectedYear: currentState.selectedYear,
-            selectedMonth: currentState.selectedMonth,
+            selectedYear: previousState.selectedYear,
+            selectedMonth: previousState.selectedMonth,
           ),
         );
       }
     } catch (e) {
       emit(PayrollError('فشل اعتماد الراتب: $e'));
+    }
+  }
+
+  /// اعتماد كافة الرواتب للشهر الحالي - Approve all payrolls for the month
+  Future<void> approveAllPayrolls() async {
+    final currentState = state;
+    if (currentState is! PayrollLoaded || currentState.payrolls.isEmpty) return;
+
+    emit(PayrollLoading());
+    try {
+      for (final payroll in currentState.payrolls) {
+        if (payroll.status == 'draft') {
+          await _payrollRepository.updatePayrollStatus(payroll.id, 'approved');
+        }
+      }
+
+      // إعادة تحميل البيانات لضمان المزامنة
+      await loadPayroll(
+        year: currentState.selectedYear,
+        month: currentState.selectedMonth,
+        force: true,
+      );
+
+      emit(const PayrollActionSuccess('تم اعتماد كافة رواتب الشهر بنجاح'));
+      
+      // Re-emit loaded state from current _currentPayrolls
+      emit(
+        PayrollLoaded(
+          payrolls: List.from(_currentPayrolls),
+          selectedYear: currentState.selectedYear,
+          selectedMonth: currentState.selectedMonth,
+        ),
+      );
+    } catch (e) {
+      emit(PayrollError('فشل اعتماد الرواتب: $e'));
+      // استعادة الحالة السابقة
+      emit(currentState);
     }
   }
 
@@ -297,21 +343,26 @@ class PayrollCubit extends Cubit<PayrollState> {
           updatedAt: DateTime.now(),
         );
       }
+      final previousState = state;
       emit(const PayrollActionSuccess('تم تسجيل الدفع'));
 
-      final currentState = state;
-      if (currentState is PayrollLoaded) {
+      if (previousState is PayrollLoaded) {
         emit(
           PayrollLoaded(
             payrolls: List.from(_currentPayrolls),
-            selectedYear: currentState.selectedYear,
-            selectedMonth: currentState.selectedMonth,
+            selectedYear: previousState.selectedYear,
+            selectedMonth: previousState.selectedMonth,
           ),
         );
       }
     } catch (e) {
       emit(PayrollError('فشل تسجيل الدفع: $e'));
     }
+  }
+
+  /// جلب الحالات الشهرية - Get monthly cases (Public helper)
+  Future<List<CaseModel>> getMonthlyCases(int year, int month) async {
+    return _payrollRepository.getMonthlyCases(year, month);
   }
 
   /// تحديث المكافآت والخصومات يدوياً - Update rewards and deductions manually
@@ -330,9 +381,13 @@ class PayrollCubit extends Cubit<PayrollState> {
           deductions: deductions ?? current.deductions,
           notes: notes ?? current.notes,
         );
-        
+
         // إعادة حساب الصافي - Re-calculate net salary based on model logic
-        final finalNet = updated.baseSalary + updated.bonus + updated.outsideCasesFees - updated.deductions;
+        final finalNet =
+            updated.baseSalary +
+            updated.bonus +
+            updated.outsideCasesFees -
+            updated.deductions;
         final fullyUpdated = updated.copyWith(
           netSalary: double.parse(finalNet.toStringAsFixed(2)),
           updatedAt: DateTime.now(),
@@ -340,16 +395,16 @@ class PayrollCubit extends Cubit<PayrollState> {
 
         await _payrollRepository.updatePayroll(fullyUpdated);
         _currentPayrolls[index] = fullyUpdated;
-        
+
+        final previousState = state;
         emit(const PayrollActionSuccess('تم تحديث تفاصيل الراتب بنجاح'));
-        
-        final currentState = state;
-        if (currentState is PayrollLoaded) {
+
+        if (previousState is PayrollLoaded) {
           emit(
             PayrollLoaded(
               payrolls: List.from(_currentPayrolls),
-              selectedYear: currentState.selectedYear,
-              selectedMonth: currentState.selectedMonth,
+              selectedYear: previousState.selectedYear,
+              selectedMonth: previousState.selectedMonth,
             ),
           );
         }

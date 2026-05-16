@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:equatable/equatable.dart';
 import 'package:new_care/core/enums/case_status.dart';
+import 'package:new_care/core/utils/date_utils.dart';
 
 /// نموذج الخدمة المقدمة - Service Item in a Case
 class ServiceItem extends Equatable {
@@ -181,10 +182,10 @@ class CaseModel extends Equatable {
       suppliesUsed: parsedSupplies,
       totalPrice: (map['totalPrice'] ?? 0).toDouble(),
       discount: (map['discount'] ?? 0).toDouble(),
-      caseDate: DateTime.tryParse(map['caseDate'] ?? '') ?? DateTime.now(),
+      caseDate: AppDateUtils.parseDynamic(map['caseDate']),
       notes: map['notes'] ?? '',
-      createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['updatedAt'] ?? '') ?? DateTime.now(),
+      createdAt: AppDateUtils.parseDynamic(map['createdAt']),
+      updatedAt: AppDateUtils.parseDynamic(map['updatedAt']),
       createdBy: map['createdBy'] ?? '',
     );
   }
