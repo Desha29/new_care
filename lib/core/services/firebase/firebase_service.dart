@@ -792,6 +792,40 @@ class FirebaseService {
     log('[FirebaseService] ✓ All collections cleared');
   }
 
+  /// مسح collection معين بالاسم
+  /// Clear a specific collection by its table name
+  Future<void> clearCollectionByName(String name) async {
+    log('[FirebaseService] Clearing collection by name: $name...');
+    switch (name) {
+      case 'users':
+        await clearCollection(_usersRef);
+        break;
+      case 'cases':
+        await clearCollection(_casesRef);
+        break;
+      case 'inventory':
+        await clearCollection(_inventoryRef);
+        break;
+      case 'procedures':
+        await clearCollection(_proceduresRef);
+        break;
+      case 'shifts':
+        await clearCollection(_shiftsRef);
+        break;
+      case 'attendance':
+        await clearCollection(_attendanceRef);
+        break;
+      case 'payroll':
+        await clearCollection(_payrollRef);
+        break;
+      case 'expenses':
+        await clearCollection(_expensesRef);
+        break;
+      default:
+        throw Exception('Unknown collection name: $name');
+    }
+  }
+
   // ============================================
   // === المساعدات - Helpers ===
   // ============================================

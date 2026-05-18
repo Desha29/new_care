@@ -167,6 +167,159 @@ class SyncManager {
     }
   }
 
+  /// مزامنة فئة معينة - رفع فئة محددة من البيانات المحلية إلى Firestore
+  /// Partial Sync: Upload ONLY a specific table's local records to Firestore
+  Future<void> syncCategory(String tableName) async {
+    if (_isSyncing) return;
+
+    final isConnected = await _connectivityService.checkConnection();
+    if (!isConnected) return;
+
+    _isSyncing = true;
+    log('[SyncManager] Starting partial sync for table "$tableName"...');
+
+    try {
+      final db = await _sqliteService.database;
+
+      switch (tableName) {
+        case 'users':
+          _emitProgress('مسح الموظفين القدامى...', icon: '🗑️', step: 0, total: 3);
+          await _firebaseService.clearCollectionByName('users');
+          final users = await db.query('users');
+          _emitProgress('الموظفين — ${users.length} سجل', icon: '👥', step: 1, total: 3);
+          for (var u in users) {
+            try {
+              final model = UserModel.fromMap(u, u['id'] as String);
+              await _firebaseService.updateUser(model).timeout(const Duration(seconds: 30));
+              await Future.delayed(const Duration(milliseconds: 100));
+            } catch (e) {
+              log('[SyncManager] ❌ Failed to upload user ${u['id']}: $e');
+            }
+          }
+          break;
+        case 'cases':
+          _emitProgress('مسح الحالات القديمة...', icon: '🗑️', step: 0, total: 3);
+          await _firebaseService.clearCollectionByName('cases');
+          final cases = await db.query('cases');
+          _emitProgress('الحالات — ${cases.length} سجل', icon: '🏥', step: 1, total: 3);
+          for (var c in cases) {
+            try {
+              final model = CaseModel.fromMap(c, c['id'] as String);
+              await _firebaseService.updateCase(model).timeout(const Duration(seconds: 30));
+              await Future.delayed(const Duration(milliseconds: 100));
+            } catch (e) {
+              log('[SyncManager] ❌ Failed to upload case ${c['id']}: $e');
+            }
+          }
+          break;
+        case 'inventory':
+          _emitProgress('مسح المخزون القديم...', icon: '🗑️', step: 0, total: 3);
+          await _firebaseService.clearCollectionByName('inventory');
+          final inventory = await db.query('inventory');
+          _emitProgress('المخزون — ${inventory.length} صنف', icon: '📦', step: 1, total: 3);
+          for (var i in inventory) {
+            try {
+              final model = InventoryModel.fromMap(i, i['id'] as String);
+              await _firebaseService.updateInventoryItem(model).timeout(const Duration(seconds: 30));
+              await Future.delayed(const Duration(milliseconds: 100));
+            } catch (e) {
+              log('[SyncManager] ❌ Failed to upload inventory ${i['id']}: $e');
+            }
+          }
+          break;
+        case 'procedures':
+          _emitProgress('مسح الإجراءات القديمة...', icon: '🗑️', step: 0, total: 3);
+          await _firebaseService.clearCollectionByName('procedures');
+          final procedures = await db.query('procedures');
+          _emitProgress('الإجراءات — ${procedures.length} إجراء', icon: '💊', step: 1, total: 3);
+          for (var p in procedures) {
+            try {
+              final model = ProcedureModel.fromMap(p, p['id'] as String);
+              await _firebaseService.updateProcedure(model).timeout(const Duration(seconds: 30));
+              await Future.delayed(const Duration(milliseconds: 100));
+            } catch (e) {
+              log('[SyncManager] ❌ Failed to upload procedure ${p['id']}: $e');
+            }
+          }
+          break;
+        case 'shifts':
+          _emitProgress('مسح الورديات القديمة...', icon: '🗑️', step: 0, total: 3);
+          await _firebaseService.clearCollectionByName('shifts');
+          final shifts = await db.query('shifts');
+          _emitProgress('الورديات — ${shifts.length} وردية', icon: '📅', step: 1, total: 3);
+          for (var s in shifts) {
+            try {
+              final model = ShiftModel.fromMap(s, s['id'] as String);
+              await _firebaseService.updateShift(model).timeout(const Duration(seconds: 30));
+              await Future.delayed(const Duration(milliseconds: 100));
+            } catch (e) {
+              log('[SyncManager] ❌ Failed to upload shift ${s['id']}: $e');
+            }
+          }
+          break;
+        case 'attendance':
+          _emitProgress('مسح الحضور القديم...', icon: '🗑️', step: 0, total: 3);
+          await _firebaseService.clearCollectionByName('attendance');
+          final attendance = await db.query('attendance');
+          _emitProgress('الحضور — ${attendance.length} سجل', icon: '✅', step: 1, total: 3);
+          for (var a in attendance) {
+            try {
+              final model = AttendanceModel.fromMap(a, a['id'] as String);
+              await _firebaseService.checkIn(model).timeout(const Duration(seconds: 30));
+              await Future.delayed(const Duration(milliseconds: 100));
+            } catch (e) {
+              log('[SyncManager] ❌ Failed to upload attendance ${a['id']}: $e');
+            }
+          }
+          break;
+        case 'payroll':
+          _emitProgress('مسح الرواتب القديمة...', icon: '🗑️', step: 0, total: 3);
+          await _firebaseService.clearCollectionByName('payroll');
+          final payroll = await db.query('payroll');
+          _emitProgress('الرواتب — ${payroll.length} سجل', icon: '💰', step: 1, total: 3);
+          for (var p in payroll) {
+            try {
+              final model = PayrollModel.fromMap(p, p['id'] as String);
+              await _firebaseService.updatePayroll(model).timeout(const Duration(seconds: 30));
+              await Future.delayed(const Duration(milliseconds: 100));
+            } catch (e) {
+              log('[SyncManager] ❌ Failed to upload payroll ${p['id']}: $e');
+            }
+          }
+          break;
+        case 'expenses':
+          _emitProgress('مسح المصاريف القديمة...', icon: '🗑️', step: 0, total: 3);
+          await _firebaseService.clearCollectionByName('expenses');
+          final expenses = await db.query('expenses');
+          _emitProgress('المصاريف — ${expenses.length} سجل', icon: '💳', step: 1, total: 3);
+          for (var ex in expenses) {
+            try {
+              final model = ExpenseModel.fromMap(ex, ex['id'] as String);
+              await _firebaseService.updateExpense(model).timeout(const Duration(seconds: 30));
+              await Future.delayed(const Duration(milliseconds: 100));
+            } catch (e) {
+              log('[SyncManager] ❌ Failed to upload expense ${ex['id']}: $e');
+            }
+          }
+          break;
+        default:
+          throw Exception('Unknown table: $tableName');
+      }
+
+      // تنظيف طابور المزامنة الخاص بهذا الجدول
+      _emitProgress('تنظيف الطابور...', icon: '🧹', step: 2, total: 3);
+      await db.delete('pending_sync', where: 'tableName = ?', whereArgs: [tableName]);
+      _emitProgress('تمت مزامنة القسم بنجاح ✓', icon: '🎉', step: 3, total: 3, isDone: true);
+      log('[SyncManager] ✓ Category "$tableName" uploaded & pending queue cleared');
+    } catch (e) {
+      _emitProgress('فشلت المزامنة: $e', icon: '❌', isError: true);
+      log('[SyncManager] Sync category "$tableName" error: $e');
+      rethrow;
+    } finally {
+      _isSyncing = false;
+    }
+  }
+
   /// Alias for high-level services
   Future<void> processQueue() async {
     await _uploadPendingChanges();

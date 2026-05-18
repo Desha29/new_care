@@ -212,6 +212,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
                           shifts: _sqliteShifts,
                           inv: _sqliteInventory,
                           proc: _sqliteProcedures,
+                          isLocal: true,
                         ),
                       ),
                     ],
@@ -371,6 +372,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
     required int shifts,
     required int inv,
     required int proc,
+    bool isLocal = false,
   }) {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -422,6 +424,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
             'الموظفين',
             users,
             AppColors.primary,
+            tableName: isLocal ? 'users' : null,
           ),
           const Divider(height: 16),
           _buildDataRow(
@@ -429,6 +432,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
             'المرضى',
             patients,
             AppColors.info,
+            tableName: isLocal ? 'cases' : null,
           ),
           const Divider(height: 16),
           _buildDataRow(
@@ -436,6 +440,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
             'الورديات',
             shifts,
             AppColors.secondary,
+            tableName: isLocal ? 'shifts' : null,
           ),
           const Divider(height: 16),
           _buildDataRow(
@@ -443,6 +448,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
             'المخزون',
             inv,
             Colors.purple,
+            tableName: isLocal ? 'inventory' : null,
           ),
           const Divider(height: 16),
           _buildDataRow(
@@ -450,13 +456,14 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
             'الإجراءات',
             proc,
             AppColors.success,
+            tableName: isLocal ? 'procedures' : null,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDataRow(IconData icon, String label, int count, Color color) {
+  Widget _buildDataRow(IconData icon, String label, int count, Color color, {String? tableName}) {
     return Row(
       children: [
         Icon(icon, size: 18, color: color.withValues(alpha: 0.7)),
@@ -478,6 +485,32 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
             color: AppColors.textPrimary,
           ),
         ),
+        if (tableName != null) ...[
+          const SizedBox(width: 8),
+          IconButton(
+            constraints: const BoxConstraints(),
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.cloud_upload_rounded, size: 18, color: AppColors.primary),
+            tooltip: 'رفع $label للسحابة',
+            onPressed: () async {
+              try {
+                SyncProgressDialog.show(context, title: 'رفع $label');
+                await SyncManager.instance.syncCategory(tableName);
+                await _loadData();
+                if (mounted) {
+                  UIFeedback.showSuccess(context, 'تمت مزامنة $label بنجاح');
+                }
+              } catch (e) {
+                if (mounted) {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                  UIFeedback.showError(context, 'خطأ في المزامنة: $e');
+                }
+              }
+            },
+          ),
+        ],
       ],
     );
   }
