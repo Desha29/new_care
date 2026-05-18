@@ -24,8 +24,11 @@ class DataStatusScreen extends StatefulWidget {
   State<DataStatusScreen> createState() => _DataStatusScreenState();
 }
 
-class _DataStatusScreenState extends State<DataStatusScreen> {
+class _DataStatusScreenState extends State<DataStatusScreen> with SingleTickerProviderStateMixin {
   bool _isLoading = true;
+
+  // Animation controller
+  late AnimationController _animController;
 
   // Counts
   int _firestoreUsers = 0;
@@ -51,6 +54,12 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
   @override
   void initState() {
     super.initState();
+    
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+
     _loadData();
 
     // الاستماع لتغييرات الحالات - Listen for case changes
@@ -68,6 +77,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
   void dispose() {
     _caseChangeSub?.cancel();
     _dataChangeSub?.cancel();
+    _animController.dispose();
     super.dispose();
   }
 
@@ -108,12 +118,54 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
         _fbWrite = FirebaseService.writeCount;
         _isLoading = false;
       });
+      _animController.forward(from: 0.0);
     } catch (e) {
       if (mounted) {
         UIFeedback.showError(context, 'خطأ في جلب البيانات: $e');
       }
       setState(() => _isLoading = false);
+      _animController.forward(from: 0.0);
     }
+  }
+
+  /// تطبيق تأثير حركة أنيق ومتدرج
+  Widget _animateItem({
+    required Widget child,
+    required double delay,
+  }) {
+    final start = delay;
+    final end = (delay + 0.45).clamp(0.0, 1.0);
+
+    final fade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animController,
+        curve: Interval(start, end, curve: Curves.easeOut),
+      ),
+    );
+
+    final slide = Tween<Offset>(
+      begin: const Offset(0.0, 0.15),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animController,
+        curve: Interval(start, end, curve: Curves.easeOutQuart),
+      ),
+    );
+
+    return AnimatedBuilder(
+      animation: _animController,
+      builder: (context, child) {
+        return Opacity(
+          opacity: fade.value,
+          child: FractionalTranslation(
+            translation: slide.value,
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
   }
 
   /// تحديث الأعداد المحلية فقط (بدون إعادة جلب بيانات السحابة)
@@ -173,54 +225,64 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Column(
                 children: [
-                  _buildSyncDashboard(),
+                  _animateItem(
+                    delay: 0.0,
+                    child: _buildSyncDashboard(),
+                  ),
                   const SizedBox(height: 24),
-                  _buildUsageCard(),
+                  _animateItem(
+                    delay: 0.15,
+                    child: _buildUsageCard(),
+                  ),
                   const SizedBox(height: 24),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _buildDataCard(
-                          title: 'السحابة (Cloud)',
-                          subtitle: 'قاعدة بيانات Firestore Live',
-                          icon: Icons.cloud_outlined,
-                          gradient: const LinearGradient(
-                            colors: [AppColors.primary, AppColors.primaryLight],
+                  _animateItem(
+                    delay: 0.3,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _buildDataCard(
+                            title: 'السحابة (Cloud)',
+                            subtitle: 'قاعدة بيانات Firestore Live',
+                            icon: Icons.cloud_outlined,
+                            gradient: const LinearGradient(
+                              colors: [AppColors.primary, AppColors.primaryLight],
+                            ),
+                            users: _firestoreUsers,
+                            patients: _firestorePatients,
+                            shifts: _firestoreShifts,
+                            inv: _firestoreInventory,
+                            proc: _firestoreProcedures,
                           ),
-                          users: _firestoreUsers,
-                          patients: _firestorePatients,
-                          shifts: _firestoreShifts,
-                          inv: _firestoreInventory,
-                          proc: _firestoreProcedures,
                         ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: _buildDataCard(
-                          title: 'المحلية (Local)',
-                          subtitle: 'قاعدة بيانات SQLite المدمجة',
-                          icon: Icons.cell_tower_rounded,
-                          gradient: const LinearGradient(
-                            colors: [
-                              AppColors.secondary,
-                              AppColors.secondaryDark,
-                            ],
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: _buildDataCard(
+                            title: 'المحلية (Local)',
+                            subtitle: 'قاعدة بيانات SQLite المدمجة',
+                            icon: Icons.cell_tower_rounded,
+                            gradient: const LinearGradient(
+                              colors: [
+                                AppColors.secondary,
+                                AppColors.secondaryDark,
+                              ],
+                            ),
+                            users: _sqliteUsers,
+                            patients: _sqlitePatients,
+                            shifts: _sqliteShifts,
+                            inv: _sqliteInventory,
+                            proc: _sqliteProcedures,
+                            isLocal: true,
                           ),
-                          users: _sqliteUsers,
-                          patients: _sqlitePatients,
-                          shifts: _sqliteShifts,
-                          inv: _sqliteInventory,
-                          proc: _sqliteProcedures,
-                          isLocal: true,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 32),
-                  _buildSyncButton(),
-                  const SizedBox(height: 16),
-                  _buildTestOutsideCaseButton(),
+                  _animateItem(
+                    delay: 0.45,
+                    child: _buildSyncButton(),
+                  ),
                 ],
               ),
             ),
@@ -524,6 +586,8 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
             label: 'مزامنة إجبارية شاملة',
             icon: Icons.cloud_upload_rounded,
             isLoading: _isLoading,
+            height: 56,
+            fontSize: 16,
             onPressed: () async {
               setState(() => _isLoading = true);
               try {
@@ -556,6 +620,8 @@ class _DataStatusScreenState extends State<DataStatusScreen> {
             icon: Icons.cloud_download_rounded,
             color: AppColors.secondary,
             isLoading: _isLoading,
+            height: 56,
+            fontSize: 16,
             onPressed: () async {
               setState(() => _isLoading = true);
               try {

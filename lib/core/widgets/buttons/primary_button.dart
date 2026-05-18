@@ -13,6 +13,8 @@ class PrimaryButton extends StatelessWidget {
   final bool isCompact;
   final Color? color;
   final double? width;
+  final double? height;
+  final double? fontSize;
 
   const PrimaryButton({
     super.key,
@@ -24,6 +26,8 @@ class PrimaryButton extends StatelessWidget {
     this.isCompact = false,
     this.color,
     this.width,
+    this.height,
+    this.fontSize,
   });
 
   @override
@@ -36,8 +40,8 @@ class PrimaryButton extends StatelessWidget {
       children: [
         if (isLoading) ...[
           SizedBox(
-            width: 18,
-            height: 18,
+            width: isCompact ? 16 : 18,
+            height: isCompact ? 16 : 18,
             child: CircularProgressIndicator(
               strokeWidth: 2,
               color: isOutlined ? buttonColor : AppColors.textOnPrimary,
@@ -45,14 +49,21 @@ class PrimaryButton extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
         ] else if (icon != null) ...[
-          Icon(icon, size: isCompact ? 16 : 18),
+          Icon(icon, size: isCompact ? 16 : (fontSize != null ? fontSize! * 1.2 : 18)),
           const SizedBox(width: AppSpacing.sm),
         ],
-        Text(label),
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontWeight: FontWeight.bold,
+            fontSize: fontSize ?? (isCompact ? 13 : 15),
+          ),
+        ),
       ],
     );
 
-    final button = isOutlined
+    Widget button = isOutlined
         ? OutlinedButton(
             onPressed: isLoading ? null : onPressed,
             style: OutlinedButton.styleFrom(
@@ -85,8 +96,8 @@ class PrimaryButton extends StatelessWidget {
             child: child,
           );
 
-    if (width != null) {
-      return SizedBox(width: width, child: button);
+    if (width != null || height != null) {
+      return SizedBox(width: width, height: height, child: button);
     }
     return button;
   }
