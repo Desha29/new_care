@@ -66,7 +66,7 @@ void main() async {
   // تحميل البيانات من السحابة وبدء المستمعين بعد استقرار الواجهة
   // Load data and start listeners after UI is stable to prevent threading issues
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    SyncManager.instance.downloadFromCloud();
+    // SyncManager.instance.downloadFromCloud(); // Disabled: no full cloud download on startup
     OutsideCasesListener.instance.startListening();
 
     // === Real-time Update Listener (10s poll, cost-optimized) ===
