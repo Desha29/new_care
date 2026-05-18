@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../local/sqlite_service.dart';
 import '../notifications/case_change_notifier.dart';
+import '../notifications/data_change_notifier.dart';
 import '../../../features/cases/data/models/case_model.dart';
 
 /// مستمع الحالات الخارجية - Outside Cases Listener
@@ -53,21 +54,50 @@ class OutsideCasesListener {
             final data = doc.data() as Map<String, dynamic>;
             final caseModel = CaseModel.fromMap(data, doc.id);
 
+            // Check inventory availability - تحقق من توفر المستلزمات
+            final inventoryCheck = await _checkInventoryAvailability(caseModel);
+            if (!inventoryCheck['available']) {
+              log(
+                '[OutsideCasesListener] Insufficient inventory for case "${caseModel.patientName}": ${inventoryCheck['message']}',
+              );
+              // لا نحذف الحالة - نتركها في outside_cases لحين توفر المخزون
+              // Skip this case, leave it in outside_cases for retry when inventory is available
+              log(
+                '[OutsideCasesListener] Skipping case "${doc.id}" - will retry when inventory is available',
+              );
+              continue;
+            }
+
             // 1. Save to local SQLite
             await _sqlite.saveCase(caseModel.toSqliteMap());
             log(
               '[OutsideCasesListener] Saved case "${caseModel.patientName}" locally',
             );
 
-            // 2. Delete from outside_cases collection
+            // 2. Deduct inventory - خصم المستلزمات من المخزون
+            for (final supply in caseModel.suppliesUsed) {
+              final inventoryId = supply.inventoryId.isNotEmpty
+                  ? supply.inventoryId
+                  : await _findInventoryIdByName(supply.name);
+              if (inventoryId != null) {
+                await _sqlite.deductInventory(inventoryId, supply.quantity);
+                log(
+                  '[OutsideCasesListener] Deducted ${supply.quantity} of "${supply.name}" from inventory',
+                );
+              }
+            }
+
+            // 3. Delete from outside_cases collection
             await _firestore.collection('outside_cases').doc(doc.id).delete();
             log(
               '[OutsideCasesListener] Deleted case "${doc.id}" from outside_cases',
             );
 
-            // 3. Notify UI to refresh (Cases + Reports screens)
+            // 4. Notify UI to refresh (Cases + Reports + Inventory screens)
             CaseChangeNotifier().notifyCaseAdded(doc.id);
-            // 4. Optionally, re-add to main cases collection for backup (commented out to save Firestore writes)
+            DataChangeNotifier().notifyLocalDataChanged();
+
+            // 5. Re-add to main cases collection for backup
             await _firestore
                 .collection('cases')
                 .doc(doc.id)
@@ -85,6 +115,70 @@ class OutsideCasesListener {
         log('[OutsideCasesListener] Stream error: $error');
       },
     );
+  }
+
+  /// تحقق من توفر المستلزمات - Check if all supplies for a case are available in inventory
+  Future<Map<String, dynamic>> _checkInventoryAvailability(
+    CaseModel caseModel,
+  ) async {
+    if (caseModel.suppliesUsed.isEmpty) {
+      return {'available': true, 'message': 'No supplies required'};
+    }
+
+    try {
+      // Get all current inventory items
+      final allInventory = await _sqlite.getAllInventory();
+
+      // Check each supply used in the case
+      for (final supply in caseModel.suppliesUsed) {
+        // Find the inventory item by name (since inventoryId might not match)
+        final inventoryItem = allInventory.firstWhere(
+          (inv) =>
+              inv['name'] == supply.name || inv['id'] == supply.inventoryId,
+          orElse: () => {},
+        );
+
+        if (inventoryItem.isEmpty) {
+          return {
+            'available': false,
+            'message': 'Supply "${supply.name}" not found in inventory',
+          };
+        }
+
+        final availableQuantity = (inventoryItem['quantity'] ?? 0) as int;
+        if (availableQuantity < supply.quantity) {
+          return {
+            'available': false,
+            'message':
+                'Insufficient quantity for "${supply.name}": need ${supply.quantity}, have $availableQuantity',
+          };
+        }
+      }
+
+      log(
+        '[OutsideCasesListener] Inventory check passed for case "${caseModel.patientName}"',
+      );
+      return {'available': true, 'message': 'All supplies available'};
+    } catch (e) {
+      log('[OutsideCasesListener] Error checking inventory: $e');
+      // If there's an error checking inventory, reject the case to be safe
+      return {'available': false, 'message': 'Error checking inventory: $e'};
+    }
+  }
+
+  /// البحث عن معرف المستلزم بالاسم - Find inventory item ID by name
+  Future<String?> _findInventoryIdByName(String name) async {
+    try {
+      final allInventory = await _sqlite.getAllInventory();
+      final item = allInventory.firstWhere(
+        (inv) => inv['name'] == name,
+        orElse: () => {},
+      );
+      return item.isNotEmpty ? item['id'] as String? : null;
+    } catch (e) {
+      log('[OutsideCasesListener] Error finding inventory by name "$name": $e');
+      return null;
+    }
   }
 
   /// إيقاف الاستماع - Stop listening

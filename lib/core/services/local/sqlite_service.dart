@@ -612,6 +612,12 @@ class SqliteService {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
+  /// جلب جميع المستلزمات - Get all inventory items
+  Future<List<Map<String, dynamic>>> getAllInventory() async {
+    final db = await database;
+    return await db.query('inventory');
+  }
+
   Future<void> deductInventory(String id, int quantity) async {
     final db = await database;
     await db.rawUpdate(

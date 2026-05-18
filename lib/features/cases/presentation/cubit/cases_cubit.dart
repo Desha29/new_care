@@ -20,7 +20,6 @@ class CasesCubit extends Cubit<CasesState> {
   StreamSubscription? _caseChangeSub;
   String? _activeNurseId; // حفظ فلتر الممرض - Store nurse filter for reloads
 
-
   CasesCubit({
     required ICasesRepository casesRepository,
     SyncManager? syncManager,
@@ -50,7 +49,7 @@ class CasesCubit extends Cubit<CasesState> {
         }
         return; // Surgical update done
       }
-      
+
       // Fallback: Full reload with the stored filter if model is missing
       _reloadCases();
     });
@@ -79,7 +78,7 @@ class CasesCubit extends Cubit<CasesState> {
 
   /// تحميل الحالات من الشاشة - Load cases from screen (sets/resets filter)
   Future<void> loadCases({
-    String? nurseId, 
+    String? nurseId,
     bool force = false,
     TimeFilter timeFilter = TimeFilter.all,
     DateTime? customStartDate,
@@ -87,7 +86,7 @@ class CasesCubit extends Cubit<CasesState> {
   }) async {
     _activeNurseId = nurseId;
     await _loadCasesInternal(
-      force: force, 
+      force: force,
       timeFilter: timeFilter,
       customStartDate: customStartDate,
       customEndDate: customEndDate,
@@ -101,12 +100,21 @@ class CasesCubit extends Cubit<CasesState> {
     DateTime? customStartDate,
     DateTime? customEndDate,
   }) async {
-    if (!force && state is CasesLoaded && (state as CasesLoaded).timeFilter == timeFilter && (state as CasesLoaded).customStartDate == customStartDate && (state as CasesLoaded).customEndDate == customEndDate) return;
+    if (!force &&
+        state is CasesLoaded &&
+        (state as CasesLoaded).timeFilter == timeFilter &&
+        (state as CasesLoaded).customStartDate == customStartDate &&
+        (state as CasesLoaded).customEndDate == customEndDate)
+      return;
 
     emit(CasesLoading());
     try {
-      final dateRange = _getDateRange(timeFilter, customStartDate, customEndDate);
-      
+      final dateRange = _getDateRange(
+        timeFilter,
+        customStartDate,
+        customEndDate,
+      );
+
       final result = await _casesRepository.getCasesPaginated(
         nurseId: _activeNurseId,
         startDate: dateRange['start'],
@@ -114,14 +122,16 @@ class CasesCubit extends Cubit<CasesState> {
         limit: 20,
       );
 
-      emit(CasesLoaded(
-        cases: result.items,
-        timeFilter: timeFilter,
-        customStartDate: customStartDate,
-        customEndDate: customEndDate,
-        hasMore: result.hasMore,
-        lastDocument: result.lastDocument,
-      ));
+      emit(
+        CasesLoaded(
+          cases: result.items,
+          timeFilter: timeFilter,
+          customStartDate: customStartDate,
+          customEndDate: customEndDate,
+          hasMore: result.hasMore,
+          lastDocument: result.lastDocument,
+        ),
+      );
     } catch (e) {
       emit(CasesError('خطأ في تحميل الحالات: ${e.toString()}'));
     }
@@ -131,8 +141,11 @@ class CasesCubit extends Cubit<CasesState> {
   Future<void> loadMoreCases() async {
     if (state is! CasesLoaded) return;
     final currentState = state as CasesLoaded;
-    
-    if (currentState.isLoadingMore || !currentState.hasMore || currentState.lastDocument == null) return;
+
+    if (currentState.isLoadingMore ||
+        !currentState.hasMore ||
+        currentState.lastDocument == null)
+      return;
 
     emit(currentState.copyWith(isLoadingMore: true));
     try {
@@ -141,7 +154,7 @@ class CasesCubit extends Cubit<CasesState> {
         currentState.customStartDate,
         currentState.customEndDate,
       );
-      
+
       final result = await _casesRepository.getCasesPaginated(
         nurseId: _activeNurseId,
         startDate: dateRange['start'],
@@ -150,27 +163,35 @@ class CasesCubit extends Cubit<CasesState> {
         limit: 20,
       );
 
-      emit(currentState.copyWith(
-        cases: [...currentState.cases, ...result.items],
-        isLoadingMore: false,
-        hasMore: result.hasMore,
-        lastDocument: result.lastDocument,
-      ));
+      emit(
+        currentState.copyWith(
+          cases: [...currentState.cases, ...result.items],
+          isLoadingMore: false,
+          hasMore: result.hasMore,
+          lastDocument: result.lastDocument,
+        ),
+      );
     } catch (e) {
       log('Error loading more cases: $e');
       emit(currentState.copyWith(isLoadingMore: false));
     }
   }
 
-  Map<String, DateTime?> _getDateRange(TimeFilter filter, [DateTime? customStart, DateTime? customEnd]) {
+  Map<String, DateTime?> _getDateRange(
+    TimeFilter filter, [
+    DateTime? customStart,
+    DateTime? customEnd,
+  ]) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    
+
     switch (filter) {
       case TimeFilter.today:
         return {
           'start': today,
-          'end': today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1)),
+          'end': today
+              .add(const Duration(days: 1))
+              .subtract(const Duration(milliseconds: 1)),
         };
       case TimeFilter.yesterday:
         final yesterday = today.subtract(const Duration(days: 1));
@@ -181,11 +202,15 @@ class CasesCubit extends Cubit<CasesState> {
       case TimeFilter.last7Days:
         return {
           'start': today.subtract(const Duration(days: 7)),
-          'end': today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1)),
+          'end': today
+              .add(const Duration(days: 1))
+              .subtract(const Duration(milliseconds: 1)),
         };
       case TimeFilter.thisMonth:
         final startOfMonth = DateTime(now.year, now.month, 1);
-        final nextMonth = now.month == 12 ? DateTime(now.year + 1, 1, 1) : DateTime(now.year, now.month + 1, 1);
+        final nextMonth = now.month == 12
+            ? DateTime(now.year + 1, 1, 1)
+            : DateTime(now.year, now.month + 1, 1);
         return {
           'start': startOfMonth,
           'end': nextMonth.subtract(const Duration(milliseconds: 1)),
@@ -199,7 +224,15 @@ class CasesCubit extends Cubit<CasesState> {
         if (customStart != null && customEnd != null) {
           return {
             'start': customStart,
-            'end': DateTime(customEnd.year, customEnd.month, customEnd.day, 23, 59, 59, 999),
+            'end': DateTime(
+              customEnd.year,
+              customEnd.month,
+              customEnd.day,
+              23,
+              59,
+              59,
+              999,
+            ),
           };
         }
         return {'start': null, 'end': null};
@@ -207,8 +240,6 @@ class CasesCubit extends Cubit<CasesState> {
         return {'start': null, 'end': null};
     }
   }
-
-
 
   void searchCases(String query) {
     if (state is CasesLoaded) {
@@ -227,7 +258,12 @@ class CasesCubit extends Cubit<CasesState> {
   void filterByProcedure(String? procedureName) {
     if (state is CasesLoaded) {
       final s = state as CasesLoaded;
-      emit(s.copyWith(procedureFilter: procedureName, clearProcedureFilter: procedureName == null));
+      emit(
+        s.copyWith(
+          procedureFilter: procedureName,
+          clearProcedureFilter: procedureName == null,
+        ),
+      );
     }
   }
 
@@ -241,16 +277,21 @@ class CasesCubit extends Cubit<CasesState> {
 
       // 2. التحقق من توفر المخزون قبل الخصم - Validate stock availability
       for (var supply in newCase.suppliesUsed) {
-        final itemMap = await SqliteService.instance.getById('inventory', supply.inventoryId);
+        final itemMap = await SqliteService.instance.getById(
+          'inventory',
+          supply.inventoryId,
+        );
         if (itemMap == null) {
           emit(CasesError('المستلزم "${supply.name}" غير موجود في المخزون'));
           return;
         }
         final currentQty = (itemMap['quantity'] ?? 0) as int;
         if (supply.quantity > currentQty) {
-          emit(CasesError(
-            'الكمية المطلوبة من "${supply.name}" (${supply.quantity}) أكبر من المتوفر في المخزون ($currentQty)',
-          ));
+          emit(
+            CasesError(
+              'الكمية المطلوبة من "${supply.name}" (${supply.quantity}) أكبر من المتوفر في المخزون ($currentQty)',
+            ),
+          );
           return;
         }
       }
@@ -367,12 +408,13 @@ class CasesCubit extends Cubit<CasesState> {
       // Update local state directly (no re-fetch from Firestore)
       if (state is CasesLoaded) {
         final currentState = state as CasesLoaded;
-        final updatedCases = currentState.cases.where((cs) => cs.id != c.id).toList();
+        final updatedCases = currentState.cases
+            .where((cs) => cs.id != c.id)
+            .toList();
         emit(currentState.copyWith(cases: updatedCases));
       }
     } catch (e) {
       emit(CasesError('خطأ في حذف الحالة: ${e.toString()}'));
     }
   }
-
 }
