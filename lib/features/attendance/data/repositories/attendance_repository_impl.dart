@@ -109,8 +109,6 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
         .toList();
   }
 
-
-
   @override
   Stream<List<AttendanceModel>> streamTodayAttendanceRecords() {
     final today = _getTodayString();
@@ -120,12 +118,7 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
 
     return query.snapshots().map((snapshot) {
       final records = snapshot.docs
-          .map(
-            (doc) => AttendanceModel.fromMap(
-              doc.data(),
-              doc.id,
-            ),
-          )
+          .map((doc) => AttendanceModel.fromMap(doc.data(), doc.id))
           .toList();
       // Sort in code instead of Firestore
       records.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
@@ -158,9 +151,11 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
 
   @override
   Stream<List<AttendanceModel>> streamTodayAttendance(String userId) {
+    final today = _getTodayString();
     final query = FirebaseFirestore.instance
         .collection('attendance')
-        .where('userId', isEqualTo: userId);
+        .where('userId', isEqualTo: userId)
+        .where('date', isEqualTo: today);
 
     return _remote.safeStream(query).map((snapshot) {
       final records = snapshot.docs
@@ -192,9 +187,9 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
         .collection('attendance_sessions')
         .doc(sessionId)
         .update({
-      'isActive': false,
-      'endTime': DateTime.now().toIso8601String(),
-    });
+          'isActive': false,
+          'endTime': DateTime.now().toIso8601String(),
+        });
   }
 
   @override
@@ -239,22 +234,30 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
   // === Analytics ===
 
   @override
-  Future<Map<DateTime, int>> getAttendanceStats({int days = 7, String? userId}) async {
+  Future<Map<DateTime, int>> getAttendanceStats({
+    int days = 7,
+    String? userId,
+  }) async {
     final now = DateTime.now();
     final Map<DateTime, int> stats = {};
 
     for (int i = 0; i < days; i++) {
-      final date = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
-      final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      
+      final date = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: i));
+      final dateStr =
+          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
       var query = FirebaseFirestore.instance
           .collection('attendance')
           .where('date', isEqualTo: dateStr);
-      
+
       if (userId != null) {
         query = query.where('userId', isEqualTo: userId);
       }
-          
+
       final snapshot = await query.get();
       stats[date] = snapshot.docs.length;
     }

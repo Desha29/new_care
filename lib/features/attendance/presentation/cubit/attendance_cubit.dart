@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/enums/shift_role.dart';
 import '../../../../core/services/sync/sync_manager.dart';
+import '../../../../core/services/firebase/firebase_service.dart';
 import '../../data/models/attendance_model.dart';
 import '../../data/models/attendance_session_model.dart';
 import '../../domain/repositories/attendance_repository.dart';
@@ -25,6 +26,8 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   StreamSubscription? _currentStatusSub;
   StreamSubscription? _activeSessionSub;
   Timer? _qrRotationTimer;
+  Timer? _statusRefreshTimer;
+  String? _currentUserIdForRefresh;
 
   @override
   Future<void> close() {
@@ -32,21 +35,60 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     _currentStatusSub?.cancel();
     _activeSessionSub?.cancel();
     _qrRotationTimer?.cancel();
+    _statusRefreshTimer?.cancel();
     return super.close();
   }
 
   /// تحميل البيانات الأولية - Initialize attendance module
   void init({String? userId}) {
     loadTodayAttendance(userId: userId);
+    if (userId != null) {
+      // For individual users, also listen to their specific today's status
+      _currentUserIdForRefresh = userId;
+      checkTodayStatus(userId);
+      // checkTodayStatus already sets up the refresh timer
+    }
     loadAnalytics(userId: userId);
     // Only listen to session if specifically needed (e.g. nurse app or explicit admin action)
     // For now, disabling to prevent unnecessary polling/generation on desktop
     // listenToActiveSession();
   }
 
+  /// Start periodic refresh timer for immediate updates
+  void _startStatusRefreshTimer(String userId) {
+    _statusRefreshTimer?.cancel();
+    _statusRefreshTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (_currentUserIdForRefresh == userId && state is AttendanceLoaded) {
+        try {
+          final latest = await _attendanceRepository.getTodayAttendance(userId);
+          final currentState = state as AttendanceLoaded;
+
+          // Only emit if the status changed
+          if (latest?.id != currentState.todayRecord?.id ||
+              latest?.isCheckedIn != currentState.isCheckedIn) {
+            emit(
+              currentState.copyWith(
+                todayRecord: latest,
+                isCheckedIn: latest != null && latest.isCheckedIn,
+              ),
+            );
+          }
+        } catch (e) {
+          // Silent error handling - don't block UI
+        }
+      }
+    });
+  }
+
   /// تحميل جميع سجلات الحضور بصفحات - Load all attendance records paginated
-  Future<void> loadAttendancePaginated({String? userId, bool force = false}) async {
-    if (!force && state is AttendanceLoaded && (state as AttendanceLoaded).records.isNotEmpty) return;
+  Future<void> loadAttendancePaginated({
+    String? userId,
+    bool force = false,
+  }) async {
+    if (!force &&
+        state is AttendanceLoaded &&
+        (state as AttendanceLoaded).records.isNotEmpty)
+      return;
 
     emit(AttendanceLoading());
     try {
@@ -55,12 +97,14 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         limit: 20,
       );
 
-      emit(AttendanceLoaded(
-        records: result.items,
-        hasMore: result.hasMore,
-        lastDocument: result.lastDocument,
-      ));
-      
+      emit(
+        AttendanceLoaded(
+          records: result.items,
+          hasMore: result.hasMore,
+          lastDocument: result.lastDocument,
+        ),
+      );
+
       loadAnalytics();
       listenToActiveSession();
     } catch (e) {
@@ -73,14 +117,19 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   Future<void> loadAnalytics({String? userId}) async {
     if (state is! AttendanceLoaded) return;
     final currentState = state as AttendanceLoaded;
-    
+
     emit(currentState.copyWith(isLoadingStats: true));
     try {
-      final stats = await _attendanceRepository.getAttendanceStats(days: 7, userId: userId);
-      emit((state as AttendanceLoaded).copyWith(
-        stats: stats,
-        isLoadingStats: false,
-      ));
+      final stats = await _attendanceRepository.getAttendanceStats(
+        days: 7,
+        userId: userId,
+      );
+      emit(
+        (state as AttendanceLoaded).copyWith(
+          stats: stats,
+          isLoadingStats: false,
+        ),
+      );
     } catch (e) {
       if (state is AttendanceLoaded) {
         emit((state as AttendanceLoaded).copyWith(isLoadingStats: false));
@@ -92,13 +141,17 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
   void listenToActiveSession() {
     _activeSessionSub?.cancel();
-    _activeSessionSub = _attendanceRepository.streamActiveSession().listen((session) {
+    _activeSessionSub = _attendanceRepository.streamActiveSession().listen((
+      session,
+    ) {
       if (state is AttendanceLoaded) {
         final currentState = state as AttendanceLoaded;
-        emit(currentState.copyWith(
-          activeSession: session,
-          clearActiveSession: session == null,
-        ));
+        emit(
+          currentState.copyWith(
+            activeSession: session,
+            clearActiveSession: session == null,
+          ),
+        );
 
         if (session != null && session.isActive) {
           _startQrRotation(session.id);
@@ -111,7 +164,9 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
   void _startQrRotation(String sessionId) {
     _qrRotationTimer?.cancel();
-    _qrRotationTimer = Timer.periodic(const Duration(seconds: 45), (timer) async {
+    _qrRotationTimer = Timer.periodic(const Duration(seconds: 45), (
+      timer,
+    ) async {
       final newSecret = const Uuid().v4();
       await _attendanceRepository.updateSessionQr(sessionId, newSecret);
     });
@@ -149,8 +204,11 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   Future<void> loadMoreAttendance({String? userId}) async {
     if (state is! AttendanceLoaded) return;
     final currentState = state as AttendanceLoaded;
-    
-    if (currentState.isLoadingMore || !currentState.hasMore || currentState.lastDocument == null) return;
+
+    if (currentState.isLoadingMore ||
+        !currentState.hasMore ||
+        currentState.lastDocument == null)
+      return;
 
     emit(currentState.copyWith(isLoadingMore: true));
     try {
@@ -160,12 +218,14 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         startAfter: currentState.lastDocument,
       );
 
-      emit(currentState.copyWith(
-        records: [...currentState.records, ...result.items],
-        isLoadingMore: false,
-        hasMore: result.hasMore,
-        lastDocument: result.lastDocument,
-      ));
+      emit(
+        currentState.copyWith(
+          records: [...currentState.records, ...result.items],
+          isLoadingMore: false,
+          hasMore: result.hasMore,
+          lastDocument: result.lastDocument,
+        ),
+      );
     } catch (e) {
       emit(currentState.copyWith(isLoadingMore: false));
     }
@@ -197,37 +257,44 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   }
 
   void checkTodayStatus(String userId) {
+    _currentUserIdForRefresh = userId;
+    _statusRefreshTimer?.cancel();
+    // Start immediate periodic refresh
+    _startStatusRefreshTimer(userId);
+
     _currentStatusSub?.cancel();
     _currentStatusSub = _attendanceRepository
         .streamTodayAttendance(userId)
-        .listen((attendanceList) async {
-          final now = DateTime.now();
-          final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-          
-          final attendance = attendanceList.isNotEmpty && attendanceList.first.date == todayStr 
-              ? attendanceList.first 
-              : null;
+        .listen(
+          (attendanceList) {
+            // Stream now returns only today's records filtered by userId
+            final attendance = attendanceList.isNotEmpty
+                ? attendanceList.first
+                : null;
 
-          if (state is AttendanceLoaded) {
-            final s = state as AttendanceLoaded;
-            emit(
-              s.copyWith(
-                todayRecord: attendance,
-                isCheckedIn: attendance != null && attendance.isCheckedIn,
-              ),
-            );
-          } else {
-            final records = await _attendanceRepository
-                .getTodayAttendanceRecords();
-            emit(
-              AttendanceLoaded(
-                records: records,
-                todayRecord: attendance,
-                isCheckedIn: attendance != null && attendance.isCheckedIn,
-              ),
-            );
-          }
-        });
+            if (state is AttendanceLoaded) {
+              final s = state as AttendanceLoaded;
+              emit(
+                s.copyWith(
+                  todayRecord: attendance,
+                  isCheckedIn: attendance != null && attendance.isCheckedIn,
+                ),
+              );
+            } else {
+              emit(
+                AttendanceLoaded(
+                  records: [if (attendance != null) attendance],
+                  todayRecord: attendance,
+                  isCheckedIn: attendance != null && attendance.isCheckedIn,
+                ),
+              );
+            }
+          },
+          onError: (e) {
+            // If stream errors, log it but don't emit error to avoid blocking UI
+            print('Error in checkTodayStatus stream: $e');
+          },
+        );
   }
 
   void searchAttendance(String query) {
@@ -261,12 +328,16 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       }
 
       if (session.qrSecret != secret) {
-        emit(const AttendanceError('رمز QR منتهي الصلاحية، يرجى المسح مرة أخرى'));
+        emit(
+          const AttendanceError('رمز QR منتهي الصلاحية، يرجى المسح مرة أخرى'),
+        );
         loadTodayAttendance();
         return;
       }
 
-      final existing = await _attendanceRepository.getTodayAttendance(targetUserId);
+      final existing = await _attendanceRepository.getTodayAttendance(
+        targetUserId,
+      );
       if (existing != null && !existing.isCheckedOut) {
         emit(const AttendanceError('الموظف لديه وردية نشطة حالياً'));
         loadTodayAttendance();
@@ -274,7 +345,8 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       }
 
       final now = DateTime.now();
-      final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final today =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
       // Calculate lateness (example: if after 9:00 AM)
       int delay = 0;
@@ -295,7 +367,16 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         delayMinutes: delay,
       );
 
+      // Save locally and queue for sync
       await _syncManager.saveAttendanceWithSync(attendance);
+
+      // Immediately sync to Firebase so user sees it on their account
+      try {
+        await FirebaseService.instance.checkIn(attendance);
+      } catch (e) {
+        print('Firebase sync error (will retry): $e');
+      }
+
       emit(AttendanceCheckedIn(attendance));
       loadTodayAttendance();
       loadAnalytics();
@@ -338,8 +419,9 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   }) async {
     try {
       final now = DateTime.now();
-      final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      
+      final today =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
       final attendance = AttendanceModel(
         id: const Uuid().v4(),
         userId: userId,
@@ -350,6 +432,14 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       );
 
       await _syncManager.saveAttendanceWithSync(attendance);
+
+      // Immediately sync to Firebase so user sees it on their account
+      try {
+        await FirebaseService.instance.checkIn(attendance);
+      } catch (e) {
+        print('Firebase sync error (will retry): $e');
+      }
+
       emit(AttendanceCheckedIn(attendance));
       loadTodayAttendance();
     } catch (e) {
@@ -373,7 +463,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       final now = DateTime.now();
       int earlyLeave = 0;
       AttendanceStatus status = AttendanceStatus.checkedOut;
-      
+
       // Example early leave: if before 4:00 PM
       if (now.hour < 16) {
         earlyLeave = (16 - now.hour) * 60 - now.minute;
@@ -381,7 +471,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       }
 
       await _attendanceRepository.checkOut(attendance.id);
-      
+
       final updatedRecord = attendance.copyWith(
         checkOutTime: now,
         status: status,
@@ -394,6 +484,13 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         docId: attendance.id,
         data: updatedRecord.toMap(),
       );
+
+      // Immediately sync to Firebase so user sees the updated status on their account
+      try {
+        await FirebaseService.instance.checkIn(updatedRecord);
+      } catch (e) {
+        print('Firebase sync error (will retry): $e');
+      }
 
       emit(AttendanceCheckedOut(updatedRecord));
       loadTodayAttendance();
@@ -409,41 +506,62 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     try {
       if (user.role.isSuperAdmin || user.role.isAdmin) {
         return const AccessVerificationResult(
-          hasShift: true, isCheckedIn: true, isCorrectDevice: true, isGranted: true, message: 'وصول كامل للمشرفين',
+          hasShift: true,
+          isCheckedIn: true,
+          isCorrectDevice: true,
+          isGranted: true,
+          message: 'وصول كامل للمشرفين',
         );
       }
 
-      final attendance = await _attendanceRepository.getTodayAttendance(user.id);
+      final attendance = await _attendanceRepository.getTodayAttendance(
+        user.id,
+      );
       final isCheckedIn = attendance != null && attendance.isCheckedIn;
 
       if (!isCheckedIn) {
         return AccessVerificationResult(
-          hasShift: true, isCheckedIn: false, isCorrectDevice: true, isGranted: false, message: 'يجب تسجيل الحضور أولاً',
+          hasShift: true,
+          isCheckedIn: false,
+          isCorrectDevice: true,
+          isGranted: false,
+          message: 'يجب تسجيل الحضور أولاً',
         );
       }
 
       return const AccessVerificationResult(
-        hasShift: true, isCheckedIn: true, isCorrectDevice: true, isGranted: true, message: 'تم التحقق بنجاح',
+        hasShift: true,
+        isCheckedIn: true,
+        isCorrectDevice: true,
+        isGranted: true,
+        message: 'تم التحقق بنجاح',
       );
     } catch (e) {
       return AccessVerificationResult(
-        hasShift: false, isCheckedIn: false, isCorrectDevice: false, isGranted: false, message: 'خطأ في التحقق: ${e.toString()}',
+        hasShift: false,
+        isCheckedIn: false,
+        isCorrectDevice: false,
+        isGranted: false,
+        message: 'خطأ في التحقق: ${e.toString()}',
       );
     }
   }
 
   /// الحصول على بيانات التقرير الشهري - Get monthly report data
-  Future<Map<String, dynamic>?> getMonthlyReportData(int year, int month) async {
+  Future<Map<String, dynamic>?> getMonthlyReportData(
+    int year,
+    int month,
+  ) async {
     try {
-      final records = await _attendanceRepository.getMonthlyAttendanceRecords(year, month);
+      final records = await _attendanceRepository.getMonthlyAttendanceRecords(
+        year,
+        month,
+      );
       if (records.isEmpty) return null;
 
       // We might also need shifts for context in the report
       // But for now, returning records is the priority
-      return {
-        'records': records,
-        'shifts': <ShiftModel>[], 
-      };
+      return {'records': records, 'shifts': <ShiftModel>[]};
     } catch (e) {
       return null;
     }

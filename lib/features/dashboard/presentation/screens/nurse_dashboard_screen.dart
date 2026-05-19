@@ -31,7 +31,13 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
     super.initState();
     final user = context.read<AuthCubit>().currentUser;
     if (user != null) {
+      // Initialize dashboard data
       context.read<DashboardCubit>().loadNurseDashboardData(user.id);
+
+      // Initialize attendance listener for the nurse's account
+      context.read<AttendanceCubit>().init(userId: user.id);
+      // Also check today's status for real-time updates
+      context.read<AttendanceCubit>().checkTodayStatus(user.id);
     }
   }
 
@@ -60,10 +66,15 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
             body: RefreshIndicator(
               onRefresh: () async {
                 if (user != null) {
-                  return context.read<DashboardCubit>().loadNurseDashboardData(
+                  await context.read<DashboardCubit>().loadNurseDashboardData(
                     user.id,
                     force: true,
                   );
+                  // Also refresh attendance data when user pulls to refresh
+                  context.read<AttendanceCubit>().loadTodayAttendance(
+                    userId: user.id,
+                  );
+                  context.read<AttendanceCubit>().checkTodayStatus(user.id);
                 }
               },
               child: SingleChildScrollView(
@@ -83,7 +94,10 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
                           // Reactive Stats
                           BlocBuilder<CasesCubit, CasesState>(
                             builder: (context, casesState) {
-                              return BlocBuilder<AttendanceCubit, AttendanceState>(
+                              return BlocBuilder<
+                                AttendanceCubit,
+                                AttendanceState
+                              >(
                                 builder: (context, attState) {
                                   return _buildStaffStats(
                                     nurseData,
@@ -151,96 +165,6 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
     );
   }
 
-  void _showPersonalQr(UserModel user) {
-    showDialog(
-      context: context,
-      builder: (context) => DefaultTabController(
-        length: 2,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          titlePadding: EdgeInsets.zero,
-          title: Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 20, bottom: 8),
-                child: Text(
-                  'كودي الشخصي',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-              ),
-              TabBar(
-                labelColor: AppColors.primary,
-                unselectedLabelColor: AppColors.textSecondary,
-                indicatorColor: AppColors.primary,
-                labelStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
-                tabs: const [
-                  Tab(text: 'تسجيل حضور'),
-                  Tab(text: 'تسجيل انصراف'),
-                ],
-              ),
-            ],
-          ),
-          content: SizedBox(
-            width: 300,
-            height: 320,
-            child: TabBarView(
-              children: [
-                _buildQrTab(user, 'ATTEND'),
-                _buildQrTab(user, 'DEPARTURE'),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إغلاق', style: TextStyle(fontFamily: 'Cairo')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQrTab(UserModel user, String type) {
-    final qrData = 'NEWCARE_$type:${user.id}:${user.name}';
-    
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Image.network(
-            'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=$qrData',
-            width: 180,
-            height: 180,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          type == 'ATTEND' ? 'كود الحضور' : 'كود الانصراف',
-          style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-        ),
-        const Text(
-          'أظهر الكود للمشرف للمسح',
-          style: TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary),
-        ),
-      ],
-    );
-  }
-
   Widget _buildDateChip() {
     final now = DateTime.now();
     return Container(
@@ -291,7 +215,7 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
 
       outsideCasesMonth = casesState.cases.where((c) {
         return c.nurseId == user?.id &&
-            c.caseType.value == 'home_visit' && 
+            c.caseType.value == 'home_visit' &&
             c.caseDate.year == now.year &&
             c.caseDate.month == now.month;
       }).length;
@@ -300,7 +224,8 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth > 800;
-        final isTablet = constraints.maxWidth > 500 && constraints.maxWidth <= 800;
+        final isTablet =
+            constraints.maxWidth > 500 && constraints.maxWidth <= 800;
 
         return GridView.count(
           shrinkWrap: true,
@@ -440,8 +365,8 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: isCheckedIn 
-                  ? [AppColors.primary, AppColors.primaryDark] 
+              colors: isCheckedIn
+                  ? [AppColors.primary, AppColors.primaryDark]
                   : [Colors.grey[800]!, Colors.black],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -449,7 +374,8 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: (isCheckedIn ? AppColors.primary : Colors.black).withValues(alpha: 0.3),
+                color: (isCheckedIn ? AppColors.primary : Colors.black)
+                    .withValues(alpha: 0.3),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
               ),
@@ -472,9 +398,9 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      isCheckedIn 
+                      isCheckedIn
                           ? 'بدأت العمل الساعة ${DateFormat('hh:mm a', 'ar').format(checkInTime!)}'
-                          : 'برجاء استخدام كود QR لتسجيل حضورك',
+                          : 'لم يتم تسجيل الحضور بعد',
                       style: TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 13,
@@ -484,20 +410,6 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
                   ],
                 ),
               ),
-              if (!isCheckedIn)
-                ElevatedButton(
-                  onPressed: () {
-                    final user = context.read<AuthCubit>().currentUser;
-                    if (user != null) _showPersonalQr(user);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
-                  child: const Text('تسجيل حضور', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
-                ),
             ],
           ),
         );
@@ -561,7 +473,11 @@ class _NurseDashboardScreenState extends State<NurseDashboardScreen> {
               ],
             ),
           ),
-          const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textHint),
+          const Icon(
+            Icons.arrow_forward_ios_rounded,
+            size: 14,
+            color: AppColors.textHint,
+          ),
         ],
       ),
     );
