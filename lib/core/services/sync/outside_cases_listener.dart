@@ -34,9 +34,9 @@ class OutsideCasesListener {
       stream = query.snapshots();
     } else {
       // Poll every 10 seconds on Windows
-      stream = Stream.periodic(const Duration(seconds: 10))
-          .asyncMap((_) => query.get())
-          .asBroadcastStream();
+      stream = Stream.periodic(
+        const Duration(seconds: 10),
+      ).asyncMap((_) => query.get()).asBroadcastStream();
     }
 
     _subscription = stream.listen(
@@ -44,7 +44,9 @@ class OutsideCasesListener {
         if (snapshot.docs.isEmpty || _isProcessing) return;
 
         _isProcessing = true;
-        log('[OutsideCasesListener] Found ${snapshot.docs.length} outside case(s), processing...');
+        log(
+          '[OutsideCasesListener] Found ${snapshot.docs.length} outside case(s), processing...',
+        );
 
         for (final doc in snapshot.docs) {
           try {
@@ -53,14 +55,23 @@ class OutsideCasesListener {
 
             // 1. Save to local SQLite
             await _sqlite.saveCase(caseModel.toSqliteMap());
-            log('[OutsideCasesListener] Saved case "${caseModel.patientName}" locally');
+            log(
+              '[OutsideCasesListener] Saved case "${caseModel.patientName}" locally',
+            );
 
             // 2. Delete from outside_cases collection
             await _firestore.collection('outside_cases').doc(doc.id).delete();
-            log('[OutsideCasesListener] Deleted case "${doc.id}" from outside_cases');
+            log(
+              '[OutsideCasesListener] Deleted case "${doc.id}" from outside_cases',
+            );
 
             // 3. Notify UI to refresh (Cases + Reports screens)
             CaseChangeNotifier().notifyCaseAdded(doc.id);
+            // 4. Optionally, re-add to main cases collection for backup (commented out to save Firestore writes)
+            await _firestore
+                .collection('cases')
+                .doc(doc.id)
+                .set(caseModel.toMap());
           } catch (e) {
             log('[OutsideCasesListener] Error processing case ${doc.id}: $e');
           }
