@@ -63,4 +63,7 @@ abstract class IAttendanceRepository {
 
   /// جلب إحصائيات الحضور للأيام الأخيرة - Get attendance stats for last X days
   Future<Map<DateTime, int>> getAttendanceStats({int days = 7, String? userId});
+
+  /// حذف سجل حضور - Delete an attendance record
+  Future<void> deleteAttendance(String id);
 }

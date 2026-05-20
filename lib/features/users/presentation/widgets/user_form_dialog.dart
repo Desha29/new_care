@@ -36,6 +36,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _passCtrl;
   late final TextEditingController _salaryCtrl;
+  late final TextEditingController _dailyWorkHoursCtrl;
   late UserRole _role;
 
   bool get _isEdit => widget.user != null;
@@ -50,6 +51,9 @@ class _UserFormDialogState extends State<UserFormDialog> {
     _salaryCtrl = TextEditingController(
       text: widget.user != null ? widget.user!.salary.toStringAsFixed(0) : '3000',
     );
+    _dailyWorkHoursCtrl = TextEditingController(
+      text: widget.user != null ? widget.user!.dailyWorkHours.toStringAsFixed(0) : '8',
+    );
     _role = widget.user?.role ?? UserRole.nurse;
   }
 
@@ -60,6 +64,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
     _phoneCtrl.dispose();
     _passCtrl.dispose();
     _salaryCtrl.dispose();
+    _dailyWorkHoursCtrl.dispose();
     super.dispose();
   }
 
@@ -77,12 +82,16 @@ class _UserFormDialogState extends State<UserFormDialog> {
           final salary = _role == UserRole.nurse 
               ? (double.tryParse(_salaryCtrl.text.trim()) ?? widget.user!.salary) 
               : 0.0;
+          final dailyWorkHours = _role == UserRole.nurse
+              ? (double.tryParse(_dailyWorkHoursCtrl.text.trim()) ?? widget.user!.dailyWorkHours)
+              : 8.0;
           final updatedUser = widget.user!.copyWith(
             name: _nameCtrl.text.trim(),
             email: email,
             phone: _phoneCtrl.text.trim(),
             role: _role,
             salary: salary,
+            dailyWorkHours: dailyWorkHours,
             updatedAt: DateTime.now(),
           );
           await repo.updateUser(updatedUser);
@@ -95,6 +104,9 @@ class _UserFormDialogState extends State<UserFormDialog> {
           final salary = _role == UserRole.nurse 
               ? (double.tryParse(_salaryCtrl.text.trim()) ?? 3000.0) 
               : 0.0;
+          final dailyWorkHours = _role == UserRole.nurse
+              ? (double.tryParse(_dailyWorkHoursCtrl.text.trim()) ?? 8.0)
+              : 8.0;
           final newUser = UserModel(
             id: uid,
             name: _nameCtrl.text.trim(),
@@ -102,6 +114,7 @@ class _UserFormDialogState extends State<UserFormDialog> {
             phone: _phoneCtrl.text.trim(),
             role: _role,
             salary: salary,
+            dailyWorkHours: dailyWorkHours,
             isActive: true,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
@@ -227,6 +240,16 @@ class _UserFormDialogState extends State<UserFormDialog> {
                               dir: TextDirection.ltr,
                               isRequired: true,
                               hint: 'مثال: 3000',
+                              isNumber: true,
+                            ),
+                            const SizedBox(height: 12),
+                            _field(
+                              'ساعات العمل اليومية المخصصة (ساعة)',
+                              _dailyWorkHoursCtrl,
+                              Icons.timer_rounded,
+                              dir: TextDirection.ltr,
+                              isRequired: true,
+                              hint: 'مثال: 8',
                               isNumber: true,
                             ),
                           ],

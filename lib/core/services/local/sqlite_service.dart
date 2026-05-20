@@ -27,7 +27,7 @@ class SqliteService {
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 20, // Added paymentMethod to cases
+        version: 21, // Added dailyWorkHours to users
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -58,6 +58,7 @@ class SqliteService {
         isActive INTEGER DEFAULT 1,
         deviceId TEXT DEFAULT '',
         salary REAL DEFAULT 3000.0,
+        dailyWorkHours REAL DEFAULT 8.0,
         passwordHash TEXT DEFAULT '',
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
@@ -413,6 +414,11 @@ class SqliteService {
     if (oldVersion < 20) {
       try {
         await db.execute("ALTER TABLE cases ADD COLUMN paymentMethod TEXT DEFAULT 'cash'");
+      } catch (e) { /* column may already exist */ }
+    }
+    if (oldVersion < 21) {
+      try {
+        await db.execute("ALTER TABLE users ADD COLUMN dailyWorkHours REAL DEFAULT 8.0");
       } catch (e) { /* column may already exist */ }
     }
   }

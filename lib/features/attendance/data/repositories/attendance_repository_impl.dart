@@ -1,80 +1,84 @@
+import 'dart:developer';
 import '../../../../core/services/firebase/firebase_service.dart';
 import '../../../../core/services/local/sqlite_service.dart';
-import '../../../../core/services/sync/sync_manager.dart';
 import '../../domain/repositories/attendance_repository.dart';
 import '../models/attendance_model.dart';
 import '../models/attendance_session_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../auth/data/models/user_model.dart';
+import '../../../../core/enums/shift_role.dart';
 
-/// تنفيذ مستودع الحالات (الجيل الثاني) - Attendance Repository Implementation v2
-/// Robust, offline-first attendance tracking.
+/// تنفيذ مستودع الحضور - Firestore-first with real-time listening
+/// كل العمليات تتم على Firestore مباشرة مع real-time updates
 class AttendanceRepositoryImpl implements IAttendanceRepository {
   final _local = SqliteService.instance;
   final _remote = FirebaseService.instance;
-  final _sync = SyncManager.instance;
+  final _firestore = FirebaseFirestore.instance;
+
+  // كاش للمستخدمين عشان نمنع قراءات متكررة من Firestore
+  final Map<String, UserModel> _usersCache = {};
+  DateTime? _usersCacheTime;
 
   @override
   Future<void> checkIn(AttendanceModel attendance) async {
-    // 1. Save locally
-    await _local.insert('attendance', attendance.toSqliteMap());
-    // 2. Queue for sync
-    await _sync.enqueue(
-      tableName: 'attendance',
-      operation: 'create',
-      docId: attendance.id,
-      data: attendance.toMap(),
-    );
+    // 1. Save to Firestore directly
+    await _remote.checkIn(attendance);
+    // 2. Also save locally for offline backup
+    try {
+      await _local.insert('attendance', attendance.toSqliteMap());
+    } catch (e) {
+      log('[AttendanceRepo] Local backup error: $e');
+    }
   }
 
   @override
   Future<void> checkOut(String attendanceId) async {
-    // 1. Update locally
-    final localRecord = await _local.getById('attendance', attendanceId);
-    if (localRecord != null) {
-      final updated = Map<String, dynamic>.from(localRecord);
-      updated['checkOutTime'] = DateTime.now().toIso8601String();
-      updated['status'] = 'checked_out';
-      await _local.insert('attendance', updated);
+    // 1. Update on Firestore directly
+    await _remote.checkOut(attendanceId);
+    // 2. Also update locally for offline backup
+    try {
+      final localRecord = await _local.getById('attendance', attendanceId);
+      if (localRecord != null) {
+        final updated = Map<String, dynamic>.from(localRecord);
+        updated['checkOutTime'] = DateTime.now().toIso8601String();
+        updated['status'] = 'checked_out';
+        await _local.insert('attendance', updated);
+      }
+    } catch (e) {
+      log('[AttendanceRepo] Local backup error: $e');
     }
-
-    // 2. Queue for sync
-    await _sync.enqueue(
-      tableName: 'attendance',
-      operation: 'update',
-      docId: attendanceId,
-      data: {}, // checkOut logic in SyncManager handles timestamp
-    );
   }
 
   @override
   Future<AttendanceModel?> getTodayAttendance(String userId) async {
-    // Check local first
-    final db = await _local.database;
-    final today = DateTime.now();
-    final todayStr =
-        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-
-    final results = await db.query(
-      'attendance',
-      where: 'userId = ? AND date = ?',
-      whereArgs: [userId, todayStr],
-      orderBy: 'checkInTime DESC',
-      limit: 1,
-    );
-
-    if (results.isNotEmpty) {
-      return AttendanceModel.fromMap(
-        results.first,
-        results.first['id'] as String,
+    // Firestore first
+    try {
+      final record = await _remote.getTodayAttendance(userId);
+      if (record != null) {
+        return await _checkAndAutoCheckout(record);
+      }
+      return null;
+    } catch (e) {
+      log('[AttendanceRepo] Firestore error, falling back to local: $e');
+      // Fallback to local if Firestore fails
+      final db = await _local.database;
+      final todayStr = _getTodayString();
+      final results = await db.query(
+        'attendance',
+        where: 'userId = ? AND date = ?',
+        whereArgs: [userId, todayStr],
+        orderBy: 'checkInTime DESC',
+        limit: 1,
       );
+      if (results.isNotEmpty) {
+        final record = AttendanceModel.fromMap(
+          results.first,
+          results.first['id'] as String,
+        );
+        return await _checkAndAutoCheckout(record);
+      }
+      return null;
     }
-
-    // Fallback to remote if online
-    final remote = await _remote.getTodayAttendance(userId);
-    if (remote != null) {
-      await _local.insert('attendance', remote.toSqliteMap());
-    }
-    return remote;
   }
 
   @override
@@ -88,41 +92,63 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
     int year,
     int month,
   ) async {
-    // For reports, we might want to fetch from remote to ensure full data
     return await _remote.getMonthlyAttendanceRecords(year, month);
   }
 
   @override
   Future<List<AttendanceModel>> getTodayAttendanceRecords() async {
-    final db = await _local.database;
-    final today = DateTime.now();
-    final todayStr =
-        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    // Firestore first
+    try {
+      final todayStr = _getTodayString();
+      final snapshot = await _firestore
+          .collection('attendance')
+          .where('date', isEqualTo: todayStr)
+          .get();
 
-    final results = await db.query(
-      'attendance',
-      where: 'date = ?',
-      whereArgs: [todayStr],
-    );
-    return results
-        .map((m) => AttendanceModel.fromMap(m, m['id'] as String))
-        .toList();
+      final List<AttendanceModel> records = [];
+      for (final doc in snapshot.docs) {
+        final record = AttendanceModel.fromMap(doc.data(), doc.id);
+        records.add(await _checkAndAutoCheckout(record));
+      }
+      records.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
+      return records;
+    } catch (e) {
+      log('[AttendanceRepo] Firestore error, falling back to local: $e');
+      // Fallback to local
+      final db = await _local.database;
+      final todayStr = _getTodayString();
+      final results = await db.query(
+        'attendance',
+        where: 'date = ?',
+        whereArgs: [todayStr],
+      );
+      final List<AttendanceModel> records = [];
+      for (final m in results) {
+        final record = AttendanceModel.fromMap(m, m['id'] as String);
+        records.add(await _checkAndAutoCheckout(record));
+      }
+      return records;
+    }
   }
 
   @override
   Stream<List<AttendanceModel>> streamTodayAttendanceRecords() {
     final today = _getTodayString();
-    final query = FirebaseFirestore.instance
+    final query = _firestore
         .collection('attendance')
         .where('date', isEqualTo: today);
 
-    return query.snapshots().map((snapshot) {
+    return query.snapshots().asyncMap((snapshot) async {
       final records = snapshot.docs
           .map((doc) => AttendanceModel.fromMap(doc.data(), doc.id))
           .toList();
-      // Sort in code instead of Firestore
-      records.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
-      return records;
+
+      final List<AttendanceModel> processed = [];
+      for (final r in records) {
+        processed.add(await _checkAndAutoCheckout(r));
+      }
+      processed.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
+      return processed;
     });
   }
 
@@ -152,30 +178,113 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
   @override
   Stream<List<AttendanceModel>> streamTodayAttendance(String userId) {
     final today = _getTodayString();
-    final query = FirebaseFirestore.instance
+    final query = _firestore
         .collection('attendance')
         .where('userId', isEqualTo: userId)
         .where('date', isEqualTo: today);
 
-    return _remote.safeStream(query).map((snapshot) {
+    return query.snapshots().asyncMap((snapshot) async {
       final records = snapshot.docs
-          .map(
-            (doc) => AttendanceModel.fromMap(
-              doc.data() as Map<String, dynamic>,
-              doc.id,
-            ),
-          )
+          .map((doc) => AttendanceModel.fromMap(doc.data(), doc.id))
           .toList();
-      records.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
-      return records;
+
+      final List<AttendanceModel> processed = [];
+      for (final r in records) {
+        processed.add(await _checkAndAutoCheckout(r));
+      }
+      processed.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
+      return processed;
     });
+  }
+
+  /// جلب بيانات المستخدم من Firestore أو الكاش
+  Future<UserModel?> _getUserData(String userId) async {
+    // تحقق من الكاش أولاً (صالح لمدة 5 دقائق)
+    if (_usersCacheTime != null &&
+        DateTime.now().difference(_usersCacheTime!).inMinutes < 5 &&
+        _usersCache.containsKey(userId)) {
+      return _usersCache[userId];
+    }
+
+    try {
+      // جلب من Firestore
+      final user = await _remote.getUser(userId);
+      if (user != null) {
+        _usersCache[userId] = user;
+        _usersCacheTime = DateTime.now();
+      }
+      return user;
+    } catch (e) {
+      // Fallback to local SQLite
+      try {
+        final localRecord = await _local.getUser(userId);
+        if (localRecord != null) {
+          return UserModel.fromSqliteMap(localRecord);
+        }
+      } catch (_) {}
+      return null;
+    }
+  }
+
+  /// يتحقق مما إذا كان الموظف قد أكمل ساعات عمله اليومية المخصصة ليقوم بالانصراف تلقائياً
+  /// Auto-checkout: checks if nurse exceeded dailyWorkHours and auto checks them out
+  Future<AttendanceModel> _checkAndAutoCheckout(AttendanceModel record) async {
+    if (!record.isCheckedIn) return record;
+
+    final user = await _getUserData(record.userId);
+    if (user == null) return record;
+
+    final elapsedHours =
+        DateTime.now().difference(record.checkInTime).inMinutes / 60.0;
+
+    if (elapsedHours >= user.dailyWorkHours) {
+      final checkoutTime = record.checkInTime.add(
+        Duration(minutes: (user.dailyWorkHours * 60).round()),
+      );
+
+      int earlyLeave = 0;
+      if (checkoutTime.hour < 16) {
+        earlyLeave = (16 - checkoutTime.hour) * 60 - checkoutTime.minute;
+      }
+
+      final updated = record.copyWith(
+        checkOutTime: checkoutTime,
+        status: AttendanceStatus.checkedOut,
+        earlyLeaveMinutes: earlyLeave,
+      );
+
+      // 1. Update on Firestore directly
+      try {
+        await _firestore.collection('attendance').doc(record.id).update({
+          'checkOutTime': checkoutTime.toIso8601String(),
+          'status': 'checked_out',
+          'earlyLeaveMinutes': earlyLeave,
+        });
+        log(
+          '[AttendanceRepo] ✓ Auto-checkout for ${record.userName} after ${user.dailyWorkHours}h',
+        );
+      } catch (e) {
+        log('[AttendanceRepo] Auto-checkout Firestore error: $e');
+      }
+
+      // 2. Also update locally for backup
+      try {
+        await _local.insert('attendance', updated.toSqliteMap());
+      } catch (e) {
+        log('[AttendanceRepo] Auto-checkout local error: $e');
+      }
+
+      return updated;
+    }
+
+    return record;
   }
 
   // === Session Management ===
 
   @override
   Future<void> startSession(AttendanceSessionModel session) async {
-    await FirebaseFirestore.instance
+    await _firestore
         .collection('attendance_sessions')
         .doc(session.id)
         .set(session.toMap());
@@ -183,18 +292,15 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
 
   @override
   Future<void> endSession(String sessionId) async {
-    await FirebaseFirestore.instance
-        .collection('attendance_sessions')
-        .doc(sessionId)
-        .update({
-          'isActive': false,
-          'endTime': DateTime.now().toIso8601String(),
-        });
+    await _firestore.collection('attendance_sessions').doc(sessionId).update({
+      'isActive': false,
+      'endTime': DateTime.now().toIso8601String(),
+    });
   }
 
   @override
   Future<AttendanceSessionModel?> getActiveSession() async {
-    final snapshot = await FirebaseFirestore.instance
+    final snapshot = await _firestore
         .collection('attendance_sessions')
         .where('isActive', isEqualTo: true)
         .limit(1)
@@ -209,7 +315,7 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
 
   @override
   Stream<AttendanceSessionModel?> streamActiveSession() {
-    final query = FirebaseFirestore.instance
+    final query = _firestore
         .collection('attendance_sessions')
         .where('isActive', isEqualTo: true)
         .limit(1);
@@ -225,10 +331,9 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
 
   @override
   Future<void> updateSessionQr(String sessionId, String qrSecret) async {
-    await FirebaseFirestore.instance
-        .collection('attendance_sessions')
-        .doc(sessionId)
-        .update({'qrSecret': qrSecret});
+    await _firestore.collection('attendance_sessions').doc(sessionId).update({
+      'qrSecret': qrSecret,
+    });
   }
 
   // === Analytics ===
@@ -250,7 +355,7 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
       final dateStr =
           '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
-      var query = FirebaseFirestore.instance
+      var query = _firestore
           .collection('attendance')
           .where('date', isEqualTo: dateStr);
 
@@ -263,5 +368,16 @@ class AttendanceRepositoryImpl implements IAttendanceRepository {
     }
 
     return stats;
+  }
+
+  @override
+  Future<void> deleteAttendance(String id) async {
+    try {
+      await _firestore.collection('attendance').doc(id).delete();
+      log('[AttendanceRepo] ✓ Deleted attendance record $id from Firestore');
+    } catch (e) {
+      log('[AttendanceRepo] Error deleting attendance record: $e');
+      rethrow;
+    }
   }
 }

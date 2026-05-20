@@ -2,8 +2,6 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/enums/shift_role.dart';
-import '../../../../core/services/sync/sync_manager.dart';
-import '../../../../core/services/firebase/firebase_service.dart';
 import '../../data/models/attendance_model.dart';
 import '../../data/models/attendance_session_model.dart';
 import '../../domain/repositories/attendance_repository.dart';
@@ -13,13 +11,10 @@ import 'attendance_state.dart';
 
 class AttendanceCubit extends Cubit<AttendanceState> {
   final IAttendanceRepository _attendanceRepository;
-  final SyncManager _syncManager;
 
   AttendanceCubit({
     required IAttendanceRepository attendanceRepository,
-    SyncManager? syncManager,
   }) : _attendanceRepository = attendanceRepository,
-       _syncManager = syncManager ?? SyncManager.instance,
        super(AttendanceInitial());
 
   StreamSubscription? _todayAttendanceSub;
@@ -27,6 +22,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   StreamSubscription? _activeSessionSub;
   Timer? _qrRotationTimer;
   Timer? _statusRefreshTimer;
+  Timer? _autoCheckoutTimer;
   String? _currentUserIdForRefresh;
 
   @override
@@ -36,6 +32,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     _activeSessionSub?.cancel();
     _qrRotationTimer?.cancel();
     _statusRefreshTimer?.cancel();
+    _autoCheckoutTimer?.cancel();
     return super.close();
   }
 
@@ -49,9 +46,34 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       // checkTodayStatus already sets up the refresh timer
     }
     loadAnalytics(userId: userId);
+    _startAutoCheckoutChecker();
     // Only listen to session if specifically needed (e.g. nurse app or explicit admin action)
     // For now, disabling to prevent unnecessary polling/generation on desktop
     // listenToActiveSession();
+  }
+
+  /// فاحص دوري للتحقق من الانصراف التلقائي الفوري دون الحاجة لإعادة تشغيل النظام
+  void _startAutoCheckoutChecker() {
+    _autoCheckoutTimer?.cancel();
+    _autoCheckoutTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      if (state is AttendanceLoaded) {
+        final currentState = state as AttendanceLoaded;
+        final hasActiveCheckIns = currentState.records.any((r) => r.isCheckedIn) ||
+            (currentState.todayRecord != null && currentState.todayRecord!.isCheckedIn);
+        
+        if (hasActiveCheckIns) {
+          try {
+            // هذا الفحص سيقوم بتحديث السجلات في Firestore فوراً بمجرد انتهاء ساعات العمل
+            await _attendanceRepository.getTodayAttendanceRecords();
+            if (_currentUserIdForRefresh != null) {
+              await _attendanceRepository.getTodayAttendance(_currentUserIdForRefresh!);
+            }
+          } catch (e) {
+            // معالجة الأخطاء الصامتة لتجنب تعطيل واجهة المستخدم
+          }
+        }
+      }
+    });
   }
 
   /// Start periodic refresh timer for immediate updates
@@ -367,15 +389,8 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         delayMinutes: delay,
       );
 
-      // Save locally and queue for sync
-      await _syncManager.saveAttendanceWithSync(attendance);
-
-      // Immediately sync to Firebase so user sees it on their account
-      try {
-        await FirebaseService.instance.checkIn(attendance);
-      } catch (e) {
-        print('Firebase sync error (will retry): $e');
-      }
+      // Save directly to Firestore (Firestore-first)
+      await _attendanceRepository.checkIn(attendance);
 
       emit(AttendanceCheckedIn(attendance));
       loadTodayAttendance();
@@ -431,14 +446,8 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         status: AttendanceStatus.checkedIn,
       );
 
-      await _syncManager.saveAttendanceWithSync(attendance);
-
-      // Immediately sync to Firebase so user sees it on their account
-      try {
-        await FirebaseService.instance.checkIn(attendance);
-      } catch (e) {
-        print('Firebase sync error (will retry): $e');
-      }
+      // Save directly to Firestore (Firestore-first)
+      await _attendanceRepository.checkIn(attendance);
 
       emit(AttendanceCheckedIn(attendance));
       loadTodayAttendance();
@@ -447,7 +456,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     }
   }
 
-  /// تسجيل الانصراف - Check out
+  /// تسجيل الانصراف - Check out (Firestore-first)
   Future<void> checkOut({
     required String userId,
     required String userName,
@@ -460,37 +469,14 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         return;
       }
 
-      final now = DateTime.now();
-      int earlyLeave = 0;
-      AttendanceStatus status = AttendanceStatus.checkedOut;
-
-      // Example early leave: if before 4:00 PM
-      if (now.hour < 16) {
-        earlyLeave = (16 - now.hour) * 60 - now.minute;
-        status = AttendanceStatus.earlyLeave;
-      }
-
+      // Checkout directly on Firestore
       await _attendanceRepository.checkOut(attendance.id);
 
+      final now = DateTime.now();
       final updatedRecord = attendance.copyWith(
         checkOutTime: now,
-        status: status,
-        earlyLeaveMinutes: earlyLeave,
+        status: AttendanceStatus.checkedOut,
       );
-
-      await _syncManager.enqueue(
-        tableName: 'attendance',
-        operation: 'update',
-        docId: attendance.id,
-        data: updatedRecord.toMap(),
-      );
-
-      // Immediately sync to Firebase so user sees the updated status on their account
-      try {
-        await FirebaseService.instance.checkIn(updatedRecord);
-      } catch (e) {
-        print('Firebase sync error (will retry): $e');
-      }
 
       emit(AttendanceCheckedOut(updatedRecord));
       loadTodayAttendance();
@@ -564,6 +550,15 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       return {'records': records, 'shifts': <ShiftModel>[]};
     } catch (e) {
       return null;
+    }
+  }
+
+  /// حذف سجل الحضور والإنصراف
+  Future<void> deleteAttendance(String id) async {
+    try {
+      await _attendanceRepository.deleteAttendance(id);
+    } catch (e) {
+      emit(AttendanceError('خطأ في حذف السجل: ${e.toString()}'));
     }
   }
 }

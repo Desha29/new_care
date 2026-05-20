@@ -6,6 +6,8 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/enums/shift_role.dart';
 import '../../data/models/attendance_model.dart';
 import '../cubit/attendance_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../cubit/attendance_cubit.dart';
 
 class AttendanceTable extends StatelessWidget {
   final AttendanceLoaded state;
@@ -77,6 +79,7 @@ class AttendanceTable extends StatelessWidget {
                         _hc('وقت الانصراف', 2),
                         _hc('التأخير', 1),
                         _hc('المدة', 2),
+                        if (!isPersonal) _hc('إجراءات', 1),
                       ],
                     ),
                   ),
@@ -204,6 +207,72 @@ class AttendanceTable extends StatelessWidget {
                 color: AppColors.primary,
                 fontWeight: FontWeight.w600,
               ),
+            ),
+          ),
+          if (!isPersonal)
+            Expanded(
+              flex: 1,
+              child: Align(
+                alignment: Alignment.center,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: AppColors.error,
+                    size: 20,
+                  ),
+                  onPressed: () => _showDeleteDialog(context, record),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteDialog(BuildContext context, AttendanceModel record) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'تأكيد الحذف',
+          style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+          textAlign: TextAlign.right,
+        ),
+        content: Text(
+          'هل أنت متأكد من رغبتك في حذف سجل حضور الموظف ${record.userName}؟',
+          style: const TextStyle(fontFamily: 'Cairo'),
+          textAlign: TextAlign.right,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text(
+              'إلغاء',
+              style: TextStyle(fontFamily: 'Cairo', color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              context.read<AttendanceCubit>().deleteAttendance(record.id);
+              Navigator.of(ctx).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'تم حذف سجل الحضور بنجاح',
+                    style: TextStyle(fontFamily: 'Cairo'),
+                    textAlign: TextAlign.right,
+                  ),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            },
+            child: const Text(
+              'حذف',
+              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
             ),
           ),
         ],
