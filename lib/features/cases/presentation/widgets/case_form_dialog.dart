@@ -46,6 +46,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
 
   // Selection states
   CaseType _selType = CaseType.inCenter;
+  String _selPaymentMethod = 'cash';
   String? _selNurseId;
   String? _selNurseName;
   List<UserModel> _nurses = [];
@@ -75,6 +76,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
       text: (widget.caseData?.totalPrice ?? 0).toStringAsFixed(0),
     );
     _selType = widget.caseData?.caseType ?? CaseType.inCenter;
+    _selPaymentMethod = widget.caseData?.paymentMethod ?? 'cash';
     _selNurseName = widget.caseData?.nurseName;
 
     _loadData();
@@ -341,6 +343,8 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
           Icons.payments_rounded,
           isReadOnly: true,
         ),
+        const SizedBox(height: 16),
+        _buildPaymentMethodSelector(),
       ],
     );
   }
@@ -417,6 +421,83 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
                   fontFamily: 'Cairo',
                   color: isSel ? Colors.white : AppColors.textSecondary,
                   fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentMethodSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'طريقة الدفع',
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            _paymentMethodChip(
+              'كاش',
+              'cash',
+              Icons.money_rounded,
+            ),
+            const SizedBox(width: 12),
+            _paymentMethodChip(
+              'محفظة إلكترونية',
+              'wallet',
+              Icons.account_balance_wallet_rounded,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _paymentMethodChip(String label, String value, IconData icon) {
+    final isSel = _selPaymentMethod == value;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selPaymentMethod = value;
+          });
+          _markChanged();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSel ? AppColors.secondary : AppColors.surfaceVariant,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSel ? AppColors.secondary : AppColors.border,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: isSel ? Colors.white : AppColors.textSecondary,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  color: isSel ? Colors.white : AppColors.textSecondary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
                 ),
               ),
             ],
@@ -776,6 +857,7 @@ class _CaseFormDialogState extends State<CaseFormDialog> {
         createdAt: _isEdit ? widget.caseData!.createdAt : DateTime.now(),
         updatedAt: DateTime.now(),
         createdBy: _isEdit ? widget.caseData!.createdBy : 'desktop_admin',
+        paymentMethod: _selPaymentMethod,
       );
       final casesCubit = context.read<CasesCubit>();
 

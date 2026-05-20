@@ -95,6 +95,7 @@ class CaseModel extends Equatable {
   final double discount;
   final DateTime caseDate;
   final String notes;
+  final String paymentMethod;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String createdBy;
@@ -116,6 +117,7 @@ class CaseModel extends Equatable {
     this.discount = 0,
     required this.caseDate,
     this.notes = '',
+    this.paymentMethod = 'cash',
     required this.createdAt,
     required this.updatedAt,
     this.createdBy = '',
@@ -184,6 +186,7 @@ class CaseModel extends Equatable {
       discount: (map['discount'] ?? 0).toDouble(),
       caseDate: AppDateUtils.parseDynamic(map['caseDate']),
       notes: map['notes'] ?? '',
+      paymentMethod: map['paymentMethod'] ?? 'cash',
       createdAt: AppDateUtils.parseDynamic(map['createdAt']),
       updatedAt: AppDateUtils.parseDynamic(map['updatedAt']),
       createdBy: map['createdBy'] ?? '',
@@ -208,6 +211,7 @@ class CaseModel extends Equatable {
       'discount': discount,
       'caseDate': caseDate.toIso8601String(),
       'notes': notes,
+      'paymentMethod': paymentMethod,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'createdBy': createdBy,
@@ -231,6 +235,7 @@ class CaseModel extends Equatable {
       'discount': discount,
       'caseDate': caseDate.toIso8601String(),
       'notes': notes,
+      'paymentMethod': paymentMethod,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'createdBy': createdBy,
@@ -256,6 +261,7 @@ class CaseModel extends Equatable {
     double? discount,
     DateTime? caseDate,
     String? notes,
+    String? paymentMethod,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? createdBy,
@@ -277,6 +283,7 @@ class CaseModel extends Equatable {
       discount: discount ?? this.discount,
       caseDate: caseDate ?? this.caseDate,
       notes: notes ?? this.notes,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       createdBy: createdBy ?? this.createdBy,
@@ -301,6 +308,7 @@ class CaseModel extends Equatable {
     discount,
     caseDate,
     notes,
+    paymentMethod,
     createdAt,
     updatedAt,
     createdBy,

@@ -197,6 +197,13 @@ class InvoicePreviewDialog extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         _receiptRow('الممرض:', caseData.nurseName),
+        const SizedBox(height: 4),
+        _receiptRow(
+          'طريقة الدفع:',
+          caseData.paymentMethod == 'wallet' ? 'محفظة إلكترونية' : 'كاش',
+          isBold: true,
+          color: caseData.paymentMethod == 'wallet' ? const Color(0xFF8B5CF6) : AppColors.success,
+        ),
       ],
     );
   }

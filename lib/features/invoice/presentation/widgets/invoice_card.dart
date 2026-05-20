@@ -152,6 +152,11 @@ class _InvoiceCardState extends State<InvoiceCard> {
           icon: Icons.person_rounded,
           color: AppColors.secondary,
         ),
+        _infoChip(
+          label: widget.caseData.paymentMethod == 'wallet' ? 'محفظة إلكترونية' : 'كاش',
+          icon: widget.caseData.paymentMethod == 'wallet' ? Icons.account_balance_wallet_rounded : Icons.money_rounded,
+          color: widget.caseData.paymentMethod == 'wallet' ? const Color(0xFF8B5CF6) : AppColors.success,
+        ),
       ],
     );
   }

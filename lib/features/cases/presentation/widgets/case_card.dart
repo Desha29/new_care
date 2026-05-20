@@ -136,6 +136,12 @@ class _CaseCardState extends State<CaseCard> {
         _infoItem(Icons.person_outline_rounded, widget.caseData.nurseName),
         _infoItem(Icons.calendar_today_rounded, DateFormat('yMMMd', 'ar').format(widget.caseData.caseDate)),
         _infoItem(Icons.medical_services_outlined, '${widget.caseData.services.length} خدمات'),
+        _infoItem(
+          widget.caseData.paymentMethod == 'wallet'
+              ? Icons.account_balance_wallet_rounded
+              : Icons.money_rounded,
+          widget.caseData.paymentMethod == 'wallet' ? 'محفظة إلكترونية' : 'كاش',
+        ),
       ],
     );
   }

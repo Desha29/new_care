@@ -311,6 +311,19 @@ class ReportService {
                     ),
                   ],
                 ),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(_shape('طريقة الدفع:'), style: const pw.TextStyle(fontSize: 9)),
+                    pw.Text(
+                      _shape(caseData.paymentMethod == 'wallet' ? 'محفظة إلكترونية' : 'كاش'),
+                      style: pw.TextStyle(
+                        fontSize: 9,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
 
                 pw.SizedBox(height: 12),
 

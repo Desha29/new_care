@@ -27,7 +27,7 @@ class SqliteService {
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 19, // Added passwordHash column check and case-insensitive login
+        version: 20, // Added paymentMethod to cases
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -86,7 +86,8 @@ class SqliteService {
         updatedAt TEXT NOT NULL,
         createdBy TEXT DEFAULT '',
         services TEXT DEFAULT '[]',
-        suppliesUsed TEXT DEFAULT '[]'
+        suppliesUsed TEXT DEFAULT '[]',
+        paymentMethod TEXT DEFAULT 'cash'
       )
     ''');
 
@@ -407,6 +408,11 @@ class SqliteService {
     if (oldVersion < 19) {
       try {
         await db.execute("ALTER TABLE users ADD COLUMN passwordHash TEXT DEFAULT ''");
+      } catch (e) { /* column may already exist */ }
+    }
+    if (oldVersion < 20) {
+      try {
+        await db.execute("ALTER TABLE cases ADD COLUMN paymentMethod TEXT DEFAULT 'cash'");
       } catch (e) { /* column may already exist */ }
     }
   }
