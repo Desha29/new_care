@@ -44,11 +44,11 @@ class StatsCardsGrid extends StatelessWidget {
           },
         ),
         StatCard(
-          title: 'توزيع الحالات',
-          value: '${(stats['todayCases'] ?? 0) > 0 ? (((stats['completedCases'] ?? 0) / (stats['todayCases'] ?? 1)) * 100).toStringAsFixed(0) : 0}%',
-          icon: Icons.pie_chart_rounded,
-          color: AppColors.secondary,
-          subtitle: 'نسبة الإنجاز اليومي',
+          title: 'إجمالي المصروفات',
+          value: NumberFormatter.currency(((stats['todayExpenses'] ?? 0.0) as double)),
+          icon: Icons.money_off_rounded,
+          color: AppColors.error,
+          subtitle: 'مصروفات اليوم',
           onTap: () {},
         ),
         StatCard(

@@ -45,11 +45,23 @@ class DashboardRepositoryImpl implements IDashboardRepository {
       whereArgs: ['nurse'],
     );
 
+    // حساب إجمالي مصروفات اليوم - Calculate today's total expenses
+    final todayExpensesResult = await db.query(
+      'expenses',
+      where: 'date >= ? AND date <= ?',
+      whereArgs: [start, end],
+    );
+    double totalExpenses = 0.0;
+    for (var e in todayExpensesResult) {
+      totalExpenses += (e['amount'] as num?)?.toDouble() ?? 0.0;
+    }
+
     return {
       'totalPatients': totalPatients,
       'todayCases': todayCasesResult.length,
       'availableNurses': nurses.length,
       'todayRevenue': totalRevenue,
+      'todayExpenses': totalExpenses,
     };
   }
 

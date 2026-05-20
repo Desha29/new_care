@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../../../core/services/network/connectivity_service.dart';
 import '../../../../core/services/notifications/case_change_notifier.dart';
+import '../../../../core/services/notifications/data_change_notifier.dart';
 import '../../domain/repositories/financials_repository.dart';
 import '../../../cases/data/models/case_model.dart';
 import '../../data/models/expense_model.dart';
@@ -115,6 +116,7 @@ class FinancialsCubit extends Cubit<FinancialsState> {
         notes: notes ?? '',
       );
       await _financialsRepository.createExpense(expense);
+      DataChangeNotifier().notifyLocalDataChanged();
       loadFinancials(force: true);
     } catch (e) {
       emit(FinancialsError('خطأ في إضافة المصروف: $e'));
@@ -125,6 +127,7 @@ class FinancialsCubit extends Cubit<FinancialsState> {
   Future<void> updateExpense(ExpenseModel expense) async {
     try {
       await _financialsRepository.updateExpense(expense);
+      DataChangeNotifier().notifyLocalDataChanged();
       loadFinancials(force: true);
     } catch (e) {
       emit(FinancialsError('خطأ في تحديث المصروف: $e'));
@@ -135,6 +138,7 @@ class FinancialsCubit extends Cubit<FinancialsState> {
     try {
       // 1. حذف من SQLite + طابور المزامنة
       await _financialsRepository.deleteExpense(expenseId);
+      DataChangeNotifier().notifyLocalDataChanged();
 
       // 2. تحديث الحالة فوراً بدون إعادة تحميل (لسرعة الاستجابة)
       if (state is FinancialsLoaded) {

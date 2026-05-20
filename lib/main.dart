@@ -79,7 +79,6 @@ void main() async {
       },
     );
   } else {
-    print('sssssssssssssssssssssssssssssss');
     runApp(NewCareApp());
   }
   // تحميل البيانات من السحابة وبدء المستمعين بعد استقرار الواجهة
