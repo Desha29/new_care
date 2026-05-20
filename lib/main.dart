@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -63,21 +64,24 @@ void main() async {
     // For all other errors, use the default handler
     FlutterError.presentError(details);
   };
+  if (kReleaseMode) {
+    runZonedGuarded(
+      () async {
+        await SentryFlutter.init((options) {
+          options.dsn =
+              'https://4342bb1bdcc3f64fcfa6514ad0fe7bb7@o4511422159323136.ingest.us.sentry.io/4511422170988544';
+        });
 
-  runZonedGuarded(
-    () async {
-      await SentryFlutter.init((options) {
-        options.dsn =
-            'https://4342bb1bdcc3f64fcfa6514ad0fe7bb7@o4511422159323136.ingest.us.sentry.io/4511422170988544';
-      });
-
-      runApp(NewCareApp());
-    },
-    (exception, stackTrace) async {
-      await Sentry.captureException(exception, stackTrace: stackTrace);
-    },
-  );
-
+        runApp(NewCareApp());
+      },
+      (exception, stackTrace) async {
+        await Sentry.captureException(exception, stackTrace: stackTrace);
+      },
+    );
+  } else {
+    print('sssssssssssssssssssssssssssssss');
+    runApp(NewCareApp());
+  }
   // تحميل البيانات من السحابة وبدء المستمعين بعد استقرار الواجهة
   // Load data and start listeners after UI is stable to prevent threading issues
   WidgetsBinding.instance.addPostFrameCallback((_) {
