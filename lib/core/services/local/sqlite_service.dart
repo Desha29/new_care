@@ -706,6 +706,9 @@ class SqliteService {
     return results;
   }
 
+  /// الحصول على مسار قاعدة البيانات - Get database path (public)
+  Future<String> getDatabasePath() => _getDatabasePath();
+
   /// إنشاء نسخة احتياطية - Create backup
   Future<String> createBackup() async {
     final dbPath = await _getDatabasePath();
@@ -713,6 +716,60 @@ class SqliteService {
     final backupPath = p.join(appDir.path, 'backup_${DateTime.now().millisecondsSinceEpoch}.db');
     await File(dbPath).copy(backupPath);
     return backupPath;
+  }
+
+  /// نسخ احتياطي إلى مسار محدد - Backup to a user-chosen directory
+  Future<String> backupToPath(String directoryPath) async {
+    final db = await database;
+    // Close WAL checkpoint to flush all data into main db file
+    try { await db.rawQuery('PRAGMA wal_checkpoint(FULL)'); } catch (_) {}
+
+    final dbPath = await _getDatabasePath();
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+    final backupFileName = 'new_care_backup_$timestamp.db';
+    final destinationPath = p.join(directoryPath, backupFileName);
+    await File(dbPath).copy(destinationPath);
+    return destinationPath;
+  }
+
+  /// استعادة من نسخة احتياطية - Restore from a backup file
+  Future<void> restoreFromPath(String backupFilePath) async {
+    final backupFile = File(backupFilePath);
+    if (!await backupFile.exists()) {
+      throw Exception('ملف النسخة الاحتياطية غير موجود');
+    }
+
+    // Validate: try to open backup as a database to ensure it's a valid SQLite file
+    try {
+      final testDb = await databaseFactoryFfi.openDatabase(
+        backupFilePath,
+        options: OpenDatabaseOptions(readOnly: true),
+      );
+      // Check that it has at least one expected table
+      final tables = await testDb.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='cases'",
+      );
+      await testDb.close();
+      if (tables.isEmpty) {
+        throw Exception('الملف المحدد ليس نسخة احتياطية صالحة لنيو كير');
+      }
+    } catch (e) {
+      if (e.toString().contains('ليس نسخة احتياطية')) rethrow;
+      throw Exception('الملف المحدد تالف أو ليس قاعدة بيانات صالحة');
+    }
+
+    // Close current database
+    if (_database != null) {
+      await _database!.close();
+      _database = null;
+    }
+
+    // Overwrite current db with backup
+    final dbPath = await _getDatabasePath();
+    await backupFile.copy(dbPath);
+
+    // Re-open the database (triggers onUpgrade if needed)
+    await database;
   }
 
   /// التحقق من بيانات الدخول محلياً (للدخول بدون إنترنت)

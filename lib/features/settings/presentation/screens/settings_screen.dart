@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/windows_file_picker.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -19,6 +20,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _addressController;
   bool _isSavingInfo = false;
   bool _autoBackup = true;
+  bool _isBackingUp = false;
+  bool _isRestoring = false;
 
   @override
   void initState() {
@@ -229,12 +232,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () =>
-                    _showSnackbar(AppStrings.backupSuccess, AppColors.success),
-                icon: const Icon(Icons.backup_rounded, size: 18),
-                label: const Text(
-                  AppStrings.backupNow,
-                  style: TextStyle(fontFamily: 'Cairo'),
+                onPressed: _isBackingUp ? null : _performBackup,
+                icon: _isBackingUp
+                    ? const SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Icon(Icons.backup_rounded, size: 18),
+                label: Text(
+                  _isBackingUp ? 'جاري النسخ...' : AppStrings.backupNow,
+                  style: const TextStyle(fontFamily: 'Cairo'),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -249,12 +256,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () =>
-                    _showSnackbar(AppStrings.restoreSuccess, AppColors.info),
-                icon: const Icon(Icons.restore_rounded, size: 18),
-                label: const Text(
-                  AppStrings.restoreBackup,
-                  style: TextStyle(fontFamily: 'Cairo'),
+                onPressed: _isRestoring ? null : _performRestore,
+                icon: _isRestoring
+                    ? const SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.restore_rounded, size: 18),
+                label: Text(
+                  _isRestoring ? 'جاري الاستعادة...' : AppStrings.restoreBackup,
+                  style: const TextStyle(fontFamily: 'Cairo'),
                 ),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -417,6 +428,89 @@ class _SettingsScreenState extends State<SettingsScreen> {
       UIFeedback.showError(context, message);
     } else {
       UIFeedback.showInfo(context, message);
+    }
+  }
+
+  /// نسخ احتياطي - Backup database to user-chosen folder
+  Future<void> _performBackup() async {
+    // Let user pick a directory
+    final selectedDir = await WindowsFilePicker.pickDirectory();
+    if (selectedDir == null) return; // User cancelled
+
+    setState(() => _isBackingUp = true);
+    try {
+      final savedPath = await SqliteService.instance.backupToPath(selectedDir);
+      if (mounted) {
+        UIFeedback.showSuccess(
+          context,
+          'تم حفظ النسخة الاحتياطية بنجاح في:\n$savedPath',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        UIFeedback.showError(context, 'فشل في النسخ الاحتياطي: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isBackingUp = false);
+    }
+  }
+
+  /// استعادة نسخة احتياطية - Restore from user-chosen .db file
+  Future<void> _performRestore() async {
+    // Let user pick a .db file
+    final filePath = await WindowsFilePicker.pickFile();
+    if (filePath == null) return;
+
+    // Confirm restore
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: const [
+              Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 28),
+              SizedBox(width: 8),
+              Text('تأكيد الاستعادة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: const Text(
+            'سيتم استبدال جميع البيانات الحالية بالبيانات الموجودة في النسخة الاحتياطية المحددة.\n\nهل أنت متأكد من المتابعة؟',
+            style: TextStyle(fontFamily: 'Cairo'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warning,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('استعادة', style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isRestoring = true);
+    try {
+      await SqliteService.instance.restoreFromPath(filePath);
+      if (mounted) {
+        UIFeedback.showSuccess(context, 'تم استعادة النسخة الاحتياطية بنجاح! يرجى إعادة تشغيل التطبيق.');
+      }
+    } catch (e) {
+      if (mounted) {
+        UIFeedback.showError(context, 'فشل في الاستعادة: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isRestoring = false);
     }
   }
 }
