@@ -24,9 +24,11 @@ import 'features/attendance/presentation/cubit/attendance_state.dart';
 import 'features/users/presentation/cubit/users_cubit.dart';
 
 class NewCareApp extends StatelessWidget {
-  static final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-  
+  static final GlobalKey<ScaffoldMessengerState> messengerKey =
+      GlobalKey<ScaffoldMessengerState>();
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   const NewCareApp({super.key});
 
   @override
@@ -57,10 +59,7 @@ class NewCareApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        supportedLocales: const [
-          Locale('ar', ''),
-          Locale('en', ''),
-        ],
+        supportedLocales: const [Locale('ar', ''), Locale('en', '')],
         locale: const Locale('ar'),
         routes: const {},
         builder: (context, child) {
@@ -91,20 +90,28 @@ class NewCareApp extends StatelessWidget {
                 BlocListener<AttendanceCubit, AttendanceState>(
                   listener: (context, state) {
                     if (state is AttendanceCheckedIn) {
-                      UIFeedback.showSuccess(context, 'تم تسجيل الحضور بنجاح ✅');
+                      UIFeedback.showSuccess(
+                        context,
+                        'تم تسجيل الحضور بنجاح ✅',
+                      );
                     } else if (state is AttendanceCheckedOut) {
                       final record = state.record;
                       if (record.checkOutTime != null) {
-                        final duration = record.checkOutTime!.difference(record.checkInTime);
+                        final duration = record.checkOutTime!.difference(
+                          record.checkInTime,
+                        );
                         final hours = duration.inHours;
                         final minutes = duration.inMinutes % 60;
-                        
+
                         String durationStr = '';
                         if (hours > 0) durationStr += '$hours ساعة ';
                         if (minutes > 0) durationStr += '$minutes دقيقة';
                         if (durationStr.isEmpty) durationStr = 'أقل من دقيقة';
 
-                        UIFeedback.showSuccess(context, 'تم تسجيل الانصراف بنجاح. مدة العمل: $durationStr ✅');
+                        UIFeedback.showSuccess(
+                          context,
+                          'تم تسجيل الانصراف بنجاح. مدة العمل: $durationStr ✅',
+                        );
                       }
                     } else if (state is AttendanceError) {
                       UIFeedback.showError(context, state.message);
@@ -130,7 +137,8 @@ class NewCareApp extends StatelessWidget {
             if (state is AuthAuthenticated) {
               return const MainLayout();
             }
-            if (state is AuthInitial || (state is AuthLoading && authCubit.currentUser == null)) {
+            if (state is AuthInitial ||
+                (state is AuthLoading && authCubit.currentUser == null)) {
               return const _SplashScreen();
             }
             return const LoginScreen();

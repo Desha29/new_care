@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   local_notifier
   printing
   screen_retriever_linux
+  sentry_flutter
   window_manager
 )
 

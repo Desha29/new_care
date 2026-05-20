@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:io';
 import 'package:window_manager/window_manager.dart';
@@ -61,7 +64,19 @@ void main() async {
     FlutterError.presentError(details);
   };
 
-  runApp(const NewCareApp());
+  runZonedGuarded(
+    () async {
+      await SentryFlutter.init((options) {
+        options.dsn =
+            'https://4342bb1bdcc3f64fcfa6514ad0fe7bb7@o4511422159323136.ingest.us.sentry.io/4511422170988544';
+      });
+
+      runApp(NewCareApp());
+    },
+    (exception, stackTrace) async {
+      await Sentry.captureException(exception, stackTrace: stackTrace);
+    },
+  );
 
   // تحميل البيانات من السحابة وبدء المستمعين بعد استقرار الواجهة
   // Load data and start listeners after UI is stable to prevent threading issues
@@ -77,8 +92,9 @@ void main() async {
     rtListener.onCaseAdded = (id) async {
       final model = await SyncManager.instance.downloadCase(id);
       CaseChangeNotifier().notifyCaseAdded(id, model: model);
-      DataChangeNotifier().notifyLocalDataChanged(); // Trigger dashboard stats refresh
-      
+      DataChangeNotifier()
+          .notifyLocalDataChanged(); // Trigger dashboard stats refresh
+
       // Redundant Sync: Ensure inventory used in this case is also updated immediately
       if (model != null) {
         for (var supply in model.suppliesUsed) {
@@ -139,4 +155,3 @@ void main() async {
     rtListener.startListening();
   });
 }
-

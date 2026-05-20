@@ -58,6 +58,7 @@ dependencies:
   window_manager: ^0.5.1
   crypto: ^3.0.7
   delightful_toast: ^1.1.0
+  sentry_flutter: ^8.14.2
 
 dev_dependencies:
   flutter_test:
