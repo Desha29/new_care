@@ -16,6 +16,9 @@ import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../attendance/presentation/cubit/attendance_cubit.dart';
 import '../../../attendance/presentation/cubit/attendance_state.dart';
 import 'case_form_dialog.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../../core/services/sync/outside_cases_listener.dart';
+import 'pending_outside_cases_dialog.dart';
 
 class CasesHeader extends StatelessWidget {
   final CasesLoaded state;
@@ -48,6 +51,8 @@ class CasesHeader extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     _buildRefreshButton(context),
+                    const SizedBox(width: 8),
+                    _buildOutsideCasesBell(context),
                   ],
                 ),
                 Text(
@@ -346,6 +351,62 @@ class CasesHeader extends StatelessWidget {
       context: context,
       barrierDismissible: false,
       builder: (_) => const CaseFormDialog(),
+    );
+  }
+
+  Widget _buildOutsideCasesBell(BuildContext context) {
+    return ValueListenableBuilder<List<QueryDocumentSnapshot>>(
+      valueListenable: OutsideCasesListener.instance.pendingCasesNotifier,
+      builder: (context, docs, child) {
+        if (docs.isEmpty) return const SizedBox.shrink();
+
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.statusPendingBg,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: true,
+                    builder: (_) => const PendingOutsideCasesDialog(),
+                  );
+                },
+                icon: const Icon(
+                  Icons.notifications_active_rounded,
+                  color: AppColors.statusPending,
+                  size: 20,
+                ),
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(),
+              ),
+              Positioned(
+                right: -4,
+                top: -4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: const BoxDecoration(
+                    color: AppColors.error,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '${docs.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

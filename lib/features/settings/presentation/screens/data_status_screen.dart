@@ -24,7 +24,8 @@ class DataStatusScreen extends StatefulWidget {
   State<DataStatusScreen> createState() => _DataStatusScreenState();
 }
 
-class _DataStatusScreenState extends State<DataStatusScreen> with SingleTickerProviderStateMixin {
+class _DataStatusScreenState extends State<DataStatusScreen>
+    with SingleTickerProviderStateMixin {
   bool _isLoading = true;
 
   // Animation controller
@@ -54,7 +55,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    
+
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -129,10 +130,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> with SingleTickerPr
   }
 
   /// تطبيق تأثير حركة أنيق ومتدرج
-  Widget _animateItem({
-    required Widget child,
-    required double delay,
-  }) {
+  Widget _animateItem({required Widget child, required double delay}) {
     final start = delay;
     final end = (delay + 0.45).clamp(0.0, 1.0);
 
@@ -143,25 +141,20 @@ class _DataStatusScreenState extends State<DataStatusScreen> with SingleTickerPr
       ),
     );
 
-    final slide = Tween<Offset>(
-      begin: const Offset(0.0, 0.15),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _animController,
-        curve: Interval(start, end, curve: Curves.easeOutQuart),
-      ),
-    );
+    final slide =
+        Tween<Offset>(begin: const Offset(0.0, 0.15), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animController,
+            curve: Interval(start, end, curve: Curves.easeOutQuart),
+          ),
+        );
 
     return AnimatedBuilder(
       animation: _animController,
       builder: (context, child) {
         return Opacity(
           opacity: fade.value,
-          child: FractionalTranslation(
-            translation: slide.value,
-            child: child,
-          ),
+          child: FractionalTranslation(translation: slide.value, child: child),
         );
       },
       child: child,
@@ -225,15 +218,9 @@ class _DataStatusScreenState extends State<DataStatusScreen> with SingleTickerPr
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Column(
                 children: [
-                  _animateItem(
-                    delay: 0.0,
-                    child: _buildSyncDashboard(),
-                  ),
+                  _animateItem(delay: 0.0, child: _buildSyncDashboard()),
                   const SizedBox(height: 24),
-                  _animateItem(
-                    delay: 0.15,
-                    child: _buildUsageCard(),
-                  ),
+                  _animateItem(delay: 0.15, child: _buildUsageCard()),
                   const SizedBox(height: 24),
                   _animateItem(
                     delay: 0.3,
@@ -246,7 +233,10 @@ class _DataStatusScreenState extends State<DataStatusScreen> with SingleTickerPr
                             subtitle: 'قاعدة بيانات Firestore Live',
                             icon: Icons.cloud_outlined,
                             gradient: const LinearGradient(
-                              colors: [AppColors.primary, AppColors.primaryLight],
+                              colors: [
+                                AppColors.primary,
+                                AppColors.primaryLight,
+                              ],
                             ),
                             users: _firestoreUsers,
                             patients: _firestorePatients,
@@ -279,10 +269,7 @@ class _DataStatusScreenState extends State<DataStatusScreen> with SingleTickerPr
                     ),
                   ),
                   const SizedBox(height: 32),
-                  _animateItem(
-                    delay: 0.45,
-                    child: _buildSyncButton(),
-                  ),
+                  _animateItem(delay: 0.45, child: _buildSyncButton()),
                 ],
               ),
             ),
@@ -373,7 +360,10 @@ class _DataStatusScreenState extends State<DataStatusScreen> with SingleTickerPr
         color: AppColors.primaryDark,
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
-          colors: [AppColors.primaryDark, AppColors.primary.withValues(alpha: 0.8)],
+          colors: [
+            AppColors.primaryDark,
+            AppColors.primary.withValues(alpha: 0.8),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -525,7 +515,13 @@ class _DataStatusScreenState extends State<DataStatusScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildDataRow(IconData icon, String label, int count, Color color, {String? tableName}) {
+  Widget _buildDataRow(
+    IconData icon,
+    String label,
+    int count,
+    Color color, {
+    String? tableName,
+  }) {
     return Row(
       children: [
         Icon(icon, size: 18, color: color.withValues(alpha: 0.7)),
@@ -552,7 +548,11 @@ class _DataStatusScreenState extends State<DataStatusScreen> with SingleTickerPr
           IconButton(
             constraints: const BoxConstraints(),
             padding: EdgeInsets.zero,
-            icon: const Icon(Icons.cloud_upload_rounded, size: 18, color: AppColors.primary),
+            icon: const Icon(
+              Icons.cloud_upload_rounded,
+              size: 18,
+              color: AppColors.primary,
+            ),
             tooltip: 'رفع $label للسحابة',
             onPressed: () async {
               try {
@@ -644,7 +644,10 @@ class _DataStatusScreenState extends State<DataStatusScreen> with SingleTickerPr
                 DataChangeNotifier().notifyCloudDownloadCompleted();
 
                 if (mounted) {
-                  UIFeedback.showSuccess(context, 'تم تحميل البيانات من السحابة بنجاح');
+                  UIFeedback.showSuccess(
+                    context,
+                    'تم تحميل البيانات من السحابة بنجاح',
+                  );
                 }
               } catch (e) {
                 if (mounted) {
@@ -687,7 +690,10 @@ class _DataStatusScreenState extends State<DataStatusScreen> with SingleTickerPr
                 try {
                   await OutsideCasesListener.instance.addFakeTestCase();
                   if (mounted) {
-                    UIFeedback.showInfo(context, 'تم إضافة حالة تجريبية في outside_cases — سيتم استيرادها تلقائياً');
+                    UIFeedback.showInfo(
+                      context,
+                      'تم إضافة حالة تجريبية في outside_cases — سيتم استيرادها تلقائياً',
+                    );
                   }
                 } catch (e) {
                   if (mounted) {

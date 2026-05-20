@@ -21,7 +21,10 @@ class OutsideCasesListener {
   final _firestore = FirebaseFirestore.instance;
   final _sqlite = SqliteService.instance;
   StreamSubscription? _subscription;
-  bool _isProcessing = false;
+  
+  /// قائمة الحالات الخارجية المعلقة - List of pending outside cases
+  final ValueNotifier<List<QueryDocumentSnapshot>> pendingCasesNotifier =
+      ValueNotifier<List<QueryDocumentSnapshot>>([]);
 
   /// بدء الاستماع - Start listening to outside_cases collection
   void startListening() {
@@ -41,80 +44,80 @@ class OutsideCasesListener {
     }
 
     _subscription = stream.listen(
-      (snapshot) async {
-        if (snapshot.docs.isEmpty || _isProcessing) return;
-
-        _isProcessing = true;
-        log(
-          '[OutsideCasesListener] Found ${snapshot.docs.length} outside case(s), processing...',
-        );
-
-        for (final doc in snapshot.docs) {
-          try {
-            final data = doc.data() as Map<String, dynamic>;
-            final caseModel = CaseModel.fromMap(data, doc.id);
-
-            // Check inventory availability - تحقق من توفر المستلزمات
-            final inventoryCheck = await _checkInventoryAvailability(caseModel);
-            if (!inventoryCheck['available']) {
-              log(
-                '[OutsideCasesListener] Insufficient inventory for case "${caseModel.patientName}": ${inventoryCheck['message']}',
-              );
-              // لا نحذف الحالة - نتركها في outside_cases لحين توفر المخزون
-              // Skip this case, leave it in outside_cases for retry when inventory is available
-              log(
-                '[OutsideCasesListener] Skipping case "${doc.id}" - will retry when inventory is available',
-              );
-              continue;
-            }
-
-            // 1. Save to local SQLite
-            await _sqlite.saveCase(caseModel.toSqliteMap());
-            log(
-              '[OutsideCasesListener] Saved case "${caseModel.patientName}" locally',
-            );
-
-            // 2. Deduct inventory - خصم المستلزمات من المخزون
-            for (final supply in caseModel.suppliesUsed) {
-              final inventoryId = supply.inventoryId.isNotEmpty
-                  ? supply.inventoryId
-                  : await _findInventoryIdByName(supply.name);
-              if (inventoryId != null) {
-                await _sqlite.deductInventory(inventoryId, supply.quantity);
-                log(
-                  '[OutsideCasesListener] Deducted ${supply.quantity} of "${supply.name}" from inventory',
-                );
-              }
-            }
-
-            // 3. Delete from outside_cases collection
-            await _firestore.collection('outside_cases').doc(doc.id).delete();
-            log(
-              '[OutsideCasesListener] Deleted case "${doc.id}" from outside_cases',
-            );
-
-            // 4. Notify UI to refresh (Cases + Reports + Inventory screens)
-            CaseChangeNotifier().notifyCaseAdded(doc.id);
-            DataChangeNotifier().notifyLocalDataChanged();
-
-            // 5. Re-add to main cases collection for backup
-            await _firestore
-                .collection('cases')
-                .doc(doc.id)
-                .set(caseModel.toMap());
-          } catch (e) {
-            log('[OutsideCasesListener] Error processing case ${doc.id}: $e');
-          }
-        }
-
-        log('[OutsideCasesListener] UI refresh triggered');
-
-        _isProcessing = false;
+      (snapshot) {
+        log('[OutsideCasesListener] Found ${snapshot.docs.length} outside case(s) pending approval.');
+        pendingCasesNotifier.value = snapshot.docs;
       },
       onError: (error) {
         log('[OutsideCasesListener] Stream error: $error');
       },
     );
+  }
+
+  /// اعتماد وحفظ الحالة يدوياً - Manually approve and save the case
+  Future<Map<String, dynamic>> processCase(DocumentSnapshot doc) async {
+    try {
+      final data = doc.data() as Map<String, dynamic>;
+      final caseModel = CaseModel.fromMap(data, doc.id);
+
+      // Check inventory availability - تحقق من توفر المستلزمات
+      final inventoryCheck = await _checkInventoryAvailability(caseModel);
+      if (!inventoryCheck['available']) {
+        log(
+          '[OutsideCasesListener] Insufficient inventory for case "${caseModel.patientName}": ${inventoryCheck['message']}',
+        );
+        return {
+          'success': false,
+          'message': inventoryCheck['message'] ?? 'المستلزمات غير كافية في المخزن',
+        };
+      }
+
+      // 1. Save to local SQLite
+      await _sqlite.saveCase(caseModel.toSqliteMap());
+      log(
+        '[OutsideCasesListener] Saved case "${caseModel.patientName}" locally',
+      );
+
+      // 2. Deduct inventory - خصم المستلزمات من المخزون
+      for (final supply in caseModel.suppliesUsed) {
+        final inventoryId = supply.inventoryId.isNotEmpty
+            ? supply.inventoryId
+            : await _findInventoryIdByName(supply.name);
+        if (inventoryId != null) {
+          await _sqlite.deductInventory(inventoryId, supply.quantity);
+          log(
+            '[OutsideCasesListener] Deducted ${supply.quantity} of "${supply.name}" from inventory',
+          );
+        }
+      }
+
+      // 3. Delete from outside_cases collection
+      await _firestore.collection('outside_cases').doc(doc.id).delete();
+      log(
+        '[OutsideCasesListener] Deleted case "${doc.id}" from outside_cases',
+      );
+
+      // 4. Notify UI to refresh (Cases + Reports + Inventory screens)
+      CaseChangeNotifier().notifyCaseAdded(doc.id);
+      DataChangeNotifier().notifyLocalDataChanged();
+
+      // 5. Re-add to main cases collection for backup
+      await _firestore
+          .collection('cases')
+          .doc(doc.id)
+          .set(caseModel.toMap());
+
+      return {
+        'success': true,
+        'message': 'تم حفظ الحالة "${caseModel.patientName}" بنجاح وتحديث المخزون',
+      };
+    } catch (e) {
+      log('[OutsideCasesListener] Error processing case ${doc.id}: $e');
+      return {
+        'success': false,
+        'message': 'خطأ أثناء معالجة الحالة: $e',
+      };
+    }
   }
 
   /// تحقق من توفر المستلزمات - Check if all supplies for a case are available in inventory
@@ -185,6 +188,7 @@ class OutsideCasesListener {
   void stopListening() {
     _subscription?.cancel();
     _subscription = null;
+    pendingCasesNotifier.value = [];
     log('[OutsideCasesListener] Listener stopped');
   }
 
