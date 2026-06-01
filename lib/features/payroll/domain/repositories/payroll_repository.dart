@@ -2,6 +2,7 @@ import '../../../auth/data/models/user_model.dart';
 import '../../../attendance/data/models/attendance_model.dart';
 import '../../../cases/data/models/case_model.dart';
 import '../../data/models/payroll_model.dart';
+import '../../data/models/advance_model.dart';
 
 
 /// واجهة مستودع الرواتب - Payroll Repository Interface
@@ -35,4 +36,18 @@ abstract class IPayrollRepository {
 
   /// تحديث سجل راتب بالكامل - Update full payroll record
   Future<void> updatePayroll(PayrollModel payroll);
+
+  // === عمليات السلف - Advance Operations ===
+
+  /// جلب سلف موظف لشهر معين - Get monthly advances for a specific user
+  Future<List<AdvanceModel>> getMonthlyAdvancesForUser(String userId, int year, int month);
+
+  /// جلب جميع سلف الشهر - Get all monthly advances
+  Future<List<AdvanceModel>> getMonthlyAdvances(int year, int month);
+
+  /// حفظ سلفة - Save advance
+  Future<void> saveAdvance(AdvanceModel advance, {bool isNew = true});
+
+  /// حذف سلفة - Delete advance
+  Future<void> deleteAdvance(String id);
 }

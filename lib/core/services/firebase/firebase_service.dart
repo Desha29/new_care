@@ -14,6 +14,7 @@ import 'package:new_care/features/procedures/data/models/procedure_model.dart';
 import 'package:new_care/features/shifts/data/models/shift_model.dart';
 import 'package:new_care/features/attendance/data/models/attendance_model.dart';
 import 'package:new_care/features/payroll/data/models/payroll_model.dart';
+import 'package:new_care/features/payroll/data/models/advance_model.dart';
 import 'package:new_care/features/financials/data/models/expense_model.dart';
 import 'package:new_care/core/constants/app_constants.dart';
 
@@ -761,6 +762,53 @@ class FirebaseService {
   }
 
   // ============================================
+  // === السلف - Advances ===
+  // ============================================
+
+  CollectionReference get _advancesRef => _firestore.collection('advances');
+
+  Future<void> createAdvance(AdvanceModel model) async {
+    _incWrite();
+    await _advancesRef.doc(model.id).set(model.toMap(), SetOptions(merge: true));
+  }
+
+  Future<void> updateAdvance(AdvanceModel model) async {
+    _incWrite();
+    await _advancesRef.doc(model.id).set(model.toMap(), SetOptions(merge: true));
+  }
+
+  Future<void> deleteAdvance(String id) async {
+    _incWrite();
+    await _advancesRef.doc(id).delete();
+  }
+
+  Future<List<AdvanceModel>> getAllAdvances() async {
+    _incRead();
+    final snapshot = await _advancesRef.orderBy('date', descending: true).get();
+    return snapshot.docs
+        .map(
+          (doc) => AdvanceModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
+        .toList();
+  }
+
+  Future<List<AdvanceModel>> getUpdatedAdvances(DateTime lastSync) async {
+    _incRead();
+    final snapshot = await _advancesRef.get();
+    return snapshot.docs
+        .map(
+          (doc) => AdvanceModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          ),
+        )
+        .toList();
+  }
+
+  // ============================================
   // === مسح البيانات - Clear Data ===
   // ============================================
 
@@ -789,6 +837,7 @@ class FirebaseService {
     await clearCollection(_attendanceRef);
     await clearCollection(_payrollRef);
     await clearCollection(_expensesRef);
+    await clearCollection(_advancesRef);
     log('[FirebaseService] ✓ All collections cleared');
   }
 
@@ -820,6 +869,9 @@ class FirebaseService {
         break;
       case 'expenses':
         await clearCollection(_expensesRef);
+        break;
+      case 'advances':
+        await clearCollection(_advancesRef);
         break;
       default:
         throw Exception('Unknown collection name: $name');

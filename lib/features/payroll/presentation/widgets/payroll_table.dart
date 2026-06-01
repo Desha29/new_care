@@ -69,6 +69,7 @@ class PayrollTable extends StatelessWidget {
                         _hc('خارجية', 1),
                         _hc('مكافآت', 1),
                         _hc('خصم', 1),
+                        _hc('سلفة', 1),
                         _hc('الصافي', 2),
                         _hc('الحالة', 2),
                         _hc('إجراءات', 2),
@@ -202,6 +203,16 @@ class PayrollTable extends StatelessWidget {
                 payroll.deductions > 0 ? '-${NumberFormatter.compact(payroll.deductions)}' : '-',
                 style: AppTypography.tableCell.copyWith(
                   color: payroll.deductions > 0 ? AppColors.error : AppColors.textHint,
+                ),
+              ),
+            ),
+            // السلفة
+            Expanded(
+              flex: 1,
+              child: Text(
+                payroll.salafa > 0 ? '-${NumberFormatter.compact(payroll.salafa)}' : '-',
+                style: AppTypography.tableCell.copyWith(
+                  color: payroll.salafa > 0 ? AppColors.error : AppColors.textHint,
                 ),
               ),
             ),

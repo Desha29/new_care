@@ -33,12 +33,13 @@ extension ReportServiceCasesExtension on ReportService {
                 children: [
                   pw.Row(
                     children: [
+                      pw.Text(_shape('إجمالي الحالات:')),
+
+                      pw.SizedBox(width: 4),
                       pw.Text(
                         '${cases.length}',
                         style: pw.TextStyle(font: boldTtf, fontSize: 13),
                       ),
-                      pw.SizedBox(width: 4),
-                      pw.Text(_shape('إجمالي الحالات:')),
                     ],
                   ),
                 ],
@@ -66,11 +67,12 @@ extension ReportServiceCasesExtension on ReportService {
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
             headers: [
+              "طريقة الدفع",
               'المبلغ',
               'الممرض',
               'النوع',
               'اسم المريض',
-              'التاريخ',
+              "الوقت والتاريخ",
               '#',
             ].map((e) => _shape(e)).toList(),
             headerStyle: pw.TextStyle(
@@ -81,13 +83,15 @@ extension ReportServiceCasesExtension on ReportService {
             headerDecoration: const pw.BoxDecoration(
               color: PdfColors.blueGrey900,
             ),
-            headerHeight: 40,
+            headerHeight: 55,
             cellStyle: const pw.TextStyle(fontSize: 10),
             cellPadding: const pw.EdgeInsets.symmetric(
               horizontal: 6,
               vertical: 10,
             ),
             cellAlignments: {
+              7: pw.Alignment.center,
+              6: pw.Alignment.center,
               5: pw.Alignment.center,
               4: pw.Alignment.center,
               3: pw.Alignment.centerRight,
@@ -98,11 +102,13 @@ extension ReportServiceCasesExtension on ReportService {
             data: List<List<dynamic>>.generate(cases.length, (index) {
               final c = cases[index];
               return [
+                _shape(c.paymentMethod == "cash" ? "كاش" : "محفظة"),
                 (c.totalPrice - c.discount).toStringAsFixed(1),
                 _shape(c.nurseName),
                 _shape(c.caseType.label),
                 _shape(c.patientName),
-                intl.DateFormat('MM/dd').format(c.caseDate),
+
+                _shape(c.createdAt.toString().split(".")[0]),
                 index + 1,
               ];
             }),

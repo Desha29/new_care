@@ -115,7 +115,7 @@ extension ReportServiceInventoryExtension on ReportService {
             headerDecoration: const pw.BoxDecoration(
               color: PdfColors.blueGrey900,
             ),
-            headerHeight: 40,
+            headerHeight: 55,
             cellStyle: const pw.TextStyle(fontSize: 10),
             cellPadding: const pw.EdgeInsets.symmetric(
               horizontal: 6,

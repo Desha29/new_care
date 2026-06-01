@@ -38,11 +38,8 @@ extension ReportServicePayrollExtension on ReportService {
           bold: boldTtf,
           fontFallback: [await _getFallbackFont()],
         ),
-        header: (pw.Context context) => _buildHeader(
-          boldTtf,
-          logo,
-          _shape('تقرير الرواتب - $monthName $year'),
-        ),
+        header: (pw.Context context) =>
+            _buildHeader(boldTtf, logo, 'تقرير الرواتب - $monthName $year'),
         build: (pw.Context context) => [
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -118,6 +115,7 @@ extension ReportServicePayrollExtension on ReportService {
             headers: [
               'الحالة',
               'الصافي',
+              'السلف',
               'خصومات',
               'مكافآت',
               'خارجية',
@@ -128,32 +126,31 @@ extension ReportServicePayrollExtension on ReportService {
             ].map((h) => _shape(h)).toList(),
             headerStyle: pw.TextStyle(
               font: boldTtf,
-              fontSize: 11,
+              fontSize: 10,
               color: PdfColors.white,
             ),
             headerDecoration: const pw.BoxDecoration(
               color: PdfColors.blueGrey900,
             ),
-            headerHeight: 40,
+            headerHeight: 50,
             columnWidths: {
-              8: const pw.FixedColumnWidth(30),
-              7: const pw.FlexColumnWidth(3.5),
-              6: const pw.FlexColumnWidth(1.4),
-              5: const pw.FlexColumnWidth(1.6),
-              4: const pw.FlexColumnWidth(1.4),
-              3: const pw.FlexColumnWidth(1.4),
-              2: const pw.FlexColumnWidth(1.4),
-              1: const pw.FlexColumnWidth(1.8),
-              0: const pw.FlexColumnWidth(1.5),
+              9: const pw.FixedColumnWidth(28), // #
+              8: const pw.FlexColumnWidth(3.2), // اسم الموظف
+              7: const pw.FlexColumnWidth(1.3), // الساعات
+              6: const pw.FlexColumnWidth(1.5), // الأساسي
+              5: const pw.FlexColumnWidth(1.3), // خارجية
+              4: const pw.FlexColumnWidth(1.3), // مكافآت
+              3: const pw.FlexColumnWidth(1.3), // خصومات
+              2: const pw.FlexColumnWidth(1.3), // السلفة
+              1: const pw.FlexColumnWidth(1.6), // الصافي
+              0: const pw.FlexColumnWidth(1.4), // الحالة
             },
-            cellStyle: const pw.TextStyle(fontSize: 10),
-            cellPadding: const pw.EdgeInsets.symmetric(
-              horizontal: 6,
-              vertical: 10,
-            ),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            cellPadding: const pw.EdgeInsets.symmetric(vertical: 9),
             cellAlignments: {
-              8: pw.Alignment.center,
-              7: pw.Alignment.centerRight,
+              9: pw.Alignment.center,
+              8: pw.Alignment.centerRight,
+              7: pw.Alignment.center,
               6: pw.Alignment.center,
               5: pw.Alignment.center,
               4: pw.Alignment.center,
@@ -164,18 +161,20 @@ extension ReportServicePayrollExtension on ReportService {
             },
             data: List<List<dynamic>>.generate(payrolls.length, (index) {
               final p = payrolls[index];
+              final statusLabel = p.status == 'paid'
+                  ? 'تم الدفع'
+                  : p.status == 'approved'
+                  ? 'معتمد'
+                  : 'مسودة';
               return [
-                _shape(
-                  p.status == 'paid'
-                      ? 'تم الدفع'
-                      : p.status == 'approved'
-                      ? 'معتمد'
-                      : 'مسودة',
-                ),
+                _shape(statusLabel),
                 p.netSalary.toStringAsFixed(1),
-                p.deductions.toStringAsFixed(1),
-                p.bonus.toStringAsFixed(1),
-                p.outsideCasesFees.toStringAsFixed(1),
+                p.salafa > 0 ? p.salafa.toStringAsFixed(1) : '-',
+                p.deductions > 0 ? p.deductions.toStringAsFixed(1) : '-',
+                p.bonus > 0 ? p.bonus.toStringAsFixed(1) : '-',
+                p.outsideCasesFees > 0
+                    ? p.outsideCasesFees.toStringAsFixed(1)
+                    : '-',
                 p.baseSalary.toStringAsFixed(0),
                 p.totalHours.toStringAsFixed(1),
                 _shape(p.userName),
@@ -184,34 +183,84 @@ extension ReportServicePayrollExtension on ReportService {
             }),
           ),
           pw.SizedBox(height: 35),
-          pw.Container(
-            padding: const pw.EdgeInsets.all(16),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.blue50,
-              border: pw.Border.all(color: PdfColors.blue900, width: 1.5),
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  _shape('إجمالي الرواتب الصافية لهذا الشهر:'),
-                  style: pw.TextStyle(
-                    font: boldTtf,
-                    fontSize: 15,
-                    color: PdfColors.blue900,
+          // ── Summary boxes ─────────────────────────────────────
+          pw.Row(
+            children: [
+              // Total salafa
+              pw.Expanded(
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.all(14),
+                  margin: const pw.EdgeInsets.only(left: 10),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.orange50,
+                    border: pw.Border.all(
+                      color: PdfColors.deepOrange700,
+                      width: 1.2,
+                    ),
+                    borderRadius: const pw.BorderRadius.all(
+                      pw.Radius.circular(8),
+                    ),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        _shape('إجمالي السلف المخصومة'),
+                        style: pw.TextStyle(
+                          font: boldTtf,
+                          fontSize: 11,
+                          color: PdfColors.deepOrange700,
+                        ),
+                      ),
+                      pw.SizedBox(height: 6),
+                      pw.Text(
+                        '${payrolls.fold(0.0, (s, p) => s + p.salafa).toStringAsFixed(2)} E.P',
+                        style: pw.TextStyle(
+                          font: boldTtf,
+                          fontSize: 16,
+                          color: PdfColors.deepOrange700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                pw.Text(
-                  '${payrolls.fold(0.0, (sum, p) => sum + p.netSalary).toStringAsFixed(2)} E.P',
-                  style: pw.TextStyle(
-                    font: boldTtf,
-                    fontSize: 20,
-                    color: PdfColors.blue900,
+              ),
+              // Total net salary
+              pw.Expanded(
+                flex: 2,
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.all(14),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.blue50,
+                    border: pw.Border.all(color: PdfColors.blue900, width: 1.5),
+                    borderRadius: const pw.BorderRadius.all(
+                      pw.Radius.circular(8),
+                    ),
+                  ),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        _shape('إجمالي الرواتب الصافية لهذا الشهر:'),
+                        style: pw.TextStyle(
+                          font: boldTtf,
+                          fontSize: 13,
+                          color: PdfColors.blue900,
+                        ),
+                      ),
+                      pw.Text(
+                        '${payrolls.fold(0.0, (sum, p) => sum + p.netSalary).toStringAsFixed(2)} E.P',
+                        style: pw.TextStyle(
+                          font: boldTtf,
+                          fontSize: 18,
+                          color: PdfColors.blue900,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
         footer: (pw.Context context) => pw.Column(
@@ -394,7 +443,7 @@ extension ReportServicePayrollExtension on ReportService {
             headerDecoration: const pw.BoxDecoration(
               color: PdfColors.blueGrey900,
             ),
-            headerHeight: 40,
+            headerHeight: 55,
             cellStyle: const pw.TextStyle(fontSize: 10),
             cellPadding: const pw.EdgeInsets.symmetric(
               horizontal: 6,

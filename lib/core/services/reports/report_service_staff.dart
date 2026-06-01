@@ -159,7 +159,7 @@ extension ReportServiceStaffExtension on ReportService {
             headerDecoration: const pw.BoxDecoration(
               color: PdfColors.blueGrey900,
             ),
-            headerHeight: 40,
+            headerHeight: 55,
             cellStyle: const pw.TextStyle(fontSize: 9),
             cellPadding: const pw.EdgeInsets.symmetric(
               horizontal: 4,
@@ -237,7 +237,7 @@ extension ReportServiceStaffExtension on ReportService {
                   headerDecoration: const pw.BoxDecoration(
                     color: PdfColors.grey800,
                   ),
-                  headerHeight: 30,
+                  headerHeight: 50,
                   cellPadding: const pw.EdgeInsets.all(5),
                   cellStyle: const pw.TextStyle(fontSize: 8),
                   cellAlignments: {
@@ -459,7 +459,7 @@ extension ReportServiceStaffExtension on ReportService {
             headerDecoration: const pw.BoxDecoration(
               color: PdfColors.blueGrey900,
             ),
-            headerHeight: 40,
+            headerHeight: 55,
             cellStyle: const pw.TextStyle(fontSize: 9),
             cellPadding: const pw.EdgeInsets.symmetric(
               horizontal: 4,

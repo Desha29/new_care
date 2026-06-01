@@ -4,19 +4,29 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/utils/number_formatter.dart';
 import '../../data/models/payroll_model.dart';
+import '../../data/models/advance_model.dart';
 
 /// بطاقة تفاصيل الراتب - Salary Breakdown Card
 /// تعرض تفاصيل راتب موظف واحد
 class SalaryBreakdownCard extends StatelessWidget {
   final PayrollModel payroll;
   final VoidCallback? onClose;
-  final Function(double? bonus, double? deductions, String? notes)? onEdit;
+  final Function(double? bonus, double? deductions, double? salafa, String? notes)? onEdit;
+  /// Callback to fetch advances for this payroll's user/month
+  final Future<List<AdvanceModel>> Function()? onLoadAdvances;
+  /// Callback to add a new advance
+  final Future<void> Function(double amount, DateTime date, String notes)? onAddAdvance;
+  /// Callback to delete an advance by ID
+  final Future<void> Function(String advanceId)? onDeleteAdvance;
 
   const SalaryBreakdownCard({
     super.key,
     required this.payroll,
     this.onClose,
     this.onEdit,
+    this.onLoadAdvances,
+    this.onAddAdvance,
+    this.onDeleteAdvance,
   });
 
   @override
@@ -76,6 +86,13 @@ class SalaryBreakdownCard extends StatelessWidget {
                     payroll.deductions, 
                     isPositive: false,
                     onEdit: onEdit != null ? () => _showEditDialog(context, 'deductions') : null,
+                  ),
+                  _buildFinancialRow(
+                    context, 
+                    'السلفة المستقطعة', 
+                    payroll.salafa, 
+                    isPositive: false,
+                    onEdit: onLoadAdvances != null ? () => _showAdvancesManagementDialog(context) : null,
                   ),
 
                   const SizedBox(height: 16),
@@ -406,6 +423,7 @@ class SalaryBreakdownCard extends StatelessWidget {
       ),
     );
   }
+
   void _showEditDialog(BuildContext context, String field) {
     final controller = TextEditingController(
       text: (field == 'bonus' ? payroll.bonus : payroll.deductions).toStringAsFixed(0),
@@ -454,6 +472,7 @@ class SalaryBreakdownCard extends StatelessWidget {
                 onEdit!(
                   field == 'bonus' ? val : null,
                   field == 'deductions' ? val : null,
+                  null,
                   notesController.text,
                 );
                 Navigator.pop(context);
@@ -464,6 +483,411 @@ class SalaryBreakdownCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// عرض نافذة إدارة السلف - Show advances management dialog
+  void _showAdvancesManagementDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => _AdvancesManagementDialog(
+        userName: payroll.userName,
+        onLoadAdvances: onLoadAdvances!,
+        onAddAdvance: onAddAdvance,
+        onDeleteAdvance: onDeleteAdvance,
+      ),
+    );
+  }
+}
+
+/// نافذة إدارة السلف - Advances Management Dialog
+class _AdvancesManagementDialog extends StatefulWidget {
+  final String userName;
+  final Future<List<AdvanceModel>> Function() onLoadAdvances;
+  final Future<void> Function(double amount, DateTime date, String notes)? onAddAdvance;
+  final Future<void> Function(String advanceId)? onDeleteAdvance;
+
+  const _AdvancesManagementDialog({
+    required this.userName,
+    required this.onLoadAdvances,
+    this.onAddAdvance,
+    this.onDeleteAdvance,
+  });
+
+  @override
+  State<_AdvancesManagementDialog> createState() => _AdvancesManagementDialogState();
+}
+
+class _AdvancesManagementDialogState extends State<_AdvancesManagementDialog> {
+  List<AdvanceModel> _advances = [];
+  bool _loading = true;
+  bool _showAddForm = false;
+  final _amountController = TextEditingController();
+  final _notesController = TextEditingController();
+  DateTime _selectedDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAdvances();
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadAdvances() async {
+    setState(() => _loading = true);
+    try {
+      final advances = await widget.onLoadAdvances();
+      if (mounted) {
+        setState(() {
+          _advances = advances;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  double get _totalAmount => _advances.fold(0.0, (sum, a) => sum + a.amount);
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 600),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.08),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.money_off_rounded, color: AppColors.error, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'إدارة السلف',
+                          style: TextStyle(
+                            fontFamily: 'Cairo', fontSize: 16, fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          widget.userName,
+                          style: const TextStyle(
+                            fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+
+            // Total badge
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              color: AppColors.surfaceVariant,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'إجمالي السلف: ${_advances.length} سلفة',
+                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                  Text(
+                    NumberFormatter.currency(_totalAmount),
+                    style: const TextStyle(
+                      fontFamily: 'Cairo', fontSize: 15, fontWeight: FontWeight.w700,
+                      color: AppColors.error,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const Divider(height: 1, color: AppColors.border),
+
+            // Content
+            Flexible(
+              child: _loading
+                  ? const Center(child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: CircularProgressIndicator(),
+                    ))
+                  : _advances.isEmpty && !_showAddForm
+                      ? Padding(
+                          padding: const EdgeInsets.all(40),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.money_off_rounded, size: 48, color: AppColors.textHint.withValues(alpha: 0.4)),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'لا توجد سلف مسجلة لهذا الشهر',
+                                style: TextStyle(fontFamily: 'Cairo', fontSize: 14, color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          children: [
+                            if (_showAddForm) _buildAddForm(),
+                            ..._advances.map((adv) => _buildAdvanceItem(adv)),
+                          ],
+                        ),
+            ),
+
+            // Bottom actions
+            if (widget.onAddAdvance != null) ...[
+              const Divider(height: 1, color: AppColors.border),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _showAddForm = !_showAddForm;
+                        if (!_showAddForm) {
+                          _amountController.clear();
+                          _notesController.clear();
+                          _selectedDate = DateTime.now();
+                        }
+                      });
+                    },
+                    icon: Icon(_showAddForm ? Icons.close_rounded : Icons.add_rounded, size: 20),
+                    label: Text(
+                      _showAddForm ? 'إلغاء الإضافة' : 'إضافة سلفة جديدة',
+                      style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _showAddForm ? AppColors.textSecondary : AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddForm() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'سلفة جديدة',
+            style: TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _amountController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'المبلغ (E.P)',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.attach_money_rounded),
+              isDense: true,
+            ),
+            autofocus: true,
+          ),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _selectedDate,
+                firstDate: DateTime(DateTime.now().year - 1),
+                lastDate: DateTime.now(),
+              );
+              if (picked != null) setState(() => _selectedDate = picked);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.textSecondary),
+                  const SizedBox(width: 10),
+                  Text(
+                    '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}',
+                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _notesController,
+            maxLines: 2,
+            decoration: const InputDecoration(
+              labelText: 'ملاحظات (اختياري)',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _submitAdvance,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              child: const Text('حفظ السلفة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _submitAdvance() async {
+    final amount = double.tryParse(_amountController.text);
+    if (amount == null || amount <= 0) return;
+
+    await widget.onAddAdvance!(amount, _selectedDate, _notesController.text);
+    _amountController.clear();
+    _notesController.clear();
+    _selectedDate = DateTime.now();
+    setState(() => _showAddForm = false);
+    await _loadAdvances();
+  }
+
+  Widget _buildAdvanceItem(AdvanceModel advance) {
+    final dateStr = '${advance.date.year}-${advance.date.month.toString().padLeft(2, '0')}-${advance.date.day.toString().padLeft(2, '0')}';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.money_off_rounded, color: AppColors.error, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  NumberFormatter.currency(advance.amount),
+                  style: const TextStyle(
+                    fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.error,
+                  ),
+                ),
+                Text(
+                  dateStr + (advance.notes.isNotEmpty ? ' — ${advance.notes}' : ''),
+                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          if (widget.onDeleteAdvance != null)
+            IconButton(
+              onPressed: () => _confirmDelete(advance),
+              icon: const Icon(Icons.delete_outline_rounded, size: 20, color: AppColors.error),
+              tooltip: 'حذف',
+              visualDensity: VisualDensity.compact,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(AdvanceModel advance) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف السلفة', style: TextStyle(fontFamily: 'Cairo')),
+        content: Text(
+          'هل تريد حذف السلفة بمبلغ ${NumberFormatter.currency(advance.amount)}؟',
+          style: const TextStyle(fontFamily: 'Cairo'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            child: const Text('حذف', style: TextStyle(fontFamily: 'Cairo')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await widget.onDeleteAdvance!(advance.id);
+      await _loadAdvances();
+    }
   }
 }
 

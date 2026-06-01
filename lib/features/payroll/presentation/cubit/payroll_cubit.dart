@@ -6,6 +6,7 @@ import '../../../../core/services/notifications/data_change_notifier.dart';
 import '../../../cases/data/models/case_model.dart';
 import '../../domain/repositories/payroll_repository.dart';
 import '../../data/models/payroll_model.dart';
+import '../../data/models/advance_model.dart';
 import 'payroll_state.dart';
 import 'package:uuid/uuid.dart';
 
@@ -91,11 +92,25 @@ class PayrollCubit extends Cubit<PayrollState> {
 
     emit(PayrollLoading());
     try {
-      // 1. حذف الرواتب القديمة لهذا الشهر دائماً لتجنب التكرار
+      // 1. قراءة الرواتب المحفوظة لهذا الشهر أولاً
       final savedPayrolls = await _payrollRepository.getPayrolls(
         targetYear,
         targetMonth,
       );
+
+      if (savedPayrolls.isNotEmpty && !force) {
+        _currentPayrolls = savedPayrolls;
+        emit(
+          PayrollLoaded(
+            payrolls: _currentPayrolls,
+            selectedYear: targetYear,
+            selectedMonth: targetMonth,
+          ),
+        );
+        return;
+      }
+
+      // خلاف ذلك، نقوم بحذف القديم وإعادة الحساب
       for (final old in savedPayrolls) {
         await _payrollRepository.deletePayroll(old.id);
       }
@@ -135,6 +150,7 @@ class PayrollCubit extends Cubit<PayrollState> {
       month,
     );
     final allCases = await _payrollRepository.getMonthlyCases(year, month);
+    final allAdvances = await _payrollRepository.getMonthlyAdvances(year, month);
 
     List<PayrollModel> generated = [];
 
@@ -156,7 +172,6 @@ class PayrollCubit extends Cubit<PayrollState> {
       final double baseSalary = user.salary;
 
       // === حساب سعر الساعة ===
-      // سعر الساعة = الراتب الأساسي / (أيام العمل المتوقعة × ساعات اليوم)
       final double expectedMonthlyHours =
           _expectedMonthlyDays * _expectedDailyHours;
       final double hourlyRate = baseSalary / expectedMonthlyHours;
@@ -196,10 +211,14 @@ class PayrollCubit extends Cubit<PayrollState> {
       final currentFee = await _payrollRepository.getOutsideCaseFee();
       final double outsideCasesFees = outsideCasesCount * currentFee;
 
+      // === حساب إجمالي السلف لهذا الموظف ===
+      final userAdvances = allAdvances.where((a) => a.userId == user.id).toList();
+      final double totalSalafa = userAdvances.fold(0.0, (sum, a) => sum + a.amount);
+
       // === حساب صافي الراتب ===
-      // الصافي = الأساسي + العمليات الخارجية + الإضافي - الخصومات
+      // الصافي = الأساسي + العمليات الخارجية + الإضافي - الخصومات - السلف
       final double netSalary =
-          baseSalary + outsideCasesFees + overtimeAmount - deductions;
+          baseSalary + outsideCasesFees + overtimeAmount - deductions - totalSalafa;
 
       generated.add(
         PayrollModel(
@@ -214,6 +233,7 @@ class PayrollCubit extends Cubit<PayrollState> {
           bonus: overtimeAmount, // نستخدم حقل bonus للساعات الإضافية
           outsideCasesFees: outsideCasesFees,
           deductions: double.parse(deductions.toStringAsFixed(2)),
+          salafa: double.parse(totalSalafa.toStringAsFixed(2)),
           netSalary: double.parse(netSalary.toStringAsFixed(2)),
           totalDays: totalDays,
           absentDays: absentDays,
@@ -365,11 +385,12 @@ class PayrollCubit extends Cubit<PayrollState> {
     return _payrollRepository.getMonthlyCases(year, month);
   }
 
-  /// تحديث المكافآت والخصومات يدوياً - Update rewards and deductions manually
+  /// تحديث المكافآت والخصومات والسلف يدوياً - Update rewards, deductions and advances manually
   Future<void> updatePayrollExtras({
     required String payrollId,
     double? bonus,
     double? deductions,
+    double? salafa,
     String? notes,
   }) async {
     try {
@@ -379,17 +400,12 @@ class PayrollCubit extends Cubit<PayrollState> {
         final updated = current.copyWith(
           bonus: bonus ?? current.bonus,
           deductions: deductions ?? current.deductions,
+          salafa: salafa ?? current.salafa,
           notes: notes ?? current.notes,
         );
 
-        // إعادة حساب الصافي - Re-calculate net salary based on model logic
-        final finalNet =
-            updated.baseSalary +
-            updated.bonus +
-            updated.outsideCasesFees -
-            updated.deductions;
         final fullyUpdated = updated.copyWith(
-          netSalary: double.parse(finalNet.toStringAsFixed(2)),
+          netSalary: double.parse(updated.calculatedNetSalary.toStringAsFixed(2)),
           updatedAt: DateTime.now(),
         );
 
@@ -411,6 +427,102 @@ class PayrollCubit extends Cubit<PayrollState> {
       }
     } catch (e) {
       emit(PayrollError('فشل تحديث البيانات: $e'));
+    }
+  }
+
+  // === عمليات السلف - Advance Operations ===
+
+  /// جلب سلف موظف لشهر معين - Get advances for a specific payroll
+  Future<List<AdvanceModel>> getAdvancesForPayroll(String userId, int year, int month) async {
+    return _payrollRepository.getMonthlyAdvancesForUser(userId, year, month);
+  }
+
+  /// إضافة سلفة جديدة - Add a new advance
+  Future<void> addAdvance({
+    required String userId,
+    required String userName,
+    required double amount,
+    required DateTime date,
+    String notes = '',
+    String createdBy = '',
+  }) async {
+    try {
+      final advance = AdvanceModel(
+        id: const Uuid().v4(),
+        userId: userId,
+        userName: userName,
+        amount: amount,
+        date: date,
+        notes: notes,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        createdBy: createdBy,
+      );
+
+      await _payrollRepository.saveAdvance(advance);
+
+      // إعادة حساب سلفة الموظف في الراتب - Recalculate the user's salafa in payroll
+      await _recalculateUserSalafa(userId);
+
+      emit(const PayrollActionSuccess('تم إضافة السلفة بنجاح'));
+      _emitCurrentLoaded();
+    } catch (e) {
+      emit(PayrollError('فشل إضافة السلفة: $e'));
+    }
+  }
+
+  /// حذف سلفة - Delete an advance
+  Future<void> deleteAdvanceRecord(String advanceId, String userId) async {
+    try {
+      await _payrollRepository.deleteAdvance(advanceId);
+
+      // إعادة حساب سلفة الموظف في الراتب - Recalculate the user's salafa in payroll
+      await _recalculateUserSalafa(userId);
+
+      emit(const PayrollActionSuccess('تم حذف السلفة بنجاح'));
+      _emitCurrentLoaded();
+    } catch (e) {
+      emit(PayrollError('فشل حذف السلفة: $e'));
+    }
+  }
+
+  /// إعادة حساب إجمالي السلف لموظف معين وتحديث الراتب
+  Future<void> _recalculateUserSalafa(String userId) async {
+    final previousState = state;
+    if (previousState is! PayrollLoaded) return;
+
+    final year = previousState.selectedYear;
+    final month = previousState.selectedMonth;
+
+    final advances = await _payrollRepository.getMonthlyAdvancesForUser(userId, year, month);
+    final totalSalafa = advances.fold(0.0, (sum, a) => sum + a.amount);
+
+    final index = _currentPayrolls.indexWhere((p) => p.userId == userId);
+    if (index >= 0) {
+      final current = _currentPayrolls[index];
+      final updated = current.copyWith(
+        salafa: double.parse(totalSalafa.toStringAsFixed(2)),
+      );
+      final fullyUpdated = updated.copyWith(
+        netSalary: double.parse(updated.calculatedNetSalary.toStringAsFixed(2)),
+        updatedAt: DateTime.now(),
+      );
+      await _payrollRepository.updatePayroll(fullyUpdated);
+      _currentPayrolls[index] = fullyUpdated;
+    }
+  }
+
+  /// إصدار حالة التحميل الحالية - Emit current loaded state
+  void _emitCurrentLoaded() {
+    final previousState = state;
+    if (previousState is PayrollLoaded) {
+      emit(
+        PayrollLoaded(
+          payrolls: List.from(_currentPayrolls),
+          selectedYear: previousState.selectedYear,
+          selectedMonth: previousState.selectedMonth,
+        ),
+      );
     }
   }
 }

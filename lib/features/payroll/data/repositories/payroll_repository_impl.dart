@@ -2,6 +2,7 @@ import '../../../../core/services/local/sqlite_service.dart';
 import '../../../../core/services/sync/sync_manager.dart';
 import '../../domain/repositories/payroll_repository.dart';
 import '../../data/models/payroll_model.dart';
+import '../../data/models/advance_model.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../attendance/data/models/attendance_model.dart';
 import '../../../cases/data/models/case_model.dart';
@@ -158,5 +159,57 @@ class PayrollRepositoryImpl implements IPayrollRepository {
       docId: payroll.id,
       data: payroll.toMap(),
     );
+  }
+
+  // === عمليات السلف - Advance Operations ===
+
+  @override
+  Future<List<AdvanceModel>> getMonthlyAdvancesForUser(String userId, int year, int month) async {
+    final db = await _local.database;
+    final startDate = '$year-${month.toString().padLeft(2, '0')}-01';
+    final endMonth = month == 12 ? 1 : month + 1;
+    final endYear = month == 12 ? year + 1 : year;
+    final endDate = '$endYear-${endMonth.toString().padLeft(2, '0')}-01';
+
+    final results = await db.query(
+      'advances',
+      where: 'userId = ? AND date >= ? AND date < ?',
+      whereArgs: [userId, startDate, endDate],
+      orderBy: 'date DESC',
+    );
+
+    return results
+        .map((m) => AdvanceModel.fromMap(m, m['id'] as String))
+        .toList();
+  }
+
+  @override
+  Future<List<AdvanceModel>> getMonthlyAdvances(int year, int month) async {
+    final db = await _local.database;
+    final startDate = '$year-${month.toString().padLeft(2, '0')}-01';
+    final endMonth = month == 12 ? 1 : month + 1;
+    final endYear = month == 12 ? year + 1 : year;
+    final endDate = '$endYear-${endMonth.toString().padLeft(2, '0')}-01';
+
+    final results = await db.query(
+      'advances',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startDate, endDate],
+      orderBy: 'date DESC',
+    );
+
+    return results
+        .map((m) => AdvanceModel.fromMap(m, m['id'] as String))
+        .toList();
+  }
+
+  @override
+  Future<void> saveAdvance(AdvanceModel advance, {bool isNew = true}) async {
+    await _sync.saveAdvanceWithSync(advance, isNew: isNew);
+  }
+
+  @override
+  Future<void> deleteAdvance(String id) async {
+    await _sync.deleteAdvanceWithSync(id);
   }
 }

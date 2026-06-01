@@ -13,6 +13,7 @@ import 'package:new_care/features/procedures/data/models/procedure_model.dart';
 import 'package:new_care/features/auth/data/models/user_model.dart';
 import 'package:new_care/features/payroll/data/models/payroll_model.dart';
 import 'package:new_care/features/financials/data/models/expense_model.dart';
+import 'package:new_care/features/payroll/data/models/advance_model.dart';
 import 'package:new_care/core/services/sync/sync_progress.dart';
 
 
@@ -299,6 +300,21 @@ class SyncManager {
               await Future.delayed(const Duration(milliseconds: 100));
             } catch (e) {
               log('[SyncManager] ❌ Failed to upload expense ${ex['id']}: $e');
+            }
+          }
+          break;
+        case 'advances':
+          _emitProgress('مسح السلف القديمة...', icon: '🗑️', step: 0, total: 3);
+          await _firebaseService.clearCollectionByName('advances');
+          final advances = await db.query('advances');
+          _emitProgress('السلف — ${advances.length} سجل', icon: '💸', step: 1, total: 3);
+          for (var adv in advances) {
+            try {
+              final model = AdvanceModel.fromMap(adv, adv['id'] as String);
+              await _firebaseService.createAdvance(model).timeout(const Duration(seconds: 30));
+              await Future.delayed(const Duration(milliseconds: 100));
+            } catch (e) {
+              log('[SyncManager] ❌ Failed to upload advance ${adv['id']}: $e');
             }
           }
           break;
@@ -650,6 +666,21 @@ class SyncManager {
             rethrow;
           }
           break;
+        case 'advances':
+          try {
+            final model = AdvanceModel.fromMap(data, id);
+            if (op == 'delete') {
+              await _firebaseService.deleteAdvance(id);
+            } else {
+              await _firebaseService.createAdvance(model);
+            }
+            log('[SyncManager] Advance operation completed: $op on $id');
+          } catch (e, st) {
+            log('[SyncManager] Advance operation error: $e');
+            log('[SyncManager] Advance stack: $st');
+            rethrow;
+          }
+          break;
         default:
           throw Exception('Unknown table: $table');
       }
@@ -664,7 +695,7 @@ class SyncManager {
   /// Replace ALL Firestore data with local SQLite data
   Future<void> _uploadAllLocalData() async {
     final db = await _sqliteService.database;
-    const totalSteps = 10; // clear + 8 tables + done
+    const totalSteps = 11; // clear + 9 tables + done
 
     try {
       // 0. مسح كل البيانات من Firestore
@@ -784,8 +815,22 @@ class SyncManager {
         }
       }
 
-      // 9. مسح طابور المزامنة
-      _emitProgress('تنظيف الطابور...', icon: '🧹', step: 9, total: totalSteps);
+      // 9. رفع السلف
+      final advances = await db.query('advances');
+      _emitProgress('السلف — ${advances.length} سجل', icon: '💸', step: 9, total: totalSteps);
+      log('[SyncManager] Uploading ${advances.length} advances...');
+      for (var adv in advances) {
+        try {
+          final model = AdvanceModel.fromMap(adv, adv['id'] as String);
+          await _firebaseService.createAdvance(model).timeout(const Duration(seconds: 30));
+          await Future.delayed(const Duration(milliseconds: 100));
+        } catch (e) {
+          log('[SyncManager] ❌ Failed to upload advance ${adv['id']}: $e');
+        }
+      }
+
+      // 10. مسح طابور المزامنة
+      _emitProgress('تنظيف الطابور...', icon: '🧹', step: 10, total: totalSteps);
       await db.delete('pending_sync');
       _emitProgress('تمت المزامنة بنجاح ✓', icon: '🎉', step: totalSteps, total: totalSteps, isDone: true);
       log('[SyncManager] ✓ All local data uploaded & pending queue cleared');
@@ -800,7 +845,7 @@ class SyncManager {
   /// تنزيل كل البيانات من Firestore إلى SQLite (بدون حذف - إضافة/تحديث فقط)
   /// Download ALL data from Firestore and merge into SQLite (no deletes, only insert/update)
   Future<void> _downloadAllFromCloud() async {
-    const totalSteps = 10;
+    const totalSteps = 11;
     try {
       _emitProgress('بدء تحميل البيانات من السحابة...', icon: '☁️', step: 0, total: totalSteps);
       log('[SyncManager] Fetching ALL data from Firestore...');
@@ -926,9 +971,21 @@ class SyncManager {
         await batch.commit(noResult: true);
       });
 
-      // 9. Finalizing
-      _emitProgress('تحديث الحالة النهائية...', icon: '⚙️', step: 9, total: totalSteps);
-      final totalRecords = cases.length + users.length + inventory.length + procedures.length + shifts.length + attendance.length + payroll.length + expenses.length;
+      // 9. Advances
+      _emitProgress('السلف...', icon: '💸', step: 9, total: totalSteps);
+      final advances = await _firebaseService.getAllAdvances().timeout(const Duration(seconds: 45));
+      _emitProgress('السلف — ${advances.length} سجل', icon: '💸', step: 9, total: totalSteps);
+      await db.transaction((txn) async {
+        final batch = txn.batch();
+        for (var adv in advances) {
+          batch.insert('advances', adv.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        await batch.commit(noResult: true);
+      });
+
+      // 10. Finalizing
+      _emitProgress('تحديث الحالة النهائية...', icon: '⚙️', step: 10, total: totalSteps);
+      final totalRecords = cases.length + users.length + inventory.length + procedures.length + shifts.length + attendance.length + payroll.length + expenses.length + advances.length;
       
       _emitProgress('تم تحميل $totalRecords سجل بنجاح ✓', icon: '🎉', step: totalSteps, total: totalSteps, isDone: true);
       log('[SyncManager] ✓ Downloaded & merged $totalRecords records from cloud');
@@ -1010,6 +1067,30 @@ class SyncManager {
       operation: isNew ? 'create' : 'update',
       docId: expense.id,
       data: expense.toMap(),
+    );
+  }
+
+  Future<void> saveAdvanceWithSync(
+    AdvanceModel advance, {
+    bool isNew = true,
+  }) async {
+    await _sqliteService.insert('advances', advance.toSqliteMap());
+    await enqueue(
+      tableName: 'advances',
+      operation: isNew ? 'create' : 'update',
+      docId: advance.id,
+      data: advance.toMap(),
+    );
+  }
+
+  Future<void> deleteAdvanceWithSync(String id) async {
+    final db = await _sqliteService.database;
+    await db.delete('advances', where: 'id = ?', whereArgs: [id]);
+    await enqueue(
+      tableName: 'advances',
+      operation: 'delete',
+      docId: id,
+      data: {'id': id},
     );
   }
 

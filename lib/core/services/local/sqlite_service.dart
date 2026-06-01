@@ -27,7 +27,7 @@ class SqliteService {
     _database = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 21, // Added dailyWorkHours to users
+        version: 24, // Added advances table for Option B
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -231,6 +231,7 @@ class SqliteService {
         bonus REAL DEFAULT 0,
         outsideCasesFees REAL DEFAULT 0,
         deductions REAL DEFAULT 0,
+        salafa REAL DEFAULT 0,
         netSalary REAL DEFAULT 0,
         totalDays INTEGER DEFAULT 0,
         absentDays INTEGER DEFAULT 0,
@@ -270,6 +271,21 @@ class SqliteService {
         notes TEXT DEFAULT '',
         generatedAt TEXT NOT NULL,
         generatedBy TEXT DEFAULT ''
+      )
+    ''');
+
+    // جدول السلف - Advances table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS advances (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        userName TEXT DEFAULT '',
+        amount REAL DEFAULT 0,
+        date TEXT NOT NULL,
+        notes TEXT DEFAULT '',
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        createdBy TEXT DEFAULT ''
       )
     ''');
   }
@@ -420,6 +436,34 @@ class SqliteService {
       try {
         await db.execute("ALTER TABLE users ADD COLUMN dailyWorkHours REAL DEFAULT 8.0");
       } catch (e) { /* column may already exist */ }
+    }
+    if (oldVersion < 22) {
+      // إضافة عمود السلفة إلى جدول الرواتب - Add salafa column to payroll table
+      try {
+        await db.execute('ALTER TABLE payroll ADD COLUMN salafa REAL DEFAULT 0');
+      } catch (e) { /* column may already exist */ }
+    }
+    if (oldVersion < 23) {
+      // إضافة عمود السلفة إلى جدول الرواتب - Add salafa column to payroll table if upgrading to 23
+      try {
+        await db.execute('ALTER TABLE payroll ADD COLUMN salafa REAL DEFAULT 0');
+      } catch (e) { /* column may already exist */ }
+    }
+    if (oldVersion < 24) {
+      // إنشاء جدول السلف - Create advances table if upgrading to 24
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS advances (
+          id TEXT PRIMARY KEY,
+          userId TEXT NOT NULL,
+          userName TEXT DEFAULT '',
+          amount REAL DEFAULT 0,
+          date TEXT NOT NULL,
+          notes TEXT DEFAULT '',
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL,
+          createdBy TEXT DEFAULT ''
+        )
+      ''');
     }
   }
 

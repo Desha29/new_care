@@ -53,6 +53,10 @@ class _PayrollScreenState extends State<PayrollScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: BlocConsumer<PayrollCubit, PayrollState>(
+        buildWhen: (previous, current) =>
+            current is PayrollLoading ||
+            current is PayrollLoaded ||
+            current is PayrollError,
         listener: (context, state) {
           if (state is PayrollActionSuccess) {
             UIFeedback.showSuccess(context, state.message);
@@ -523,29 +527,54 @@ class _PayrollScreenState extends State<PayrollScreen> {
   void _showPayrollDetailDialog(BuildContext context, PayrollModel payroll) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
-        backgroundColor: Colors.transparent,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 800),
-          child: SalaryBreakdownCard(
-            payroll: payroll,
-            onClose: () {
-              Navigator.pop(context);
-              setState(() => _selectedPayroll = null);
-            },
-            onEdit: (bonus, deductions, notes) {
-              context.read<PayrollCubit>().updatePayrollExtras(
-                payrollId: payroll.id,
-                bonus: bonus,
-                deductions: deductions,
-                notes: notes,
-              );
-            },
-          ),
-        ),
+      builder: (dialogContext) => BlocBuilder<PayrollCubit, PayrollState>(
+        buildWhen: (previous, current) => current is PayrollLoaded,
+        builder: (context, state) {
+          final currentPayroll = (state is PayrollLoaded)
+              ? state.payrolls.firstWhere((p) => p.id == payroll.id, orElse: () => payroll)
+              : payroll;
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            backgroundColor: Colors.transparent,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500, maxHeight: 800),
+              child: SalaryBreakdownCard(
+                payroll: currentPayroll,
+                onClose: () {
+                  Navigator.pop(dialogContext);
+                  setState(() => _selectedPayroll = null);
+                },
+                onEdit: (bonus, deductions, salafa, notes) {
+                  context.read<PayrollCubit>().updatePayrollExtras(
+                    payrollId: currentPayroll.id,
+                    bonus: bonus,
+                    deductions: deductions,
+                    salafa: salafa,
+                    notes: notes,
+                  );
+                },
+                onLoadAdvances: () => context.read<PayrollCubit>().getAdvancesForPayroll(
+                  currentPayroll.userId,
+                  currentPayroll.year,
+                  currentPayroll.month,
+                ),
+                onAddAdvance: (amount, date, notes) => context.read<PayrollCubit>().addAdvance(
+                  userId: currentPayroll.userId,
+                  userName: currentPayroll.userName,
+                  amount: amount,
+                  date: date,
+                  notes: notes,
+                ),
+                onDeleteAdvance: (advanceId) => context.read<PayrollCubit>().deleteAdvanceRecord(
+                  advanceId,
+                  currentPayroll.userId,
+                ),
+              ),
+            ),
+          );
+        },
       ),
     ).then((_) {
       if (mounted) setState(() => _selectedPayroll = null);
@@ -557,44 +586,69 @@ class _PayrollScreenState extends State<PayrollScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.8,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      builder: (bottomSheetContext) => BlocBuilder<PayrollCubit, PayrollState>(
+        buildWhen: (previous, current) => current is PayrollLoaded,
+        builder: (context, state) {
+          final currentPayroll = (state is PayrollLoaded)
+              ? state.payrolls.firstWhere((p) => p.id == payroll.id, orElse: () => payroll)
+              : payroll;
+          return DraggableScrollableSheet(
+            initialChildSize: 0.8,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            builder: (context, scrollController) => Container(
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: SalaryBreakdownCard(
-                  payroll: payroll,
-                  onClose: () => Navigator.pop(context),
-                  onEdit: (bonus, deductions, notes) {
-                    context.read<PayrollCubit>().updatePayrollExtras(
-                      payrollId: payroll.id,
-                      bonus: bonus,
-                      deductions: deductions,
-                      notes: notes,
-                    );
-                  },
-                ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SalaryBreakdownCard(
+                      payroll: currentPayroll,
+                      onClose: () => Navigator.pop(bottomSheetContext),
+                      onEdit: (bonus, deductions, salafa, notes) {
+                        context.read<PayrollCubit>().updatePayrollExtras(
+                          payrollId: currentPayroll.id,
+                          bonus: bonus,
+                          deductions: deductions,
+                          salafa: salafa,
+                          notes: notes,
+                        );
+                      },
+                      onLoadAdvances: () => context.read<PayrollCubit>().getAdvancesForPayroll(
+                        currentPayroll.userId,
+                        currentPayroll.year,
+                        currentPayroll.month,
+                      ),
+                      onAddAdvance: (amount, date, notes) => context.read<PayrollCubit>().addAdvance(
+                        userId: currentPayroll.userId,
+                        userName: currentPayroll.userName,
+                        amount: amount,
+                        date: date,
+                        notes: notes,
+                      ),
+                      onDeleteAdvance: (advanceId) => context.read<PayrollCubit>().deleteAdvanceRecord(
+                        advanceId,
+                        currentPayroll.userId,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }

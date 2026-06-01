@@ -14,6 +14,7 @@ class PayrollModel {
   final double bonus;
   final double outsideCasesFees;
   final double deductions;
+  final double salafa; // السلفة - Advance
   final double netSalary;
   final int totalDays;
   final int absentDays;
@@ -35,6 +36,7 @@ class PayrollModel {
     this.bonus = 0,
     this.outsideCasesFees = 0,
     this.deductions = 0,
+    this.salafa = 0,
     this.netSalary = 0,
     this.totalDays = 0,
     this.absentDays = 0,
@@ -46,7 +48,7 @@ class PayrollModel {
   });
 
   /// حساب صافي الراتب - Calculate net salary
-  double get calculatedNetSalary => baseSalary + bonus + outsideCasesFees - deductions;
+  double get calculatedNetSalary => baseSalary + bonus + outsideCasesFees - deductions - salafa;
 
   /// حساب الراتب الأساسي من الساعات - Calculate base from hours
   double get calculatedBaseSalary => totalHours * hourlyRate;
@@ -82,6 +84,7 @@ class PayrollModel {
       'bonus': bonus,
       'outsideCasesFees': outsideCasesFees,
       'deductions': deductions,
+      'salafa': salafa,
       'netSalary': netSalary,
       'totalDays': totalDays,
       'absentDays': absentDays,
@@ -107,6 +110,7 @@ class PayrollModel {
       bonus: (map['bonus'] ?? 0).toDouble(),
       outsideCasesFees: (map['outsideCasesFees'] ?? 0).toDouble(),
       deductions: (map['deductions'] ?? 0).toDouble(),
+      salafa: (map['salafa'] ?? 0).toDouble(),
       netSalary: (map['netSalary'] ?? 0).toDouble(),
       totalDays: map['totalDays'] ?? 0,
       absentDays: map['absentDays'] ?? 0,
@@ -138,6 +142,7 @@ class PayrollModel {
     double? bonus,
     double? outsideCasesFees,
     double? deductions,
+    double? salafa,
     double? netSalary,
     int? totalDays,
     int? absentDays,
@@ -158,6 +163,7 @@ class PayrollModel {
       bonus: bonus ?? this.bonus,
       outsideCasesFees: outsideCasesFees ?? this.outsideCasesFees,
       deductions: deductions ?? this.deductions,
+      salafa: salafa ?? this.salafa,
       netSalary: netSalary ?? this.netSalary,
       totalDays: totalDays ?? this.totalDays,
       absentDays: absentDays ?? this.absentDays,

@@ -293,6 +293,7 @@ class ReportService {
             headerDecoration: const pw.BoxDecoration(
               color: PdfColors.blueGrey800,
             ),
+            headerHeight: 55,
             cellPadding: const pw.EdgeInsets.all(6),
             cellAlignments: {
               0: pw.Alignment.center,
