@@ -6,6 +6,12 @@ import 'package:new_care/core/widgets/dialogs/confirm_dialog.dart';
 import 'package:new_care/features/inventory/data/models/inventory_model.dart';
 import 'package:new_care/features/inventory/presentation/cubit/inventory_cubit.dart';
 import 'package:new_care/features/inventory/presentation/cubit/inventory_state.dart';
+import 'package:new_care/core/services/pdf/report_service.dart';
+import 'package:new_care/core/services/excel/excel_service.dart';
+import 'package:new_care/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:new_care/features/auth/presentation/cubit/auth_state.dart';
+import 'package:new_care/features/reports/presentation/screens/report_preview_screen.dart';
+import 'package:new_care/core/utils/ui_feedback.dart';
 import '../widgets/inventory_header.dart';
 import '../widgets/inventory_alert.dart';
 import '../widgets/inventory_table.dart';
@@ -33,6 +39,7 @@ class InventoryScreen extends StatelessWidget {
                   state: state,
                   onRefresh: () => context.read<InventoryCubit>().loadInventory(),
                   onAddItem: () => _showItemDialog(context),
+                  onGenerateReport: () => _generateReport(context, state),
                 ),
                 const SizedBox(height: 16),
                 if (state is InventoryLoaded) ...[
@@ -126,5 +133,37 @@ class InventoryScreen extends StatelessWidget {
     if (result == true && context.mounted) {
       context.read<InventoryCubit>().deleteItem(item.id);
     }
+  }
+
+  void _generateReport(BuildContext context, InventoryState state) {
+    if (state is! InventoryLoaded) return;
+
+    final authState = context.read<AuthCubit>().state;
+    String genBy = 'مدير النظام';
+    if (authState is AuthAuthenticated) {
+      genBy = authState.user.name;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReportPreviewScreen(
+          title: 'تقرير جرد المستلزمات والمخزون',
+          fileName: 'Inventory_Report',
+          buildReport: () => ReportService.instance.generateInventoryReportBytes(
+            items: state.filteredItems,
+            generatedBy: genBy,
+          ),
+          onExportExcel: () async {
+            final success = await ExcelService.instance.exportInventoryToExcel(state.filteredItems);
+            if (success && context.mounted) {
+              UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+            } else if (!success && context.mounted) {
+              UIFeedback.showError(context, 'فشل تصدير ملف Excel أو تم إلغاؤه');
+            }
+          },
+        ),
+      ),
+    );
   }
 }

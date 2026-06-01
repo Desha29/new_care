@@ -12,10 +12,9 @@ import 'attendance_state.dart';
 class AttendanceCubit extends Cubit<AttendanceState> {
   final IAttendanceRepository _attendanceRepository;
 
-  AttendanceCubit({
-    required IAttendanceRepository attendanceRepository,
-  }) : _attendanceRepository = attendanceRepository,
-       super(AttendanceInitial());
+  AttendanceCubit({required IAttendanceRepository attendanceRepository})
+    : _attendanceRepository = attendanceRepository,
+      super(AttendanceInitial());
 
   StreamSubscription? _todayAttendanceSub;
   StreamSubscription? _currentStatusSub;
@@ -58,15 +57,19 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     _autoCheckoutTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
       if (state is AttendanceLoaded) {
         final currentState = state as AttendanceLoaded;
-        final hasActiveCheckIns = currentState.records.any((r) => r.isCheckedIn) ||
-            (currentState.todayRecord != null && currentState.todayRecord!.isCheckedIn);
-        
+        final hasActiveCheckIns =
+            currentState.records.any((r) => r.isCheckedIn) ||
+            (currentState.todayRecord != null &&
+                currentState.todayRecord!.isCheckedIn);
+
         if (hasActiveCheckIns) {
           try {
             // هذا الفحص سيقوم بتحديث السجلات في Firestore فوراً بمجرد انتهاء ساعات العمل
             await _attendanceRepository.getTodayAttendanceRecords();
             if (_currentUserIdForRefresh != null) {
-              await _attendanceRepository.getTodayAttendance(_currentUserIdForRefresh!);
+              await _attendanceRepository.getTodayAttendance(
+                _currentUserIdForRefresh!,
+              );
             }
           } catch (e) {
             // معالجة الأخطاء الصامتة لتجنب تعطيل واجهة المستخدم
@@ -109,8 +112,9 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   }) async {
     if (!force &&
         state is AttendanceLoaded &&
-        (state as AttendanceLoaded).records.isNotEmpty)
+        (state as AttendanceLoaded).records.isNotEmpty) {
       return;
+    }
 
     emit(AttendanceLoading());
     try {
@@ -229,8 +233,9 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
     if (currentState.isLoadingMore ||
         !currentState.hasMore ||
-        currentState.lastDocument == null)
+        currentState.lastDocument == null) {
       return;
+    }
 
     emit(currentState.copyWith(isLoadingMore: true));
     try {
@@ -305,7 +310,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
             } else {
               emit(
                 AttendanceLoaded(
-                  records: [if (attendance != null) attendance],
+                  records: [?attendance],
                   todayRecord: attendance,
                   isCheckedIn: attendance != null && attendance.isCheckedIn,
                 ),

@@ -104,8 +104,9 @@ class CasesCubit extends Cubit<CasesState> {
         state is CasesLoaded &&
         (state as CasesLoaded).timeFilter == timeFilter &&
         (state as CasesLoaded).customStartDate == customStartDate &&
-        (state as CasesLoaded).customEndDate == customEndDate)
+        (state as CasesLoaded).customEndDate == customEndDate) {
       return;
+    }
 
     emit(CasesLoading());
     try {
@@ -144,8 +145,9 @@ class CasesCubit extends Cubit<CasesState> {
 
     if (currentState.isLoadingMore ||
         !currentState.hasMore ||
-        currentState.lastDocument == null)
+        currentState.lastDocument == null) {
       return;
+    }
 
     emit(currentState.copyWith(isLoadingMore: true));
     try {

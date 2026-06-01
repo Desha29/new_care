@@ -5,6 +5,8 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/widgets/buttons/primary_button.dart';
 import '../../../../core/services/pdf/report_service.dart';
+import '../../../../core/services/excel/excel_service.dart';
+import '../../../../core/utils/ui_feedback.dart';
 import '../../../reports/presentation/screens/report_preview_screen.dart';
 import '../cubit/financials_cubit.dart';
 
@@ -64,6 +66,21 @@ class FinancialsHeader extends StatelessWidget {
                             start: DateTime(now.year, now.month, 1),
                             end: now,
                           ),
+                          onExportExcel: () async {
+                            final success = await ExcelService.instance.exportFinancialsToExcel(
+                              cases: state.cases,
+                              expenses: state.expenses,
+                              start: DateTime(now.year, now.month, 1),
+                              end: now,
+                            );
+                            if (context.mounted) {
+                              if (success) {
+                                UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+                              } else {
+                                UIFeedback.showError(context, 'فشل تصدير ملف Excel أو تم إلغاؤه');
+                              }
+                            }
+                          },
                         ),
                       ),
                     );

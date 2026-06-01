@@ -13,12 +13,14 @@ import 'package:new_care/features/cases/data/models/case_model.dart';
 import 'package:new_care/features/cases/domain/repositories/cases_repository.dart';
 import 'package:new_care/core/services/firebase/firebase_service.dart';
 import 'package:new_care/core/services/pdf/report_service.dart';
+import 'package:new_care/core/services/excel/excel_service.dart';
 import 'package:new_care/core/services/notifications/case_change_notifier.dart';
 import 'package:new_care/features/attendance/data/models/attendance_model.dart';
 import 'package:new_care/core/utils/ui_feedback.dart';
 import 'package:new_care/core/widgets/app_search_bar.dart';
 import 'package:new_care/features/invoice/presentation/widgets/invoice_card.dart';
 import '../../../invoice/presentation/widgets/invoice_preview_dialog.dart';
+import 'package:new_care/features/procedures/domain/repositories/procedures_repository.dart';
 import 'report_preview_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:get_it/get_it.dart';
@@ -268,10 +270,114 @@ class _ReportsScreenState extends State<ReportsScreen>
           children: [
             _buildDatePicker(),
             const SizedBox(width: 12),
-            IconButton(
-              onPressed: _generateDailyReport,
-              icon: const Icon(Icons.today_rounded, color: AppColors.secondary),
-              tooltip: 'تقرير اليوم',
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'today') {
+                  final now = DateTime.now();
+                  _generateReportForRange(
+                    DateTime(now.year, now.month, now.day),
+                    DateTime(now.year, now.month, now.day, 23, 59, 59),
+                    'تقرير اليوم',
+                    'Daily',
+                  );
+                } else if (value == 'yesterday') {
+                  final yesterday = DateTime.now().subtract(
+                    const Duration(days: 1),
+                  );
+                  _generateReportForRange(
+                    DateTime(yesterday.year, yesterday.month, yesterday.day),
+                    DateTime(
+                      yesterday.year,
+                      yesterday.month,
+                      yesterday.day,
+                      23,
+                      59,
+                      59,
+                    ),
+                    'تقرير أمس',
+                    'Yesterday',
+                  );
+                } else if (value == 'custom') {
+                  _showCustomRangePicker();
+                } else if (value == 'procedures') {
+                  _generateProceduresReport();
+                }
+              },
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.description_rounded,
+                  color: AppColors.secondary,
+                ),
+              ),
+              tooltip: 'إصدار تقرير',
+              offset: const Offset(0, 45),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'today',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.today_rounded,
+                        size: 20,
+                        color: AppColors.secondary,
+                      ),
+                      SizedBox(width: 10),
+                      Text('تقرير اليوم'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'yesterday',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.event_note_rounded,
+                        size: 20,
+                        color: AppColors.secondary,
+                      ),
+                      SizedBox(width: 10),
+                      Text('تقرير أمس'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'custom',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.date_range_rounded,
+                        size: 20,
+                        color: AppColors.primary,
+                      ),
+                      SizedBox(width: 10),
+                      Text('فترة مخصصة...'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'procedures',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.medical_services_rounded,
+                        size: 20,
+                        color: Colors.blue,
+                      ),
+                      SizedBox(width: 10),
+                      Text('تقرير الإجراءات والأسعار'),
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(width: 8),
             IconButton(
@@ -284,40 +390,163 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  void _generateDailyReport() {
-    final today = DateTime.now();
-    final todayCases = _cases
-        .where(
-          (c) =>
-              c.caseDate.year == today.year &&
-              c.caseDate.month == today.month &&
-              c.caseDate.day == today.day,
-        )
-        .toList();
+  Future<void> _generateReportForRange(
+    DateTime start,
+    DateTime end,
+    String label,
+    String prefix,
+  ) async {
+    LoadingDialog.show(context);
+    try {
+      final authState = context.read<AuthCubit>().state;
+      final user = authState is AuthAuthenticated ? authState.user : null;
+      final isAdmin = user?.role.isAdmin ?? false;
+      final nurseId = isAdmin ? null : user?.id;
 
-    if (todayCases.isEmpty) {
-      UIFeedback.showWarning(
-        context,
-        'لا توجد حالات مسجلة اليوم لإصدار تقرير بها',
-      );
-      return;
-    }
+      final repo = GetIt.I<ICasesRepository>();
+      final result = await repo.getAllCases(nurseId: nurseId);
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ReportPreviewScreen(
-          title: 'تقرير عمل اليوم - ${DateFormat('yyyy/MM/dd').format(today)}',
-          fileName: 'Daily_Report_${DateFormat('yyyy_MM_dd').format(today)}',
-          buildReport: () => ReportService.instance.generateCasesReportBytes(
-            cases: todayCases,
-            title: 'تقرير العمل اليومي',
-            subtitle:
-                'كشف الحالات المنفذة بتاريخ: ${DateFormat('yyyy/MM/dd').format(today)}',
+      final filteredCases = result.where((c) {
+        return c.caseDate.isAfter(start.subtract(const Duration(seconds: 1))) &&
+            c.caseDate.isBefore(end.add(const Duration(seconds: 1)));
+      }).toList();
+
+      if (mounted) LoadingDialog.hide(context);
+
+      if (filteredCases.isEmpty) {
+        if (mounted)
+          UIFeedback.showWarning(context, 'لا توجد حالات في الفترة المختارة');
+        return;
+      }
+
+      final dateStr = DateFormat('yyyy/MM/dd').format(start);
+      final subtitle =
+          start.day == end.day &&
+              start.month == end.month &&
+              start.year == end.year
+          ? 'كشف الحالات بتاريخ: $dateStr'
+          : 'كشف الحالات من: ${DateFormat('MM/dd').format(start)} إلى: ${DateFormat('MM/dd').format(end)}';
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ReportPreviewScreen(
+              title: '$label - ${DateFormat('yyyy-MM-dd').format(start)}',
+              fileName:
+                  '${prefix}_Report_${DateFormat('yyyy_MM_dd').format(start)}',
+              buildReport: () =>
+                  ReportService.instance.generateCasesReportBytes(
+                    cases: filteredCases,
+                    title: label,
+                    subtitle: subtitle,
+                  ),
+              onExportExcel: () async {
+                final success = await ExcelService.instance.exportCasesToExcel(
+                  filteredCases,
+                  '${prefix}_Report_${DateFormat('yyyy_MM_dd').format(start)}',
+                );
+                if (success && context.mounted) {
+                  UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+                }
+              },
+            ),
           ),
-        ),
-      ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        LoadingDialog.hide(context);
+        UIFeedback.showError(context, 'خطأ أثناء إصدار التقرير: $e');
+      }
+    }
+  }
+
+  Future<void> _showCustomRangePicker() async {
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2023),
+      lastDate: DateTime.now(),
+      locale: const Locale('ar'),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
+
+    if (range != null) {
+      _generateReportForRange(
+        range.start,
+        DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59),
+        'تقرير فترة مخصصة',
+        'Custom',
+      );
+    }
+  }
+
+  Future<void> _generateProceduresReport() async {
+    LoadingDialog.show(context);
+    try {
+      final repo = GetIt.I<IProceduresRepository>();
+      final procedures = await repo.getAllProcedures();
+
+      if (mounted) LoadingDialog.hide(context);
+
+      if (procedures.isEmpty) {
+        if (mounted)
+          UIFeedback.showWarning(context, 'لا توجد إجراءات مسجلة حالياً');
+        return;
+      }
+
+      final authState = context.read<AuthCubit>().state;
+      final userName = authState is AuthAuthenticated
+          ? authState.user.name
+          : 'مسؤول';
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ReportPreviewScreen(
+              title: 'تقرير قائمة الإجراءات والأسعار',
+              fileName:
+                  'Procedures_List_${DateFormat('yyyy_MM_dd').format(DateTime.now())}',
+              buildReport: () =>
+                  ReportService.instance.generateProceduresReportBytes(
+                    procedures: procedures,
+                    generatedBy: userName,
+                  ),
+              onExportExcel: () async {
+                final success = await ExcelService.instance.exportProceduresToExcel(
+                  procedures,
+                  'Procedures_List_${DateFormat('yyyy_MM_dd').format(DateTime.now())}',
+                );
+                if (success && context.mounted) {
+                  UIFeedback.showSuccess(
+                    context,
+                    'تم تصدير كشف الإجراءات بنجاح',
+                  );
+                }
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        LoadingDialog.hide(context);
+        UIFeedback.showError(context, 'خطأ أثناء إصدار تقرير الإجراءات: $e');
+      }
+    }
   }
 
   Widget _buildDatePicker() {
@@ -637,6 +866,27 @@ class _ReportsScreenState extends State<ReportsScreen>
                                           attendanceRecords: userAttendance,
                                           generatedBy: genBy,
                                         ),
+                                    onExportExcel: () async {
+                                      final success = await ExcelService
+                                          .instance
+                                          .exportSingleNurseAttendanceToExcel(
+                                            attendanceRecords: userAttendance,
+                                            nurseName: name,
+                                            year: _selectedDate.year,
+                                            month: _selectedDate.month,
+                                          );
+                                      if (success && context.mounted) {
+                                        UIFeedback.showSuccess(
+                                          context,
+                                          'تم تصدير ملف Excel بنجاح',
+                                        );
+                                      } else if (!success && context.mounted) {
+                                        UIFeedback.showError(
+                                          context,
+                                          'فشل تصدير ملف Excel أو تم إلغاؤه',
+                                        );
+                                      }
+                                    },
                                   ),
                                 ),
                               );
@@ -741,6 +991,19 @@ class _ReportsScreenState extends State<ReportsScreen>
             title: 'تقرير أداء العمل التفصيلي',
             subtitle: 'كشف الحالات والخدمات لشهر: $monthName',
           ),
+          onExportExcel: () async {
+            final fileName =
+                'Work_Report_${_selectedDate.year}_${_selectedDate.month}';
+            final success = await ExcelService.instance.exportCasesToExcel(
+              cases,
+              fileName,
+            );
+            if (success && context.mounted) {
+              UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+            } else if (!success && context.mounted) {
+              UIFeedback.showError(context, 'فشل تصدير ملف Excel أو تم إلغاؤه');
+            }
+          },
         ),
       ),
     );
@@ -780,6 +1043,24 @@ class _ReportsScreenState extends State<ReportsScreen>
                     shifts: shifts,
                     generatedBy: generatedBy,
                   ),
+              onExportExcel: () async {
+                final success = await ExcelService.instance
+                    .exportAttendanceToExcel(
+                      attendanceRecords: _attendance,
+                      shifts: shifts,
+                      year: _selectedDate.year,
+                      month: _selectedDate.month,
+                      generatedBy: generatedBy,
+                    );
+                if (success && context.mounted) {
+                  UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+                } else if (!success && context.mounted) {
+                  UIFeedback.showError(
+                    context,
+                    'فشل تصدير ملف Excel أو تم إلغاؤه',
+                  );
+                }
+              },
             ),
           ),
         );

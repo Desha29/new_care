@@ -13,6 +13,8 @@ import 'package:intl/intl.dart';
 import '../../../../core/widgets/dialogs/loading_dialog.dart';
 import '../../../reports/presentation/screens/report_preview_screen.dart';
 import '../../../../core/services/pdf/report_service.dart';
+import '../../../../core/services/excel/excel_service.dart';
+import '../../../../core/services/firebase/firebase_service.dart';
 import '../widgets/attendance_table.dart';
 
 class AttendanceScreen extends StatefulWidget {
@@ -73,6 +75,26 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 month: now.month,
                 generatedBy: userName,
               ),
+          onExportExcel: () async {
+            final shifts = await FirebaseService.instance.getMonthlyShifts(
+              now.year,
+              now.month,
+            );
+            final success = await ExcelService.instance.exportAttendanceToExcel(
+              attendanceRecords: data['records'],
+              shifts: shifts,
+              year: now.year,
+              month: now.month,
+              generatedBy: userName,
+            );
+            if (context.mounted) {
+              if (success) {
+                UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+              } else {
+                UIFeedback.showError(context, 'فشل تصدير ملف Excel أو تم إلغاؤه');
+              }
+            }
+          },
         ),
       ),
     );

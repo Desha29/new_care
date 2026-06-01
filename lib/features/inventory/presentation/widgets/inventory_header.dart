@@ -12,12 +12,14 @@ class InventoryHeader extends StatelessWidget {
   final InventoryState state;
   final VoidCallback onRefresh;
   final VoidCallback onAddItem;
+  final VoidCallback onGenerateReport;
 
   const InventoryHeader({
     super.key,
     required this.state,
     required this.onRefresh,
     required this.onAddItem,
+    required this.onGenerateReport,
   });
 
   @override
@@ -63,6 +65,14 @@ class InventoryHeader extends StatelessWidget {
                   onTap: onRefresh,
                   tooltip: 'تحديث البيانات',
                 ),
+                if (isLoaded) ...[
+                  const SizedBox(width: 12),
+                  _headerActionButton(
+                    icon: Icons.assessment_rounded,
+                    onTap: onGenerateReport,
+                    tooltip: 'تصدير تقرير الجرد',
+                  ),
+                ],
                 const SizedBox(width: 12),
                 PrimaryButton(
                   label: isMobile ? 'إضافة' : AppStrings.addItem,

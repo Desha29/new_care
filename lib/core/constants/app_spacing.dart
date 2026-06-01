@@ -40,7 +40,7 @@ class AppSpacing {
   // === مسافات الجداول - Table Spacing ===
   static const double tableCellPaddingH = 16.0;
   static const double tableCellPaddingV = 12.0;
-  static const double tableHeaderHeight = 48.0;
+  static const double tableHeaderHeight = 56.0;
   static const double tableRowHeight = 52.0;
 
   // === مسافات الشريط الجانبي - Sidebar Spacing ===

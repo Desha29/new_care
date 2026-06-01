@@ -8,6 +8,7 @@ class ReportPreviewScreen extends StatelessWidget {
   final String fileName;
   final Future<Uint8List> Function() buildReport;
   final List<Widget>? extraActions;
+  final Future<void> Function()? onExportExcel;
 
   const ReportPreviewScreen({
     super.key,
@@ -15,6 +16,7 @@ class ReportPreviewScreen extends StatelessWidget {
     required this.fileName,
     required this.buildReport,
     this.extraActions,
+    this.onExportExcel,
   });
 
   @override
@@ -189,6 +191,39 @@ class ReportPreviewScreen extends StatelessWidget {
                     ),
                     if (extraActions != null) ...[
                       ...extraActions!,
+                      const SizedBox(width: 12),
+                    ],
+                    if (onExportExcel != null) ...[
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          try {
+                            final success = await onExportExcel!();
+                            // Optional: show feedback or handle results if needed
+                          } catch (e) {
+                            // Suppress or handle error
+                          }
+                        },
+                        icon: const Icon(Icons.table_view_rounded, size: 18),
+                        label: const Text(
+                          'تصدير Excel',
+                          style: TextStyle(
+                            fontFamily: 'Cairo',
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF107C41),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
                       const SizedBox(width: 12),
                     ],
                     const SizedBox(width: 12),

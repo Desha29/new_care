@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/pdf/report_service.dart';
+import '../../../../core/services/excel/excel_service.dart';
 import '../../../../core/widgets/app_search_bar.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../../../../core/widgets/dialogs/custom_date_range_dialog.dart';
@@ -619,6 +620,15 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             subtitle:
                 'كشف الحالات المنفذة بتاريخ: ${DateFormat('yyyy/MM/dd').format(today)}',
           ),
+          onExportExcel: () async {
+            final fileName = 'Daily_Report_${DateFormat('yyyy_MM_dd').format(today)}';
+            final success = await ExcelService.instance.exportCasesToExcel(todayCases, fileName);
+            if (success && context.mounted) {
+              UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+            } else if (!success && context.mounted) {
+              UIFeedback.showError(context, 'فشل تصدير ملف Excel أو تم إلغاؤه');
+            }
+          },
         ),
       ),
     );
@@ -638,6 +648,15 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             title: 'تقرير أداء العمل التفصيلي',
             subtitle: 'كشف الحالات والخدمات لشهر: $monthName',
           ),
+          onExportExcel: () async {
+            final fileName = 'Work_Report_${_selectedMonth.year}_${_selectedMonth.month}';
+            final success = await ExcelService.instance.exportCasesToExcel(cases.cast<CaseModel>(), fileName);
+            if (success && context.mounted) {
+              UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+            } else if (!success && context.mounted) {
+              UIFeedback.showError(context, 'فشل تصدير ملف Excel أو تم إلغاؤه');
+            }
+          },
         ),
       ),
     );
@@ -677,6 +696,20 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                     shifts: shifts,
                     generatedBy: generatedBy,
                   ),
+              onExportExcel: () async {
+                final success = await ExcelService.instance.exportAttendanceToExcel(
+                  attendanceRecords: _attendance,
+                  shifts: shifts,
+                  year: _selectedMonth.year,
+                  month: _selectedMonth.month,
+                  generatedBy: generatedBy,
+                );
+                if (success && context.mounted) {
+                  UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+                } else if (!success && context.mounted) {
+                  UIFeedback.showError(context, 'فشل تصدير ملف Excel أو تم إلغاؤه');
+                }
+              },
             ),
           ),
         );
@@ -717,6 +750,19 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             attendanceRecords: userAttendance,
             generatedBy: genBy,
           ),
+          onExportExcel: () async {
+            final success = await ExcelService.instance.exportSingleNurseAttendanceToExcel(
+              attendanceRecords: userAttendance,
+              nurseName: name,
+              year: _selectedMonth.year,
+              month: _selectedMonth.month,
+            );
+            if (success && context.mounted) {
+              UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+            } else if (!success && context.mounted) {
+              UIFeedback.showError(context, 'فشل تصدير ملف Excel أو تم إلغاؤه');
+            }
+          },
         ),
       ),
     );

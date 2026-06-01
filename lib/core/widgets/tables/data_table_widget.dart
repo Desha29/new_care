@@ -43,12 +43,14 @@ class NewCareDataTable extends StatelessWidget {
               minWidth: minWidth ?? MediaQuery.of(context).size.width - 320,
             ),
             child: DataTable(
-              headingRowColor: WidgetStateProperty.all(AppColors.surfaceVariant),
+              headingRowColor: WidgetStateProperty.all(
+                AppColors.surfaceVariant,
+              ),
               headingRowHeight: AppSpacing.tableHeaderHeight,
               dataRowMinHeight: AppSpacing.tableRowHeight,
               dataRowMaxHeight: AppSpacing.tableRowHeight,
               horizontalMargin: AppSpacing.tableCellPaddingH,
-              columnSpacing: AppSpacing.tableCellPaddingH,
+              columnSpacing: AppSpacing.tableCellPaddingH * 1.5,
               showCheckboxColumn: showCheckboxColumn,
               sortColumnIndex: sortColumnIndex,
               sortAscending: sortAscending,
@@ -57,6 +59,9 @@ class NewCareDataTable extends StatelessWidget {
                   label: Text(
                     entry.value,
                     style: AppTypography.tableHeader,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
                   ),
                   onSort: onSort != null
                       ? (columnIndex, ascending) => onSort!(columnIndex)
@@ -106,10 +111,7 @@ class _NewCarePaginatedTableState extends State<NewCarePaginatedTable> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        NewCareDataTable(
-          columns: widget.columns,
-          rows: _currentRows,
-        ),
+        NewCareDataTable(columns: widget.columns, rows: _currentRows),
         if (_totalPages > 1) ...[
           const SizedBox(height: AppSpacing.md),
           _buildPagination(),
@@ -125,9 +127,9 @@ class _NewCarePaginatedTableState extends State<NewCarePaginatedTable> {
         IconButton(
           onPressed: _currentPage > 0
               ? () => setState(() {
-                    _currentPage--;
-                    widget.onPageChanged?.call(_currentPage);
-                  })
+                  _currentPage--;
+                  widget.onPageChanged?.call(_currentPage);
+                })
               : null,
           icon: const Icon(Icons.chevron_right_rounded),
           iconSize: AppSpacing.iconLg,
@@ -142,19 +144,16 @@ class _NewCarePaginatedTableState extends State<NewCarePaginatedTable> {
         IconButton(
           onPressed: _currentPage < _totalPages - 1
               ? () => setState(() {
-                    _currentPage++;
-                    widget.onPageChanged?.call(_currentPage);
-                  })
+                  _currentPage++;
+                  widget.onPageChanged?.call(_currentPage);
+                })
               : null,
           icon: const Icon(Icons.chevron_left_rounded),
           iconSize: AppSpacing.iconLg,
           color: AppColors.primary,
         ),
         const SizedBox(width: AppSpacing.lg),
-        Text(
-          '${widget.allRows.length} سجل',
-          style: AppTypography.cardCaption,
-        ),
+        Text('${widget.allRows.length} سجل', style: AppTypography.cardCaption),
       ],
     );
   }

@@ -6,11 +6,61 @@ import '../../../../core/widgets/buttons/primary_button.dart';
 import '../../../../core/widgets/app_search_bar.dart';
 import '../cubit/procedures_cubit.dart';
 import '../cubit/procedures_state.dart';
+import '../../data/models/procedure_model.dart';
+import 'package:intl/intl.dart';
+import 'package:new_care/core/services/pdf/report_service.dart';
+import 'package:new_care/core/services/excel/excel_service.dart';
+import 'package:new_care/features/reports/presentation/screens/report_preview_screen.dart';
+import 'package:new_care/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:new_care/features/auth/presentation/cubit/auth_state.dart';
+import 'package:new_care/core/utils/ui_feedback.dart';
 
 class ProceduresHeader extends StatelessWidget {
   final VoidCallback onAdd;
 
   const ProceduresHeader({super.key, required this.onAdd});
+
+  Future<void> _generateProceduresReport(
+    BuildContext context,
+    List<ProcedureModel> procedures,
+  ) async {
+    if (procedures.isEmpty) {
+      UIFeedback.showWarning(context, 'لا توجد إجراءات لتصديرها');
+      return;
+    }
+
+    final authState = context.read<AuthCubit>().state;
+    final userName = authState is AuthAuthenticated
+        ? authState.user.name
+        : 'مسؤول';
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReportPreviewScreen(
+          title: 'قائمة الإجراءات الطبية',
+          fileName:
+              'Procedures_Report_${DateFormat('yyyy_MM_dd').format(DateTime.now())}',
+          buildReport: () =>
+              ReportService.instance.generateProceduresReportBytes(
+                procedures: procedures,
+                generatedBy: userName,
+              ),
+          onExportExcel: () async {
+            final fileName =
+                'Procedures_Export_${DateFormat('yyyy_MM_dd').format(DateTime.now())}';
+            final success = await ExcelService.instance.exportProceduresToExcel(
+              procedures,
+              fileName,
+            );
+            if (success && context.mounted) {
+              UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+            }
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,10 +80,26 @@ class ProceduresHeader extends StatelessWidget {
                   'الإجراءات والخدمات',
                   style: AppTypography.pageTitle.copyWith(fontSize: 24),
                 ),
-                PrimaryButton(
-                  label: 'إضافة إجراء جديد',
-                  icon: Icons.add_rounded,
-                  onPressed: onAdd,
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => _generateProceduresReport(
+                        context,
+                        loadedState?.procedures ?? [],
+                      ),
+                      icon: const Icon(
+                        Icons.picture_as_pdf_rounded,
+                        color: Colors.redAccent,
+                      ),
+                      tooltip: 'تصدير PDF',
+                    ),
+                    const SizedBox(width: 8),
+                    PrimaryButton(
+                      label: 'إضافة إجراء جديد',
+                      icon: Icons.add_rounded,
+                      onPressed: onAdd,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -97,7 +163,10 @@ class ProceduresHeader extends StatelessWidget {
                           value: loadedState.maxPrice,
                           hint: 'السعر الأقصى',
                           items: const [
-                            DropdownMenuItem(value: 50.0, child: Text('حتى 50')),
+                            DropdownMenuItem(
+                              value: 50.0,
+                              child: Text('حتى 50'),
+                            ),
                             DropdownMenuItem(
                               value: 100.0,
                               child: Text('حتى 100'),

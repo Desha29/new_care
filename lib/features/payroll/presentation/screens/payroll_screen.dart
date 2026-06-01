@@ -13,6 +13,7 @@ import '../widgets/payroll_table.dart';
 import '../widgets/salary_breakdown_card.dart';
 import '../../../../core/services/local/sqlite_service.dart';
 import '../../../../core/services/pdf/report_service.dart';
+import '../../../../core/services/excel/excel_service.dart';
 import '../../../../features/auth/presentation/cubit/auth_cubit.dart';
 import '../../../../features/auth/presentation/cubit/auth_state.dart';
 import '../../../../features/reports/presentation/screens/report_preview_screen.dart';
@@ -556,6 +557,18 @@ class _PayrollScreenState extends State<PayrollScreen> {
             month: _selectedMonth,
             generatedBy: genBy,
           ),
+          onExportExcel: () async {
+            final success = await ExcelService.instance.exportPayrollToExcel(
+              payrolls: state.payrolls,
+              year: _selectedYear,
+              month: _selectedMonth,
+            );
+            if (success && context.mounted) {
+              UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+            } else if (!success && context.mounted) {
+              UIFeedback.showError(context, 'فشل تصدير ملف Excel أو تم إلغاؤه');
+            }
+          },
         ),
       ),
     );
@@ -621,6 +634,19 @@ class _PayrollScreenState extends State<PayrollScreen> {
             generatedBy: genBy,
             nurseName: nurseName,
           ),
+          onExportExcel: () async {
+            final success = await ExcelService.instance.exportIncomeDetailsToExcel(
+              cases: filteredCases,
+              year: _selectedYear,
+              month: _selectedMonth,
+              nurseName: nurseName,
+            );
+            if (success && context.mounted) {
+              UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+            } else if (!success && context.mounted) {
+              UIFeedback.showError(context, 'فشل تصدير ملف Excel أو تم إلغاؤه');
+            }
+          },
         ),
       ),
     );
