@@ -74,19 +74,17 @@ class _SidebarWidgetState extends State<SidebarWidget> {
     'إدارة المركز',
     _SidebarItem(icon: Icons.event_note_rounded, label: 'إدارة الورديات', index: 3, roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.medical_services_rounded, label: 'الخدمات والإجراءات', index: 4, roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.person_rounded, label: AppStrings.users, index: 8, roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.inventory_2_rounded, label: AppStrings.inventory, index: 9, roles: ['admin', 'super_admin']),
     
     'المالية والرواتب',
     _SidebarItem(icon: Icons.account_balance_rounded, label: 'المالية', index: 5, roles: ['admin', 'super_admin']),
     _SidebarItem(icon: Icons.payments_rounded, label: 'الرواتب', index: 6, roles: ['admin', 'super_admin']),
 
-    
-    'النظام والتقارير',
-    _SidebarItem(icon: Icons.assessment_rounded, label: 'التقارير', index: 7, roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.history_rounded, label: AppStrings.activityLogs, index: 10, roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.settings_rounded, label: AppStrings.settings, index: 11, roles: ['admin', 'super_admin']),
-    _SidebarItem(icon: Icons.analytics_rounded, label: 'حالة البيانات', index: 12, roles: ['admin', 'super_admin']),
+    'النظام',
+    _SidebarItem(icon: Icons.person_rounded, label: AppStrings.users, index: 7, roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.inventory_2_rounded, label: AppStrings.inventory, index: 8, roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.history_rounded, label: AppStrings.activityLogs, index: 9, roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.settings_rounded, label: AppStrings.settings, index: 10, roles: ['admin', 'super_admin']),
+    _SidebarItem(icon: Icons.analytics_rounded, label: 'حالة البيانات', index: 11, roles: ['admin', 'super_admin']),
   ];
 
   List<dynamic> get _filteredItems {

@@ -104,43 +104,63 @@ class ReportPreviewScreen extends StatelessWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: PdfPreview(
-                      build: (format) => buildReport(),
-                      allowSharing: false,
-                      allowPrinting: false,
-                      canChangePageFormat: false,
-                      canChangeOrientation: false,
-                      canDebug: false,
-                      loadingWidget: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 48,
-                              height: 48,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 3,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppColors.primary,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'جاري تجهيز التقرير...',
-                              style: TextStyle(
-                                fontFamily: 'Cairo',
-                                fontSize: 14,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
+                  child: PdfPreview.builder(
+                    build: (format) => buildReport(),
+                    allowSharing: false,
+                    allowPrinting: false,
+                    canChangePageFormat: false,
+                    canChangeOrientation: false,
+                    canDebug: false,
+                    enableScrollToPage: true,
+                    pagesBuilder: (context, pages) {
+                      return ListView.separated(
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                        itemCount: pages.length,
+                        separatorBuilder: (_, index) => const SizedBox(height: 14),
+                        itemBuilder: (context, i) => Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: AppColors.border),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: const [
+                              BoxShadow(offset: Offset(0, 3), blurRadius: 5),
+                            ],
+                          ),
+                          child: AspectRatio(
+                            aspectRatio: pages[i].aspectRatio,
+                            child: Image(image: pages[i].image, fit: BoxFit.cover),
+                          ),
                         ),
+                      );
+                    },
+                    loadingWidget: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'جاري تجهيز التقرير...',
+                            style: TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
-                      pdfFileName: fileName,
                     ),
+                    pdfFileName: fileName,
                   ),
                 ),
               ),

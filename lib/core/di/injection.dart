@@ -6,7 +6,7 @@ import 'package:new_care/core/services/sync/sync_manager.dart';
 import 'package:new_care/core/services/device/device_service.dart';
 import 'package:new_care/core/services/network/connectivity_service.dart';
 import 'package:new_care/core/services/notifications/notification_service.dart';
-import 'package:new_care/core/services/pdf/report_service.dart';
+import 'package:new_care/core/services/reports/report_service.dart';
 import 'package:new_care/core/services/local/local_log_service.dart';
 import 'package:new_care/core/services/sync/backup_service.dart';
 import 'package:new_care/core/services/pdf/export_service.dart';

@@ -12,7 +12,7 @@ import '../../data/models/payroll_model.dart';
 import '../widgets/payroll_table.dart';
 import '../widgets/salary_breakdown_card.dart';
 import '../../../../core/services/local/sqlite_service.dart';
-import '../../../../core/services/pdf/report_service.dart';
+import '../../../../core/services/reports/report_service.dart';
 import '../../../../core/services/excel/excel_service.dart';
 import '../../../../features/auth/presentation/cubit/auth_cubit.dart';
 import '../../../../features/auth/presentation/cubit/auth_state.dart';
@@ -80,6 +80,52 @@ class _PayrollScreenState extends State<PayrollScreen> {
         },
       ),
     );
+  }
+
+  Widget _reportBtn({
+    required IconData icon,
+    required String label,
+    VoidCallback? onTap,
+    bool isSecondary = false,
+  }) {
+    final color = isSecondary ? AppColors.secondary : AppColors.primary;
+    return InkWell(
+      onTap: onTap ?? () {},
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: color),
+            if (label.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              Text(label, style: TextStyle(
+                fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.bold, color: color,
+              )),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportPayrollExcel() async {
+    if (context.read<PayrollCubit>().state is! PayrollLoaded) return;
+    final state = context.read<PayrollCubit>().state as PayrollLoaded;
+    final success = await ExcelService.instance.exportPayrollToExcel(
+      payrolls: state.payrolls,
+      year: _selectedYear,
+      month: _selectedMonth,
+    );
+    if (context.mounted) {
+      UIFeedback.showSuccess(context, success ? 'تم التصدير بنجاح' : 'فشل التصدير');
+    }
   }
 
   Widget _buildHeader(BuildContext context) {
@@ -182,18 +228,37 @@ class _PayrollScreenState extends State<PayrollScreen> {
                     elevation: 0,
                   ),
                 ),
-                const SizedBox(width: 12),
-                IconButton(
-                  onPressed: _generatePayrollReport,
-                  icon: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.error, size: 28),
-                  tooltip: 'طباعة التقرير الشهري',
-                ),
-                IconButton(
-                  onPressed: _generateIncomeReport,
-                  icon: const Icon(Icons.summarize_rounded, color: AppColors.primary, size: 28),
-                  tooltip: 'تفاصيل دخل العمليات',
-                ),
               ],
+              const SizedBox(width: 12),
+              _reportBtn(
+                icon: Icons.picture_as_pdf_rounded,
+                label: isMobile ? '' : 'تقرير',
+                onTap: _generatePayrollReport,
+              ),
+              const SizedBox(width: 8),
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'income') _generateIncomeReport();
+                  else if (value == 'excel') _exportPayrollExcel();
+                },
+                child: _reportBtn(
+                  icon: Icons.more_horiz_rounded,
+                  label: isMobile ? '' : 'جميع التقارير',
+                  isSecondary: true,
+                ),
+                offset: const Offset(0, 45),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'income', child: Row(children: [
+                    Icon(Icons.summarize_rounded, size: 20, color: AppColors.primary),
+                    SizedBox(width: 10), Text('تفاصيل دخل العمليات'),
+                  ])),
+                  const PopupMenuItem(value: 'excel', child: Row(children: [
+                    Icon(Icons.table_view_rounded, size: 20, color: Color(0xFF107C41)),
+                    SizedBox(width: 10), Text('تصدير Excel'),
+                  ])),
+                ],
+              ),
             ],
           ),
       ],

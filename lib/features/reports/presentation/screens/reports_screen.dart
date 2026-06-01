@@ -12,7 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:new_care/features/cases/data/models/case_model.dart';
 import 'package:new_care/features/cases/domain/repositories/cases_repository.dart';
 import 'package:new_care/core/services/firebase/firebase_service.dart';
-import 'package:new_care/core/services/pdf/report_service.dart';
+import 'package:new_care/core/services/reports/report_service.dart';
 import 'package:new_care/core/services/excel/excel_service.dart';
 import 'package:new_care/core/services/notifications/case_change_notifier.dart';
 import 'package:new_care/features/attendance/data/models/attendance_model.dart';

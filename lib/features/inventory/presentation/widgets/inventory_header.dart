@@ -13,6 +13,7 @@ class InventoryHeader extends StatelessWidget {
   final VoidCallback onRefresh;
   final VoidCallback onAddItem;
   final VoidCallback onGenerateReport;
+  final VoidCallback onShowAllReports;
 
   const InventoryHeader({
     super.key,
@@ -20,6 +21,7 @@ class InventoryHeader extends StatelessWidget {
     required this.onRefresh,
     required this.onAddItem,
     required this.onGenerateReport,
+    required this.onShowAllReports,
   });
 
   @override
@@ -67,11 +69,9 @@ class InventoryHeader extends StatelessWidget {
                 ),
                 if (isLoaded) ...[
                   const SizedBox(width: 12),
-                  _headerActionButton(
-                    icon: Icons.assessment_rounded,
-                    onTap: onGenerateReport,
-                    tooltip: 'تصدير تقرير الجرد',
-                  ),
+                  _reportButton(icon: Icons.assessment_rounded, label: 'تقرير', onTap: onGenerateReport),
+                  const SizedBox(width: 8),
+                  _reportButton(icon: Icons.more_horiz_rounded, label: 'جميع التقارير', onTap: onShowAllReports, isSecondary: true),
                 ],
                 const SizedBox(width: 12),
                 PrimaryButton(
@@ -127,6 +127,37 @@ class InventoryHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _reportButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool isSecondary = false,
+  }) {
+    final color = isSecondary ? AppColors.secondary : AppColors.primary;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(
+              fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.bold, color: color,
+            )),
+          ],
+        ),
+      ),
     );
   }
 

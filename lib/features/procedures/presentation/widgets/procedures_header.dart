@@ -8,7 +8,7 @@ import '../cubit/procedures_cubit.dart';
 import '../cubit/procedures_state.dart';
 import '../../data/models/procedure_model.dart';
 import 'package:intl/intl.dart';
-import 'package:new_care/core/services/pdf/report_service.dart';
+import 'package:new_care/core/services/reports/report_service.dart';
 import 'package:new_care/core/services/excel/excel_service.dart';
 import 'package:new_care/features/reports/presentation/screens/report_preview_screen.dart';
 import 'package:new_care/features/auth/presentation/cubit/auth_cubit.dart';
@@ -82,17 +82,14 @@ class ProceduresHeader extends StatelessWidget {
                 ),
                 Row(
                   children: [
-                    IconButton(
-                      onPressed: () => _generateProceduresReport(
-                        context,
-                        loadedState?.procedures ?? [],
-                      ),
-                      icon: const Icon(
-                        Icons.picture_as_pdf_rounded,
-                        color: Colors.redAccent,
-                      ),
-                      tooltip: 'تصدير PDF',
+                    _reportButton(
+                      context,
+                      icon: Icons.picture_as_pdf_rounded,
+                      label: 'تقرير',
+                      onTap: () => _generateProceduresReport(context, loadedState?.procedures ?? []),
                     ),
+                    const SizedBox(width: 8),
+                    _allReportsButton(context, loadedState?.procedures ?? []),
                     const SizedBox(width: 8),
                     PrimaryButton(
                       label: 'إضافة إجراء جديد',
@@ -194,6 +191,73 @@ class ProceduresHeader extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  Widget _reportButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: AppColors.primary),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(
+              fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary,
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _allReportsButton(BuildContext context, List<ProcedureModel> procedures) {
+    return PopupMenuButton<String>(
+      onSelected: (value) {
+        if (value == 'excel') {
+          UIFeedback.showSuccess(context, 'جاري تصدير Excel...');
+          ExcelService.instance.exportProceduresToExcel(procedures);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.secondary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.more_horiz_rounded, size: 16, color: AppColors.secondary),
+            const SizedBox(width: 6),
+            Text('جميع التقارير', style: TextStyle(
+              fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary,
+            )),
+          ],
+        ),
+      ),
+      offset: const Offset(0, 45),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: 'excel', child: Row(children: [
+          Icon(Icons.table_view_rounded, size: 20, color: Color(0xFF107C41)),
+          SizedBox(width: 10), Text('تصدير Excel'),
+        ])),
+      ],
     );
   }
 

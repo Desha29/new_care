@@ -12,7 +12,7 @@ import '../widgets/attendance_analytics_chart.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/widgets/dialogs/loading_dialog.dart';
 import '../../../reports/presentation/screens/report_preview_screen.dart';
-import '../../../../core/services/pdf/report_service.dart';
+import '../../../../core/services/reports/report_service.dart';
 import '../../../../core/services/excel/excel_service.dart';
 import '../../../../core/services/firebase/firebase_service.dart';
 import '../widgets/attendance_table.dart';
@@ -224,15 +224,88 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               const SizedBox(width: 12),
               _buildHeaderButton(
                 icon: Icons.file_download_outlined,
-                label: 'تصدير تقرير الشهر',
+                label: 'تقرير الشهر',
                 onPressed: _generateMonthlyReport,
                 isOutlined: false,
               ),
+              const SizedBox(width: 8),
+              _allReportsDropdown(),
             ],
           ],
         ),
       ],
     );
+  }
+
+  Widget _allReportsDropdown() {
+    return PopupMenuButton<String>(
+      onSelected: (value) {
+        if (value == 'full') _generateMonthlyReport();
+        else if (value == 'excel') _exportMonthlyExcelOnly();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.secondary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.more_horiz_rounded, size: 18, color: AppColors.secondary),
+            const SizedBox(width: 4),
+            Text('جميع التقارير', style: TextStyle(
+              fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary,
+            )),
+          ],
+        ),
+      ),
+      offset: const Offset(0, 50),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      itemBuilder: (context) => [
+        PopupMenuItem(value: 'full', child: Row(children: [
+          Icon(Icons.people_rounded, size: 20, color: AppColors.secondary),
+          const SizedBox(width: 10), const Text('تقرير حضور شامل'),
+        ])),
+        PopupMenuItem(value: 'excel', child: Row(children: [
+          Icon(Icons.table_view_rounded, size: 20, color: const Color(0xFF107C41)),
+          const SizedBox(width: 10), const Text('تصدير Excel فقط'),
+        ])),
+      ],
+    );
+  }
+
+  Future<void> _exportMonthlyExcelOnly() async {
+    final now = DateTime.now();
+    final authState = context.read<AuthCubit>().state;
+    final userName = authState is AuthAuthenticated ? authState.user.name : 'مدير النظام';
+
+    LoadingDialog.show(context, message: 'جاري إعداد التقرير...');
+    final data = await context.read<AttendanceCubit>().getMonthlyReportData(now.year, now.month);
+    if (!mounted) return;
+    LoadingDialog.hide(context);
+
+    if (data == null) {
+      UIFeedback.showWarning(context, 'لا توجد بيانات');
+      return;
+    }
+
+    final shifts = await FirebaseService.instance.getMonthlyShifts(now.year, now.month);
+    final success = await ExcelService.instance.exportAttendanceToExcel(
+      attendanceRecords: data['records'],
+      shifts: shifts,
+      year: now.year,
+      month: now.month,
+      generatedBy: userName,
+    );
+    if (context.mounted) {
+      if (success) {
+        UIFeedback.showSuccess(context, 'تم تصدير ملف Excel بنجاح');
+      } else {
+        UIFeedback.showError(context, 'فشل تصدير ملف Excel أو تم إلغاؤه');
+      }
+    }
   }
 
   Widget _buildHeaderButton({

@@ -6,7 +6,7 @@ import 'package:new_care/core/widgets/dialogs/confirm_dialog.dart';
 import 'package:new_care/features/inventory/data/models/inventory_model.dart';
 import 'package:new_care/features/inventory/presentation/cubit/inventory_cubit.dart';
 import 'package:new_care/features/inventory/presentation/cubit/inventory_state.dart';
-import 'package:new_care/core/services/pdf/report_service.dart';
+import 'package:new_care/core/services/reports/report_service.dart';
 import 'package:new_care/core/services/excel/excel_service.dart';
 import 'package:new_care/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:new_care/features/auth/presentation/cubit/auth_state.dart';
@@ -40,6 +40,7 @@ class InventoryScreen extends StatelessWidget {
                   onRefresh: () => context.read<InventoryCubit>().loadInventory(),
                   onAddItem: () => _showItemDialog(context),
                   onGenerateReport: () => _generateReport(context, state),
+                  onShowAllReports: () => _showAllReports(context, state),
                 ),
                 const SizedBox(height: 16),
                 if (state is InventoryLoaded) ...[
@@ -162,6 +163,71 @@ class InventoryScreen extends StatelessWidget {
               UIFeedback.showError(context, 'فشل تصدير ملف Excel أو تم إلغاؤه');
             }
           },
+        ),
+      ),
+    );
+  }
+
+  void _showAllReports(BuildContext context, InventoryState state) {
+    if (state is! InventoryLoaded) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.assessment_rounded, color: AppColors.primary),
+            SizedBox(width: 12),
+            Text('تقارير المخزون', style: TextStyle(fontFamily: 'Cairo', fontSize: 18)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.inventory_2_rounded, color: AppColors.secondary),
+              title: const Text('تقرير المخزون الحالي', style: TextStyle(fontFamily: 'Cairo')),
+              onTap: () { Navigator.pop(ctx); _generateReport(context, state); },
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+              title: const Text('المخزون منخفض ومنتهي الصلاحية', style: TextStyle(fontFamily: 'Cairo')),
+              onTap: () {
+                Navigator.pop(ctx);
+                final lowStock = state.filteredItems
+                    .where((i) => i.quantity <= i.minStock || i.isExpired)
+                    .toList();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ReportPreviewScreen(
+                      title: 'إنذار المخزون',
+                      fileName: 'Low_Stock_Alert',
+                      buildReport: () => ReportService.instance.generateInventoryReportBytes(
+                        items: lowStock,
+                        generatedBy: 'مدير النظام',
+                      ),
+                    ),
+                  ),
+                );
+              },
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.table_chart_rounded, color: Color(0xFF107C41)),
+              title: const Text('تصدير Excel', style: TextStyle(fontFamily: 'Cairo')),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final success = await ExcelService.instance.exportInventoryToExcel(state.filteredItems);
+                if (context.mounted) {
+                  UIFeedback.showSuccess(context, success ? 'تم التصدير بنجاح' : 'فشل التصدير');
+                }
+              },
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ],
         ),
       ),
     );

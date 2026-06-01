@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../cases/data/models/case_model.dart';
-import '../../../../core/services/pdf/report_service.dart';
+import '../../../../core/services/reports/report_service.dart';
 
 class InvoicePreviewDialog extends StatelessWidget {
   final CaseModel caseData;

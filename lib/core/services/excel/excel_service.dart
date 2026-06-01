@@ -37,11 +37,27 @@ class ExcelService {
     return TextCellValue(value.toString());
   }
 
+  /// تهيئة ورقة العمل الأولى (دائماً موجودة بعد createExcel)
+  Sheet _initSheet(Excel excel, String name) {
+    // احصل على الورقة الأولى مباشرة من الخريطة لتجنب مشاكل rename
+    if (excel.sheets.isEmpty) return excel[name];
+    final sheet = excel.sheets.values.first;
+    final current = excel.sheets.keys.first;
+    if (current != name) {
+      try {
+        excel.rename(current, name);
+      } catch (_) {
+        // تجاهل فشل rename – استخدم الورقة كما هي
+      }
+    }
+    return sheet;
+  }
+
   /// فتح نافذة حفظ الملف وتخزين البيانات
   Future<bool> _saveAndOpen(Excel excel, String defaultName) async {
     try {
       final bytes = excel.save();
-      if (bytes == null) return false;
+      if (bytes == null || bytes.isEmpty) return false;
 
       // اختيار مسار الحفظ عبر FilePicker
       final String? selectedPath = await FilePicker.platform.saveFile(
@@ -86,8 +102,7 @@ class ExcelService {
 
   Future<bool> exportInventoryToExcel(List<InventoryModel> items) async {
     final excel = Excel.createExcel();
-    final sheet = excel[excel.getDefaultSheet() ?? 'Sheet1'];
-    excel.rename(sheet.sheetName, 'المستلزمات والمخزون');
+    final sheet = _initSheet(excel, 'المستلزمات والمخزون');
 
     // العناوين
     sheet.appendRow([
@@ -140,8 +155,7 @@ class ExcelService {
     String reportTitle,
   ) async {
     final excel = Excel.createExcel();
-    final sheet = excel[excel.getDefaultSheet() ?? 'Sheet1'];
-    excel.rename(sheet.sheetName, 'تقرير الحالات');
+    final sheet = _initSheet(excel, 'تقرير الحالات');
 
     sheet.appendRow([
       _val('م'),
@@ -203,8 +217,7 @@ class ExcelService {
     String? fileName,
   ]) async {
     final excel = Excel.createExcel();
-    final sheet = excel[excel.getDefaultSheet() ?? 'Sheet1'];
-    excel.rename(sheet.sheetName, 'قائمة الإجراءات الطبية');
+    final sheet = _initSheet(excel, 'قائمة الإجراءات الطبية');
 
     sheet.appendRow([
       _val('م'),
@@ -245,8 +258,7 @@ class ExcelService {
     required String generatedBy,
   }) async {
     final excel = Excel.createExcel();
-    final sheet = excel[excel.getDefaultSheet() ?? 'Sheet1'];
-    excel.rename(sheet.sheetName, 'حضور الموظفين');
+    final sheet = _initSheet(excel, 'حضور الموظفين');
 
     sheet.appendRow([
       _val('م'),
@@ -293,8 +305,7 @@ class ExcelService {
     required int month,
   }) async {
     final excel = Excel.createExcel();
-    final sheet = excel[excel.getDefaultSheet() ?? 'Sheet1'];
-    excel.rename(sheet.sheetName, 'حضور الموظف');
+    final sheet = _initSheet(excel, 'حضور الموظف');
 
     sheet.appendRow([
       _val('تقرير حضور وانصراف الموظف: $nurseName لشهر: $month/$year'),
@@ -357,8 +368,7 @@ class ExcelService {
     required int month,
   }) async {
     final excel = Excel.createExcel();
-    final sheet = excel[excel.getDefaultSheet() ?? 'Sheet1'];
-    excel.rename(sheet.sheetName, 'مسير الرواتب');
+    final sheet = _initSheet(excel, 'مسير الرواتب');
 
     sheet.appendRow([
       _val('م'),
@@ -409,8 +419,7 @@ class ExcelService {
     String? nurseName,
   }) async {
     final excel = Excel.createExcel();
-    final sheet = excel[excel.getDefaultSheet() ?? 'Sheet1'];
-    excel.rename(sheet.sheetName, 'دخل العمليات');
+    final sheet = _initSheet(excel, 'دخل العمليات');
 
     final title = nurseName != null
         ? 'تفاصيل دخل عمليات الممرض: $nurseName لشهر: $month/$year'
@@ -504,8 +513,7 @@ class ExcelService {
     final excel = Excel.createExcel();
 
     // 1. ورقة الإيرادات والمصروفات الإجمالية - Summary Sheet
-    final summarySheet = excel[excel.getDefaultSheet() ?? 'Sheet1'];
-    excel.rename(summarySheet.sheetName, 'الملخص المالي');
+    final summarySheet = _initSheet(excel, 'الملخص المالي');
 
     double totalIncome = cases.fold(0, (sum, c) => sum + c.grandTotal);
     double totalExpenses = expenses.fold(0, (sum, e) => sum + e.amount);
